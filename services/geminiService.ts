@@ -1,12 +1,11 @@
-
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { ProjectFile } from '../types';
 
-if (!process.env.AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU) {
-  console.warn("Gemini API key not found in environment variables. Using a placeholder key. Functionality will be limited.");
-}
+const ai = process.env.API_KEY ? new GoogleGenAI({ apiKey: process.env.API_KEY }) : null;
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "fallback-key-for-dev" });
+if (!ai) {
+  console.warn("Gemini API key not found in environment variables. Gemini functionality will be disabled.");
+}
 
 const generationConfig = {
   responseMimeType: "application/json",
@@ -60,9 +59,9 @@ export const generateCodeWithGemini = async (
   prompt: string,
   existingFiles: ProjectFile[]
 ): Promise<{ message: string; files: ProjectFile[] }> => {
-  if (!process.env.API_KEY) {
+  if (!ai) {
       return {
-        message: "It looks like the Gemini API key isn't set up. I can't generate code right now. Please configure it in the settings.",
+        message: "It looks like the Gemini API key isn't set up. I can't generate code right now. Please check your environment configuration.",
         files: existingFiles,
       };
   }
