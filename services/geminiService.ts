@@ -2,7 +2,7 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { ProjectFile } from '../types';
 
-if (!process.env.API_KEY) {
+if (!process.env.AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU) {
   console.warn("Gemini API key not found in environment variables. Using a placeholder key. Functionality will be limited.");
 }
 
