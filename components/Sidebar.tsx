@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileIcon, ExtensionIcon, UserIcon, SettingsIcon, DownloadIcon } from './Icons';
+import { FileIcon, ExtensionIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon } from './Icons';
 import { ProjectFile } from '../types';
 
 interface SidebarProps {
@@ -8,6 +7,7 @@ interface SidebarProps {
   onFileSelect: (fileName: string) => void;
   onDownload: () => void;
   activeFile: string | null;
+  onClose?: () => void;
 }
 
 const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => {
@@ -21,7 +21,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
     );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownload, activeFile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownload, activeFile, onClose }) => {
   const [activeTab, setActiveTab] = React.useState('files');
   
   return (
@@ -63,9 +63,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownloa
 
         {/* Content Panel */}
         <div className="w-64 bg-[#252526] p-2">
-            <h2 className="text-sm font-bold uppercase text-gray-400 p-2 tracking-wider">
-                {activeTab === 'files' ? 'Explorer' : 'Coming Soon'}
-            </h2>
+            <div className="flex justify-between items-center p-2">
+                <h2 className="text-sm font-bold uppercase text-gray-400 tracking-wider">
+                    {activeTab === 'files' ? 'Explorer' : 'Coming Soon'}
+                </h2>
+                {onClose && (
+                    <button onClick={onClose} className="p-1 rounded-md text-gray-300 hover:bg-gray-700 lg:hidden">
+                        <CloseIcon />
+                    </button>
+                )}
+            </div>
+
             {activeTab === 'files' && (
                 <ul>
                     {files.map(file => (

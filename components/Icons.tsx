@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const iconProps = {
@@ -65,5 +64,19 @@ export const CloseIcon = () => (
 export const SparklesIcon = () => (
     <svg {...iconProps} className="w-5 h-5 text-yellow-400" viewBox="0 0 24 24" fill="currentColor">
       <path d="M10.25 2.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-.75.75h-2a.75.75 0 0 1-.75-.75v-2zM4.75 8.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-.75.75h-2a.75.75 0 0 1-.75-.75v-2zm12-2a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 .75.75v2a.75.75 0 0 1-.75.75h-2a.75.75 0 0 1-.75-.75v-2zM11 15.25a.75.75 0 0 0-1.5 0v2a.75.75 0 0 0 1.5 0v-2zm-5.42 2.47a.75.75 0 0 1 1.06-.02l1.439 1.44a.75.75 0 0 1-1.06 1.06l-1.44-1.439a.75.75 0 0 1 .001-1.06zm12.84 0a.75.75 0 0 0-1.06-.02l-1.439 1.44a.75.75 0 1 0 1.06 1.06l1.44-1.439a.75.75 0 0 0-.001-1.06z" />
+    </svg>
+);
+
+export const MenuIcon = () => (
+    <svg {...iconProps} viewBox="0 0 24 24">
+      <path d="M4 6l16 0" />
+      <path d="M4 12l16 0" />
+      <path d="M4 18l16 0" />
+    </svg>
+);
+  
+export const ChatIcon = () => (
+    <svg {...iconProps} viewBox="0 0 24 24">
+      <path d="M21 15a2 2 0 0 1 -2 2h-11l-4 4v-13a2 2 0 0 1 2 -2h11a2 2 0 0 1 2 2v8z" />
     </svg>
 );
