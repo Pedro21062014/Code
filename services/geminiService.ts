@@ -1,11 +1,8 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { ProjectFile } from '../types';
+import { ProjectFile } from '../tipos';
 
-const ai = process.env.API_KEY ? new GoogleGenAI({ apiKey: process.env.API_KEY }) : null;
-
-if (!ai) {
-  console.warn("Gemini API key not found in environment variables. Gemini functionality will be disabled.");
-}
+// Usando a chave diretamente
+const ai = new GoogleGenAI({ apiKey: "AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU" });
 
 const generationConfig = {
   responseMimeType: "application/json",
@@ -14,25 +11,25 @@ const generationConfig = {
     properties: {
       message: {
         type: Type.STRING,
-        description: "A friendly, conversational message to the user explaining what you have created or if you have any questions."
+        description: "Uma mensagem amigável e coloquial para o usuário explicando o que você criou ou se tiver alguma dúvida."
       },
       files: {
         type: Type.ARRAY,
-        description: "An array of file objects representing the complete project structure.",
+        description: "Uma matriz de objetos de arquivo que representam a estrutura completa do projeto.",
         items: {
           type: Type.OBJECT,
           properties: {
             name: {
               type: Type.STRING,
-              description: "The full path of the file, e.g., 'index.html' or 'components/Button.tsx'."
+              description: "O caminho completo do arquivo, por exemplo, 'index.html' ou 'components/Button.tsx'."
             },
             language: {
               type: Type.STRING,
-              description: "The programming language of the file, e.g., 'html', 'typescript', 'css'."
+              description: "A linguagem de programação do arquivo, por exemplo, 'html', 'typescript', 'css'."
             },
             content: {
               type: Type.STRING,
-              description: "The complete and unabridged content of the file."
+              description: "O conteúdo completo e integral do arquivo."
             }
           },
           required: ["name", "language", "content"]
@@ -44,71 +41,74 @@ const generationConfig = {
 };
 
 const fileContentToString = (files: ProjectFile[]): string => {
-    if (files.length === 0) {
-        return "No files exist yet.";
-    }
-    return files.map(file => `
---- FILE: ${file.name} ---
+  if (files.length === 0) {
+    return "Ainda não existem arquivos.";
+  }
+  return files.map(file => `
+--- ARQUIVO: ${file.name} ---
 \`\`\`${file.language}
 ${file.content}
 \`\`\`
 `).join('\n');
-}
+};
 
 export const generateCodeWithGemini = async (
   prompt: string,
   existingFiles: ProjectFile[]
 ): Promise<{ message: string; files: ProjectFile[] }> => {
-  if (!ai) {
-      return {
-        message: "It looks like the Gemini API key isn't set up. I can't generate code right now. Please check your environment configuration.",
-        files: existingFiles,
-      };
-  }
 
   const model = "gemini-2.5-flash";
-  const systemInstruction = `You are an expert senior frontend React engineer specializing in creating complete, functional, and aesthetically pleasing web applications with React and Tailwind CSS.
-  - Your primary goal is to generate all the necessary code files based on the user's prompt.
-  - Always generate complete, runnable code. Do not use placeholders like "// your code here".
-  - For React, use functional components, TypeScript (.tsx), and hooks.
-  - For styling, ONLY use Tailwind CSS. Do not generate CSS files or use inline styles. Load Tailwind via CDN in the index.html.
-  - The entire project should be a single-page application contained within the generated files.
-  - The file structure should be logical (e.g., components/, services/).
-  - Always include an 'index.html', 'index.tsx', and 'App.tsx'.
-  - Respond with a JSON object that strictly adheres to the provided schema.
-  
-  Current project files:
-  ${fileContentToString(existingFiles)}
-  `;
+  const systemInstruction = `Você é um engenheiro sênior especialista em React de front-end especializado na criação de aplicativos da Web completos, funcionais e esteticamente agradáveis com React e Tailwind CSS.
+ - Seu objetivo principal é gerar todos os arquivos de código necessários com base no prompt do usuário.
+ - Sempre gere código completo e executável. Não use espaços reservados como "// seu código aqui".
+ - Para React, use componentes funcionais, TypeScript (.tsx) e ganchos.
+ - Para estilização, use SOMENTE Tailwind CSS. Não gere arquivos CSS nem use estilos embutidos. Carregue o Tailwind via CDN no index.html.
+ - Todo o projeto deve ser um aplicativo de página única contido nos arquivos gerados.
+ - A estrutura do arquivo deve ser lógica (por exemplo, components/, services/).
+ - Sempre inclua um 'index.html', 'index.tsx' e 'App.tsx'.
+ - Responda com um objeto JSON que adere estritamente ao esquema fornecido.
+ 
+Arquivos de projeto atuais:
+${fileContentToString(existingFiles)}
+`;
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: model,
-        contents: prompt,
-        config: {
-            ...generationConfig,
-            systemInstruction: systemInstruction,
-            temperature: 0.1,
-            topP: 0.9,
+      model: model,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: prompt
+            }
+          ]
         }
+      ],
+      config: {
+        ...generationConfig,
+        systemInstruction: systemInstruction,
+        temperature: 0.1,
+        topP: 0.9,
+      }
     });
 
     const jsonText = response.text.trim();
     const parsed = JSON.parse(jsonText);
-    
+
     if (parsed.files && Array.isArray(parsed.files)) {
       return {
-        message: parsed.message || "Here are the files for your project.",
+        message: parsed.message || "Aqui estão os arquivos do seu projeto.",
         files: parsed.files,
       };
     } else {
-      throw new Error("Invalid JSON structure received from API.");
+      throw new Error("Estrutura JSON inválida recebida da API.");
     }
   } catch (error) {
-    console.error("Error generating code with Gemini:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    console.error("Erro ao gerar código com Gemini:", error);
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
     return {
-      message: `I encountered an error: ${errorMessage}. Please check the console for details.`,
+      message: `Encontrei um erro: ${errorMessage}. Por favor, verifique o console para obter detalhes.`,
       files: existingFiles,
     };
   }
