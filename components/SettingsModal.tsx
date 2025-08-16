@@ -46,25 +46,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
         
         <div className="space-y-4">
           <div>
-            <label htmlFor="geminiKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Google Gemini API Key
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <KeyIcon />
-              </span>
-              <input
-                type="password"
-                id="geminiKey"
-                name="geminiKey"
-                value={settings.geminiKey}
-                onChange={handleChange}
-                placeholder="AIza..."
-                className="w-full pl-10 p-2 bg-[#3c3c3c] border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <div>
             <label htmlFor="openAIKey" className="block text-sm font-medium text-gray-300 mb-1">
               OpenAI API Key
             </label>
