@@ -34,7 +34,6 @@ const App: React.FC = () => {
   const [isChatOpen, setChatOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', {
-    geminiKey: '',
     openAIKey: '',
     deepSeekKey: '',
   });
@@ -63,10 +62,8 @@ const App: React.FC = () => {
       let result;
       switch (provider) {
         case AIProvider.Gemini:
-          if (!userSettings.geminiKey) {
-            throw new Error('Gemini API key is not set. Please add it in Settings.');
-          }
-          result = await generateCodeWithGemini(prompt, files, userSettings.geminiKey);
+          // API key is handled by environment variable in the service
+          result = await generateCodeWithGemini(prompt, files, model);
           break;
         case AIProvider.OpenAI:
           if (!userSettings.openAIKey) {

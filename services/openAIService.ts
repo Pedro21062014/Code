@@ -30,11 +30,11 @@ export const generateCodeWithOpenAI = async (
   prompt: string,
   existingFiles: ProjectFile[],
   apiKey: string,
-  model: string,
+  model: string
 ): Promise<{ message: string; files: ProjectFile[] }> => {
   if (!apiKey) {
     return {
-      message: "OpenAI API key is not configured properly. Please add it in the settings.",
+      message: "OpenAI API key is not configured. Please add it in the settings.",
       files: existingFiles,
     };
   }
