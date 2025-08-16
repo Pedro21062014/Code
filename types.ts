@@ -24,7 +24,7 @@ export interface ChatMessage {
 }
 
 export interface UserSettings {
-  userName: string;
+  geminiKey: string;
   openAIKey: string;
   deepSeekKey: string;
 }

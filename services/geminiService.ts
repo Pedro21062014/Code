@@ -1,8 +1,5 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { ProjectFile } from '../tipos';
-
-// Usando a chave diretamente
-const ai = new GoogleGenAI({ apiKey: "AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU" });
+import { ProjectFile } from '../types';
 
 const generationConfig = {
   responseMimeType: "application/json",
@@ -54,8 +51,17 @@ ${file.content}
 
 export const generateCodeWithGemini = async (
   prompt: string,
-  existingFiles: ProjectFile[]
+  existingFiles: ProjectFile[],
+  apiKey: string,
 ): Promise<{ message: string; files: ProjectFile[] }> => {
+  if (!apiKey) {
+    return {
+      message: 'Google Gemini API key not provided. Please add it in Settings.',
+      files: existingFiles,
+    };
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const model = "gemini-2.5-flash";
   const systemInstruction = `Você é um engenheiro sênior especialista em React de front-end especializado na criação de aplicativos da Web completos, funcionais e esteticamente agradáveis com React e Tailwind CSS.
