@@ -5,15 +5,25 @@ import { SparklesIcon, CloseIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
-  onSendMessage: (prompt: string, provider: AIProvider) => void;
+  onSendMessage: (prompt: string, provider: AIProvider, model: string) => void;
   onClose?: () => void;
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onClose }) => {
   const [input, setInput] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AIProvider.Gemini);
-  
+  const [selectedModel, setSelectedModel] = useState<string>('');
+
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  const providerModels = AI_MODELS.filter(m => m.provider === selectedProvider);
+
+  useEffect(() => {
+    // Set the default model when the provider changes or on initial load
+    if (providerModels.length > 0 && !providerModels.some(m => m.id === selectedModel)) {
+        setSelectedModel(providerModels[0].id);
+    }
+  }, [selectedProvider, providerModels]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,12 +31,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    onSendMessage(input, selectedProvider);
+    if (!input.trim() || !selectedModel) return;
+    onSendMessage(input, selectedProvider, selectedModel);
     setInput('');
   };
-  
-  const providerModels = AI_MODELS.filter(m => m.provider === selectedProvider);
   
   return (
     <div className="bg-[#252526] w-full max-w-sm lg:max-w-md flex flex-col h-full border-l border-gray-700">
@@ -71,7 +79,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
             >
               {Object.values(AIProvider).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <select className="bg-[#3c3c3c] border border-gray-600 rounded-md px-2 py-1 text-xs w-full text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select 
+              value={selectedModel}
+              onChange={e => setSelectedModel(e.target.value)}
+              className="bg-[#3c3c3c] border border-gray-600 rounded-md px-2 py-1 text-xs w-full text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               {providerModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>

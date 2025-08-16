@@ -6,6 +6,7 @@ interface SidebarProps {
   files: ProjectFile[];
   onFileSelect: (fileName: string) => void;
   onDownload: () => void;
+  onOpenSettings: () => void;
   activeFile: string | null;
   onClose?: () => void;
 }
@@ -21,7 +22,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
     );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownload, activeFile, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownload, onOpenSettings, activeFile, onClose }) => {
   const [activeTab, setActiveTab] = React.useState('files');
   
   return (
@@ -49,12 +50,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownloa
                     </button>
                 </Tooltip>
                 <Tooltip text="Account (coming soon)">
-                    <button onClick={() => setActiveTab('account')} className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
+                    <button className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
                         <UserIcon />
                     </button>
                 </Tooltip>
-                <Tooltip text="Settings (coming soon)">
-                    <button onClick={() => setActiveTab('settings')} className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
+                <Tooltip text="Settings">
+                    <button onClick={onOpenSettings} className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
                         <SettingsIcon />
                     </button>
                 </Tooltip>

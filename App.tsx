@@ -3,11 +3,14 @@ import { Sidebar } from './components/Sidebar';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
-import { ProjectFile, ChatMessage, AIProvider } from './types';
+import { SettingsModal } from './components/SettingsModal';
+import { ProjectFile, ChatMessage, AIProvider, UserSettings } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
 import { generateCodeWithGemini } from './services/geminiService';
-import { generateCodeWithMockAPI } from './services/mockAIService';
+import { generateCodeWithOpenAI } from './services/openAIService';
+import { generateCodeWithDeepSeek } from './services/deepseekService';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon } from './components/Icons';
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }> = ({ onToggleSidebar, onToggleChat }) => (
@@ -29,6 +32,12 @@ const App: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', {
+    geminiKey: '',
+    openAIKey: '',
+    deepSeekKey: '',
+  });
 
   const handleNewProject = () => {
     setFiles([]);
@@ -37,7 +46,7 @@ const App: React.FC = () => {
     setChatMessages([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
   };
   
-  const handleMessageSubmit = async (prompt: string, provider: AIProvider) => {
+  const handleMessageSubmit = async (prompt: string, provider: AIProvider, model: string) => {
     const userMessage: ChatMessage = { role: 'user', content: prompt };
     const thinkingMessage: ChatMessage = {
       role: 'assistant',
@@ -54,11 +63,22 @@ const App: React.FC = () => {
       let result;
       switch (provider) {
         case AIProvider.Gemini:
-          result = await generateCodeWithGemini(prompt, files);
+          if (!userSettings.geminiKey) {
+            throw new Error('Gemini API key is not set. Please add it in Settings.');
+          }
+          result = await generateCodeWithGemini(prompt, files, userSettings.geminiKey);
           break;
         case AIProvider.OpenAI:
+          if (!userSettings.openAIKey) {
+            throw new Error('OpenAI API key is not set. Please add it in Settings.');
+          }
+          result = await generateCodeWithOpenAI(prompt, files, userSettings.openAIKey, model);
+          break;
         case AIProvider.DeepSeek:
-          result = await generateCodeWithMockAPI(provider, files);
+           if (!userSettings.deepSeekKey) {
+            throw new Error('DeepSeek API key is not set. Please add it in Settings.');
+          }
+          result = await generateCodeWithDeepSeek(prompt, files, userSettings.deepSeekKey, model);
           break;
         default:
           throw new Error('Unsupported AI provider');
@@ -120,6 +140,7 @@ const App: React.FC = () => {
             onFileSelect={handleFileSelect} 
             activeFile={activeFile}
             onDownload={handleDownload}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         </div>
         
@@ -154,6 +175,7 @@ const App: React.FC = () => {
               onFileSelect={handleFileSelect} 
               activeFile={activeFile}
               onDownload={handleDownload}
+              onOpenSettings={() => setSettingsOpen(true)}
               onClose={() => setSidebarOpen(false)}
             />
           </div>
@@ -173,6 +195,14 @@ const App: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialSettings={userSettings}
+        onSave={setUserSettings}
+      />
     </div>
   );
 };
