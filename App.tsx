@@ -4,46 +4,44 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
+import { PricingPage } from './components/PricingPage';
+import { GithubImportModal } from './components/GithubImportModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
 import { generateCodeWithGemini } from './services/geminiService';
 import { generateCodeWithOpenAI } from './services/openAIService';
 import { generateCodeWithDeepSeek } from './services/deepseekService';
+import { generateCodeWithKimi } from './services/kimiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon } from './components/Icons';
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }> = ({ onToggleSidebar, onToggleChat }) => (
-  <div className="lg:hidden flex justify-between items-center p-2 bg-[#252526] border-b border-gray-700 flex-shrink-0">
-    <button onClick={onToggleSidebar} className="p-2 rounded-md text-gray-300 hover:bg-gray-700">
+  <div className="lg:hidden flex justify-between items-center p-2 bg-[#16171D] border-b border-gray-800 flex-shrink-0">
+    <button onClick={onToggleSidebar} className="p-2 rounded-md text-gray-300 hover:bg-white/10">
       <MenuIcon />
     </button>
-    <h1 className="text-lg font-semibold text-white truncate">AI CodeGen Studio</h1>
-    <button onClick={onToggleChat} className="p-2 rounded-md text-gray-300 hover:bg-gray-700">
+    <h1 className="text-lg font-semibold text-white truncate">Codegen Studio</h1>
+    <button onClick={onToggleChat} className="p-2 rounded-md text-gray-300 hover:bg-white/10">
       <ChatIcon />
     </button>
   </div>
 );
 
 const App: React.FC = () => {
-  const [projectState, setProjectState] = useState<'welcome' | 'editor'>('welcome');
+  const [view, setView] = useState<'welcome' | 'editor' | 'pricing'>('welcome');
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isGithubModalOpen, setGithubModalOpen] = useState(false);
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', {
     openAIKey: '',
     deepSeekKey: '',
+    kimiKey: '',
   });
-
-  const handleNewProject = () => {
-    setFiles([]);
-    setActiveFile(null);
-    setProjectState('editor');
-    setChatMessages([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
-  };
   
   const handleMessageSubmit = async (prompt: string, provider: AIProvider, model: string) => {
     const userMessage: ChatMessage = { role: 'user', content: prompt };
@@ -52,17 +50,18 @@ const App: React.FC = () => {
       content: `Generating code for: "${prompt.substring(0, 50)}..."`,
       isThinking: true,
     };
-    setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
-    
-    if (projectState === 'welcome') {
-      setProjectState('editor');
-    }
 
+    if (view !== 'editor') {
+      setChatMessages([userMessage, thinkingMessage]);
+      setView('editor');
+    } else {
+      setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
+    }
+    
     try {
       let result;
       switch (provider) {
         case AIProvider.Gemini:
-          // API key is handled by environment variable in the service
           result = await generateCodeWithGemini(prompt, files, model);
           break;
         case AIProvider.OpenAI:
@@ -76,6 +75,12 @@ const App: React.FC = () => {
             throw new Error('DeepSeek API key is not set. Please add it in Settings.');
           }
           result = await generateCodeWithDeepSeek(prompt, files, userSettings.deepSeekKey, model);
+          break;
+        case AIProvider.Kimi:
+          if (!userSettings.kimiKey) {
+            throw new Error('Kimi API key is not set. Please add it in Settings.');
+          }
+          result = await generateCodeWithKimi(prompt, files, userSettings.kimiKey, model);
           break;
         default:
           throw new Error('Unsupported AI provider');
@@ -103,6 +108,10 @@ const App: React.FC = () => {
     }
   };
 
+  const handleWelcomePrompt = (prompt: string) => {
+    handleMessageSubmit(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+  };
+
   useEffect(() => {
     if (files.length > 0 && (!activeFile || !files.some(f => f.name === activeFile))) {
       setActiveFile(files[0].name);
@@ -128,8 +137,20 @@ const App: React.FC = () => {
       downloadProjectAsZip(files, 'ai-codegen-project');
   }
 
+  if (view === 'welcome') {
+      return <WelcomeScreen 
+        onPromptSubmit={handleWelcomePrompt} 
+        onShowPricing={() => setView('pricing')}
+        onImportFromGithub={() => setGithubModalOpen(true)}
+      />
+  }
+
+  if (view === 'pricing') {
+    return <PricingPage onBack={() => setView('welcome')} />
+  }
+
   return (
-    <div className="relative h-screen w-screen font-sans bg-[#1e1e1e] overflow-hidden">
+    <div className="relative h-screen w-screen font-sans bg-[#0B0C10] text-gray-300 overflow-hidden">
       <div className="flex h-full">
         <div className="hidden lg:flex flex-shrink-0">
           <Sidebar 
@@ -146,15 +167,12 @@ const App: React.FC = () => {
             onToggleSidebar={() => setSidebarOpen(true)}
             onToggleChat={() => setChatOpen(true)}
           />
-          {projectState === 'welcome' && <WelcomeScreen onNewProject={handleNewProject} />}
-          {projectState === 'editor' && (
-            <EditorView 
+          <EditorView 
               files={files} 
               activeFile={activeFile} 
               onFileSelect={handleFileSelect}
               onFileClose={handleFileClose}
             />
-          )}
         </main>
         
         <div className="hidden lg:flex flex-shrink-0">
@@ -199,6 +217,11 @@ const App: React.FC = () => {
         onClose={() => setSettingsOpen(false)}
         initialSettings={userSettings}
         onSave={setUserSettings}
+      />
+      {/* GitHub Import Modal */}
+      <GithubImportModal
+        isOpen={isGithubModalOpen}
+        onClose={() => setGithubModalOpen(false)}
       />
     </div>
   );

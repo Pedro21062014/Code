@@ -45,11 +45,10 @@ const responseSchema = {
 export const generateCodeWithGemini = async (
   prompt: string,
   existingFiles: ProjectFile[],
-  modelId: string = "gemini-1.5-pro"
+  modelId: string = "gemini-2.5-flash"
 ): Promise<{ message: string; files: ProjectFile[] }> => {
   try {
-    // Chave de API embutida (⚠️ Não recomendado para produção)
-    const ai = new GoogleGenAI({ apiKey: "AIzaSyA4C9RxEGOKf2HTZkJ_NmFkVV6yfAstVwg" });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const response = await ai.models.generateContent({
       model: modelId,
