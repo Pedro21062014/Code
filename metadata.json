@@ -1,5 +1,5 @@
 {
-  "name": "AI CodeGen Studio",
+  "name": "Codegen Studio",
   "description": "An AI-powered code generator with a VS Code-like interface. Select from various AI models (Gemini, OpenAI, DeepSeek) to generate, preview, and download web application projects. Features include a chat-based interface, code/preview toggle, and project management.",
   "requestFramePermissions": []
 }

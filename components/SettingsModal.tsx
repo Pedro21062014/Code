@@ -34,12 +34,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
       onClick={onClose}
     >
       <div 
-        className="bg-[#2d2d2d] rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-700"
+        className="bg-[#1C1C1F] rounded-lg shadow-xl w-full max-w-md p-6 border border-gray-700/50"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-white">API Key Settings</h2>
-          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-gray-700">
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-white/10">
             <CloseIcon />
           </button>
         </div>
@@ -60,7 +60,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 value={settings.openAIKey}
                 onChange={handleChange}
                 placeholder="sk-..."
-                className="w-full pl-10 p-2 bg-[#3c3c3c] border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
           </div>
@@ -79,7 +79,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                     value={settings.deepSeekKey}
                     onChange={handleChange}
                     placeholder="sk-..."
-                    className="w-full pl-10 p-2 bg-[#3c3c3c] border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="kimiKey" className="block text-sm font-medium text-gray-300 mb-1">
+              Kimi (Moonshot) API Key
+            </label>
+            <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                    <KeyIcon />
+                </span>
+                <input
+                    type="password"
+                    id="kimiKey"
+                    name="kimiKey"
+                    value={settings.kimiKey}
+                    onChange={handleChange}
+                    placeholder="sk-..."
+                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>
           </div>
@@ -94,7 +113,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
+            className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-800 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
           >
             Save Changes
           </button>

@@ -15,7 +15,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
     return (
       <div className="group relative flex justify-center">
         {children}
-        <span className="absolute left-14 p-2 text-xs w-28 text-center bg-gray-900 text-white rounded-md scale-0 transition-all group-hover:scale-100 origin-left">
+        <span className="absolute left-14 p-2 text-xs w-28 text-center bg-gray-900 text-white rounded-md scale-0 transition-all group-hover:scale-100 origin-left z-30">
           {text}
         </span>
       </div>
@@ -26,18 +26,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownloa
   const [activeTab, setActiveTab] = React.useState('files');
   
   return (
-    <div className="bg-[#333333] flex h-full">
+    <div className="bg-[#16171D] flex h-full">
         {/* Main Icon Bar */}
-        <div className="w-16 bg-[#252526] p-2 flex flex-col items-center justify-between">
+        <div className="w-16 bg-[#0B0C10] p-2 flex flex-col items-center justify-between border-r border-gray-800">
             <div>
                 <div className="space-y-4">
                     <Tooltip text="File Explorer">
-                        <button onClick={() => setActiveTab('files')} className={`p-2 rounded-lg ${activeTab === 'files' ? 'text-white' : 'text-gray-400 hover:bg-gray-700'}`}>
+                        <button onClick={() => setActiveTab('files')} className={`p-2 rounded-lg ${activeTab === 'files' ? 'text-white bg-white/10' : 'text-gray-400 hover:bg-white/10'}`}>
                             <FileIcon />
                         </button>
                     </Tooltip>
                     <Tooltip text="Extensions (coming soon)">
-                        <button onClick={() => setActiveTab('extensions')} className={`p-2 rounded-lg ${activeTab === 'extensions' ? 'text-white' : 'text-gray-400 hover:bg-gray-700'}`}>
+                        <button onClick={() => setActiveTab('extensions')} className={`p-2 rounded-lg ${activeTab === 'extensions' ? 'text-white bg-white/10' : 'text-gray-400 hover:bg-white/10'}`}>
                             <ExtensionIcon />
                         </button>
                     </Tooltip>
@@ -45,17 +45,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownloa
             </div>
             <div className="space-y-4">
                  <Tooltip text="Download Project (ZIP)">
-                    <button onClick={onDownload} className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
+                    <button onClick={onDownload} className="p-2 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white">
                         <DownloadIcon />
                     </button>
                 </Tooltip>
                 <Tooltip text="Account (coming soon)">
-                    <button className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
+                    <button className="p-2 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white">
                         <UserIcon />
                     </button>
                 </Tooltip>
                 <Tooltip text="Settings">
-                    <button onClick={onOpenSettings} className="p-2 rounded-lg text-gray-400 hover:bg-gray-700">
+                    <button onClick={onOpenSettings} className="p-2 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white">
                         <SettingsIcon />
                     </button>
                 </Tooltip>
@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownloa
         </div>
 
         {/* Content Panel */}
-        <div className="w-64 bg-[#252526] p-2">
+        <div className="w-64 bg-[#16171D] p-2">
             <div className="flex justify-between items-center p-2">
                 <h2 className="text-sm font-bold uppercase text-gray-400 tracking-wider">
                     {activeTab === 'files' ? 'Explorer' : 'Coming Soon'}
@@ -82,7 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ files, onFileSelect, onDownloa
                         <button
                         onClick={() => onFileSelect(file.name)}
                         className={`w-full text-left px-2 py-1 rounded text-sm ${
-                            activeFile === file.name ? 'bg-blue-600/30 text-white' : 'text-gray-300 hover:bg-gray-700/50'
+                            activeFile === file.name ? 'bg-blue-500/20 text-white' : 'text-gray-300 hover:bg-white/5'
                         }`}
                         >
                         {file.name}

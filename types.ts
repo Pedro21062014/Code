@@ -3,6 +3,7 @@ export enum AIProvider {
   Gemini = 'Gemini',
   OpenAI = 'OpenAI',
   DeepSeek = 'DeepSeek',
+  Kimi = 'Kimi',
 }
 
 export interface AIModel {
@@ -26,4 +27,5 @@ export interface ChatMessage {
 export interface UserSettings {
   openAIKey: string;
   deepSeekKey: string;
+  kimiKey: string;
 }

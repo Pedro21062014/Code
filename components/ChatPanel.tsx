@@ -37,11 +37,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
   };
   
   return (
-    <div className="bg-[#252526] w-full max-w-sm lg:max-w-md flex flex-col h-full border-l border-gray-700">
-      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+    <div className="bg-[#16171D] w-full max-w-sm lg:max-w-md flex flex-col h-full border-l border-gray-800">
+      <div className="p-4 border-b border-gray-800 flex justify-between items-center">
         <h2 className="text-lg font-semibold text-white">Chat</h2>
         {onClose && (
-            <button onClick={onClose} className="p-1 rounded-md text-gray-300 hover:bg-gray-700">
+            <button onClick={onClose} className="p-1 rounded-md text-gray-300 hover:bg-white/10">
                 <CloseIcon />
             </button>
         )}
@@ -51,7 +51,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
         <div className="space-y-4">
           {messages.map((msg, index) => (
             <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`p-3 rounded-lg max-w-xs md:max-w-md ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-[#3e3e42] text-gray-200'}`}>
+              <div className={`p-3 rounded-lg max-w-xs md:max-w-md ${msg.role === 'user' ? 'bg-blue-800 text-white' : 'bg-[#2A2B30] text-gray-200'}`}>
                 {msg.isThinking ? 
                   <div className="flex flex-col space-y-2">
                     <span className="text-sm italic">{msg.content}</span>
@@ -69,20 +69,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
         </div>
       </div>
 
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-gray-800">
         <form onSubmit={handleSubmit}>
           <div className="flex items-center space-x-2 mb-2">
             <select
               value={selectedProvider}
               onChange={e => setSelectedProvider(e.target.value as AIProvider)}
-              className="bg-[#3c3c3c] border border-gray-600 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-[#2A2B30] border border-gray-700/50 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             >
               {Object.values(AIProvider).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             <select 
               value={selectedModel}
               onChange={e => setSelectedModel(e.target.value)}
-              className="bg-[#3c3c3c] border border-gray-600 rounded-md px-2 py-1 text-xs w-full text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-[#2A2B30] border border-gray-700/50 rounded-md px-2 py-1 text-xs w-full text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             >
               {providerModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
@@ -97,10 +97,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
                 }
             }}
             placeholder="Describe what you want to build or change..."
-            className="w-full p-2 bg-[#3c3c3c] border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
             rows={4}
           />
-          <button type="submit" className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-200 flex items-center justify-center space-x-2">
+          <button type="submit" className="w-full mt-2 bg-blue-800 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-200 flex items-center justify-center space-x-2">
             <SparklesIcon />
             <span>Generate</span>
           </button>
