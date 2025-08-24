@@ -34,7 +34,6 @@ export const generateCodeStreamWithZAI = async (
   model: string
 ): Promise<string> => {
   const systemPrompt = getSystemPrompt(existingFiles);
-  const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://codegen.studio';
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -42,8 +41,6 @@ export const generateCodeStreamWithZAI = async (
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': siteUrl,
-        'X-Title': 'Codegen Studio',
       },
       body: JSON.stringify({
         model: model, // This will now correctly be 'zhipu/glm-4.5-air'
