@@ -2,7 +2,7 @@ import { ProjectFile } from '../types';
 
 const fileContentToString = (files: ProjectFile[]): string => {
   if (files.length === 0) {
-    return "No files exist yet.";
+    return "Nenhum arquivo existe ainda.";
   }
   return files.map(file => `
 --- FILE: ${file.name} ---
@@ -12,33 +12,27 @@ ${file.content}
 `).join('\n');
 };
 
-const getSystemPrompt = (files: ProjectFile[]): string => `You are an expert senior frontend React engineer specializing in creating complete, functional, and aesthetically pleasing web applications with React and Tailwind CSS.
-- Your primary goal is to generate all necessary code files based on the user's prompt.
+const getSystemPrompt = (files: ProjectFile[]): string => `You are an expert senior full-stack engineer specializing in creating complete, functional, and aesthetically pleasing web applications.
+- Your primary goal is to generate all necessary code files based on the user's prompt. You are proficient in a wide range of web technologies including HTML, CSS, JavaScript, TypeScript, React, Vue, Svelte, Node.js, and more.
 - Always generate complete, runnable code. Do not use placeholders like "// your code here".
-- For React, use functional components, TypeScript (.tsx), and hooks.
-- For styling, ONLY use Tailwind CSS. Do not generate CSS files or use inline styles. Load Tailwind via CDN in index.html.
-- The entire project must be a single-page application contained within the generated files.
-- The file structure should be logical (e.g., components/, services/).
-- Always include an 'index.html', 'index.tsx', and 'App.tsx'.
-- Respond with a JSON object that strictly adheres to the provided schema. The JSON object must contain two keys: "message" (a friendly, conversational message to the user) and "files" (an array of file objects). Each file object must have "name", "language", and "content".
+- For standard web projects, create an 'index.html', a CSS file for styles (e.g., 'style.css'), and a JavaScript file for logic (e.g., 'script.js').
+- For React projects, use functional components, TypeScript (.tsx), and hooks.
+- For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
+- The file structure should be logical (e.g., components/, services/, assets/).
+- If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. Use the exported Supabase client from that file for any data-related tasks. Do not re-initialize the client.
+- Respond with a JSON object that strictly adheres to the provided schema. The JSON object must contain two keys: "message" (a friendly, conversational message to the user, in Portuguese) and "files" (an array of file objects). Each file object must have "name", "language", and "content".
 
 Current project files:
 ${fileContentToString(files)}
 `;
 
-export const generateCodeWithOpenAI = async (
+export const generateCodeStreamWithOpenAI = async (
   prompt: string,
   existingFiles: ProjectFile[],
+  onChunk: (chunk: string) => void,
   apiKey: string,
   model: string
-): Promise<{ message: string; files: ProjectFile[] }> => {
-  if (!apiKey) {
-    return {
-      message: "OpenAI API key is not configured. Please add it in the settings.",
-      files: existingFiles,
-    };
-  }
-
+): Promise<string> => {
   const systemPrompt = getSystemPrompt(existingFiles);
 
   try {
@@ -57,6 +51,7 @@ export const generateCodeWithOpenAI = async (
         temperature: 0.1,
         top_p: 0.9,
         response_format: { type: "json_object" },
+        stream: true,
       }),
     });
 
@@ -65,25 +60,46 @@ export const generateCodeWithOpenAI = async (
         throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
     }
     
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    const parsed = JSON.parse(content);
-    
-    if (parsed.files && Array.isArray(parsed.files)) {
-      return {
-        message: parsed.message || "Here are the files for your project.",
-        files: parsed.files,
-      };
-    } else {
-      throw new Error("Invalid JSON structure received from the API.");
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const dataStr = line.substring(6);
+                if (dataStr === '[DONE]') {
+                    break;
+                }
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                        const contentChunk = data.choices[0].delta.content;
+                        fullResponse += contentChunk;
+                        onChunk(contentChunk);
+                    }
+                } catch (e) {
+                    console.error('Error parsing stream data chunk:', line, e);
+                }
+            }
+        }
     }
+    return fullResponse;
 
   } catch (error) {
     console.error("Error generating code with OpenAI:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    return {
-      message: `I ran into an error: ${errorMessage}. Please check the console for details.`,
-      files: existingFiles,
-    };
+    const errorJson = JSON.stringify({
+        message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,
+        files: existingFiles
+    });
+    onChunk(errorJson);
+    return errorJson;
   }
 };

@@ -40,11 +40,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
             <span className="text-white font-bold">codegen<span className="font-light">studio</span></span>
           </div>
           <nav className="hidden md:flex items-center gap-6">
-            <NavLink href="#">Community</NavLink>
-            <NavLink href="#">Enterprise</NavLink>
-            <NavLink href="#" hasDropdown>Resources</NavLink>
-            <NavLink href="#">Careers</NavLink>
-            <NavLink onClick={(e) => { e.preventDefault(); onShowPricing(); }}>Pricing</NavLink>
+            <NavLink href="#">Comunidade</NavLink>
+            <NavLink href="#">Empresas</NavLink>
+            <NavLink href="#" hasDropdown>Recursos</NavLink>
+            <NavLink href="#">Carreiras</NavLink>
+            <NavLink onClick={(e) => { e.preventDefault(); onShowPricing(); }}>Preços</NavLink>
           </nav>
           <div className="flex items-center gap-4">
              <SocialIcon href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/"><LinkedInIcon /></SocialIcon>
@@ -57,15 +57,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center text-center px-4 relative z-0">
         <div className="max-w-2xl w-full">
-            <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">What should we build today?</h1>
-            <p className="mt-4 text-lg text-gray-400">Create stunning apps & websites by chatting with AI.</p>
+            <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">O que vamos construir hoje?</h1>
+            <p className="mt-4 text-lg text-gray-400">Crie aplicativos e sites incríveis conversando com IA.</p>
 
             <div className="relative mt-8">
                 <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your idea and we'll build it together."
+                    placeholder="Digite sua ideia e nós a construiremos juntos."
                     className="w-full h-36 p-4 pl-14 bg-[#1C1C1F] border border-gray-700/50 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-200 placeholder-gray-500"
                 />
                 <div className="absolute bottom-4 left-4 flex items-center gap-3">
@@ -75,7 +75,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
             </div>
 
             <div className="mt-6 flex items-center justify-center gap-4 text-sm">
-                <span className="text-gray-500">or import from</span>
+                <span className="text-gray-500">ou importe do</span>
                 <button onClick={onImportFromGithub} className="flex items-center gap-2 px-3 py-1.5 bg-[#1C1C1F] border border-gray-700/50 rounded-full hover:bg-gray-800 transition-colors text-gray-300">
                     <GithubIcon />
                     <span>Github</span>
@@ -109,16 +109,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
             </div>
             <div className="flex flex-col sm:flex-row gap-8 sm:gap-16">
                 <div>
-                    <h3 className="font-semibold text-white mb-4">Resources</h3>
+                    <h3 className="font-semibold text-white mb-4">Recursos</h3>
                     <ul className="space-y-2">
-                        <li><a href="#" className="text-gray-400 hover:text-white flex items-center gap-1">Support <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 17L17 7M17 7H7M17 7V17" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></a></li>
+                        <li><a href="#" className="text-gray-400 hover:text-white flex items-center gap-1">Suporte <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 17L17 7M17 7H7M17 7V17" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></a></li>
                     </ul>
                 </div>
                 <div>
-                    <h3 className="font-semibold text-white mb-4">Company</h3>
+                    <h3 className="font-semibold text-white mb-4">Empresa</h3>
                      <ul className="space-y-2">
-                        <li><a href="#" className="text-gray-400 hover:text-white">Careers</a></li>
-                        <li><a href="#" onClick={(e) => { e.preventDefault(); onShowPricing(); }} className="text-gray-400 hover:text-white">Pricing</a></li>
+                        <li><a href="#" className="text-gray-400 hover:text-white">Carreiras</a></li>
+                        <li><a href="#" onClick={(e) => { e.preventDefault(); onShowPricing(); }} className="text-gray-400 hover:text-white">Preços</a></li>
                     </ul>
                 </div>
                 <div>

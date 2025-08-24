@@ -4,6 +4,12 @@ export enum AIProvider {
   OpenAI = 'OpenAI',
   DeepSeek = 'DeepSeek',
   Kimi = 'Kimi',
+  Qwen = 'Qwen',
+}
+
+export enum IntegrationProvider {
+  GitHub = 'GitHub',
+  Supabase = 'Supabase',
 }
 
 export interface AIModel {
@@ -28,4 +34,5 @@ export interface UserSettings {
   openAIKey: string;
   deepSeekKey: string;
   kimiKey: string;
+  qwenKey: string;
 }

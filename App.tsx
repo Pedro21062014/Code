@@ -6,18 +6,21 @@ import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { PricingPage } from './components/PricingPage';
 import { GithubImportModal } from './components/GithubImportModal';
+import { PublishModal } from './components/PublishModal';
+import { SupabaseIntegrationModal } from './components/SupabaseIntegrationModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
-import { generateCodeWithGemini } from './services/geminiService';
-import { generateCodeWithOpenAI } from './services/openAIService';
-import { generateCodeWithDeepSeek } from './services/deepseekService';
-import { generateCodeWithKimi } from './services/kimiService';
+import { generateCodeStreamWithGemini } from './services/geminiService';
+import { generateCodeStreamWithOpenAI } from './services/openAIService';
+import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
+import { generateCodeStreamWithKimi } from './services/kimiService';
+import { generateCodeStreamWithQwen } from './services/qwenService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon } from './components/Icons';
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }> = ({ onToggleSidebar, onToggleChat }) => (
-  <div className="lg:hidden flex justify-between items-center p-2 bg-[#16171D] border-b border-gray-800 flex-shrink-0">
+  <div className="lg:hidden flex justify-between items-center p-2 bg-[#111217] border-b border-white/10 flex-shrink-0">
     <button onClick={onToggleSidebar} className="p-2 rounded-md text-gray-300 hover:bg-white/10">
       <MenuIcon />
     </button>
@@ -37,58 +40,89 @@ const App: React.FC = () => {
   const [isChatOpen, setChatOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
+  const [isPublishModalOpen, setPublishModalOpen] = useState(false);
+  const [isSupabaseModalOpen, setSupabaseModalOpen] = useState(false);
+
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', {
-    openAIKey: '',
+    openAIKey: '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',
     deepSeekKey: '',
-    kimiKey: '',
+    kimiKey: 'sk-D7OUN5FnsdVYygLckq5agPZDEVaBa217S65T7ugyzzrhja3G',
+    qwenKey: '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',
   });
   
-  const handleMessageSubmit = async (prompt: string, provider: AIProvider, model: string) => {
+  const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
     const userMessage: ChatMessage = { role: 'user', content: prompt };
     const thinkingMessage: ChatMessage = {
       role: 'assistant',
-      content: `Generating code for: "${prompt.substring(0, 50)}..."`,
+      content: '', // Start with empty content for streaming
       isThinking: true,
     };
 
     if (view !== 'editor') {
-      setChatMessages([userMessage, thinkingMessage]);
       setView('editor');
+      // Set messages directly for welcome screen prompt
+      setChatMessages([userMessage, thinkingMessage]);
     } else {
       setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
     }
     
+    const onChunk = (chunk: string) => {
+        setChatMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+                try {
+                  // Attempt to parse the accumulating content as JSON to find message
+                  const potentialJson = JSON.parse(lastMessage.content + chunk);
+                  if(potentialJson.message) {
+                    return [
+                       ...prev.slice(0, -1),
+                       { ...lastMessage, content: lastMessage.content + chunk, isThinking: true }
+                    ]
+                  }
+                } catch(e) {
+                   // Not a valid JSON yet, just append
+                }
+
+                return [
+                    ...prev.slice(0, -1),
+                    { ...lastMessage, content: lastMessage.content + chunk }
+                ];
+            }
+            return prev;
+        });
+    };
+
     try {
-      let result;
+      let fullResponse;
       switch (provider) {
         case AIProvider.Gemini:
-          result = await generateCodeWithGemini(prompt, files, model);
+          fullResponse = await generateCodeStreamWithGemini(prompt, files, onChunk, model);
           break;
         case AIProvider.OpenAI:
-          if (!userSettings.openAIKey) {
-            throw new Error('OpenAI API key is not set. Please add it in Settings.');
-          }
-          result = await generateCodeWithOpenAI(prompt, files, userSettings.openAIKey, model);
+          if (!userSettings.openAIKey) throw new Error('A chave de API da OpenAI não está definida. Por favor, adicione-a nas Configurações.');
+          fullResponse = await generateCodeStreamWithOpenAI(prompt, files, onChunk, userSettings.openAIKey, model);
           break;
         case AIProvider.DeepSeek:
-           if (!userSettings.deepSeekKey) {
-            throw new Error('DeepSeek API key is not set. Please add it in Settings.');
-          }
-          result = await generateCodeWithDeepSeek(prompt, files, userSettings.deepSeekKey, model);
+           if (!userSettings.deepSeekKey) throw new Error('A chave de API da DeepSeek não está definida. Por favor, adicione-a nas Configurações.');
+           fullResponse = await generateCodeStreamWithDeepSeek(prompt, files, onChunk, userSettings.deepSeekKey, model);
           break;
         case AIProvider.Kimi:
-          if (!userSettings.kimiKey) {
-            throw new Error('Kimi API key is not set. Please add it in Settings.');
-          }
-          result = await generateCodeWithKimi(prompt, files, userSettings.kimiKey, model);
+          if (!userSettings.kimiKey) throw new Error('A chave de API da Kimi não está definida. Por favor, adicione-a nas Configurações.');
+          fullResponse = await generateCodeStreamWithKimi(prompt, files, onChunk, userSettings.kimiKey, model);
+          break;
+        case AIProvider.Qwen:
+          if (!userSettings.qwenKey) throw new Error('A chave de API da Qwen não está definida. Por favor, adicione-a nas Configurações.');
+          fullResponse = await generateCodeStreamWithQwen(prompt, files, onChunk, userSettings.qwenKey, model);
           break;
         default:
-          throw new Error('Unsupported AI provider');
+          throw new Error('Provedor de IA não suportado');
       }
+
+      const result = JSON.parse(fullResponse);
       
       setFiles(prevFiles => {
           const updatedFilesMap = new Map(prevFiles.map(f => [f.name, f]));
-          result.files.forEach(file => {
+          result.files.forEach((file: ProjectFile) => {
               updatedFilesMap.set(file.name, file);
           });
           return Array.from(updatedFilesMap.values());
@@ -100,17 +134,43 @@ const App: React.FC = () => {
       ]);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-      setChatMessages(prev => [
-        ...prev.slice(0, -1), 
-        { role: 'assistant', content: `Error: ${errorMessage}` }
-      ]);
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado durante o streaming ou processamento.";
+      setChatMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        // If the last message was the thinking one, replace it with the error.
+        if (lastMessage && lastMessage.isThinking) {
+           return [...prev.slice(0, -1), { role: 'assistant', content: `Erro: ${errorMessage}` }];
+        }
+        // Otherwise, add a new error message.
+        return [...prev, { role: 'assistant', content: `Erro: ${errorMessage}` }];
+      });
     }
   };
 
   const handleWelcomePrompt = (prompt: string) => {
-    handleMessageSubmit(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
   };
+
+  const handleGithubImport = (importedFiles: ProjectFile[]) => {
+    setFiles(importedFiles);
+    setChatMessages([
+      { role: 'assistant', content: `Importado com sucesso ${importedFiles.length} arquivos do repositório. Agora você pode conversar com a IA para modificar o projeto.`}
+    ]);
+    setView('editor');
+    setGithubModalOpen(false);
+  }
+
+  const handleSupabaseIntegrate = (url: string, key: string) => {
+    const prompt = `Please integrate Supabase into this project.
+    - Create a new file at 'services/supabase.ts'. This file should initialize and export the Supabase client using the provided credentials.
+    - Supabase Project URL: ${url}
+    - Supabase Anon Key: ${key}
+    - Then, create a sample component 'components/SupabaseData.tsx' that demonstrates fetching data from a hypothetical 'profiles' table and displaying it.
+    - Finally, update App.tsx to import and render the new SupabaseData component.
+    Do not modify any other existing files unless absolutely necessary to render the new component.`;
+    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+    setSupabaseModalOpen(false);
+  }
 
   useEffect(() => {
     if (files.length > 0 && (!activeFile || !files.some(f => f.name === activeFile))) {
@@ -131,18 +191,27 @@ const App: React.FC = () => {
 
   const handleDownload = () => {
       if (files.length === 0) {
-          alert("There are no files to download. Generate a project first!");
+          alert("Não há arquivos para baixar. Gere um projeto primeiro!");
           return;
       }
       downloadProjectAsZip(files, 'ai-codegen-project');
   }
 
   if (view === 'welcome') {
-      return <WelcomeScreen 
-        onPromptSubmit={handleWelcomePrompt} 
-        onShowPricing={() => setView('pricing')}
-        onImportFromGithub={() => setGithubModalOpen(true)}
-      />
+      return (
+        <>
+          <WelcomeScreen 
+            onPromptSubmit={handleWelcomePrompt} 
+            onShowPricing={() => setView('pricing')}
+            onImportFromGithub={() => setGithubModalOpen(true)}
+          />
+          <GithubImportModal
+            isOpen={isGithubModalOpen}
+            onClose={() => setGithubModalOpen(false)}
+            onImport={handleGithubImport}
+          />
+        </>
+      )
   }
 
   if (view === 'pricing') {
@@ -159,6 +228,8 @@ const App: React.FC = () => {
             activeFile={activeFile}
             onDownload={handleDownload}
             onOpenSettings={() => setSettingsOpen(true)}
+            onOpenGithubImport={() => setGithubModalOpen(true)}
+            onOpenSupabaseIntegration={() => setSupabaseModalOpen(true)}
           />
         </div>
         
@@ -172,11 +243,12 @@ const App: React.FC = () => {
               activeFile={activeFile} 
               onFileSelect={handleFileSelect}
               onFileClose={handleFileClose}
+              onPublish={() => setPublishModalOpen(true)}
             />
         </main>
         
         <div className="hidden lg:flex flex-shrink-0">
-          <ChatPanel messages={chatMessages} onSendMessage={handleMessageSubmit} />
+          <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} />
         </div>
       </div>
       
@@ -191,6 +263,8 @@ const App: React.FC = () => {
               activeFile={activeFile}
               onDownload={handleDownload}
               onOpenSettings={() => setSettingsOpen(true)}
+              onOpenGithubImport={() => setGithubModalOpen(true)}
+              onOpenSupabaseIntegration={() => setSupabaseModalOpen(true)}
               onClose={() => setSidebarOpen(false)}
             />
           </div>
@@ -204,24 +278,33 @@ const App: React.FC = () => {
           <div className="absolute top-0 right-0 h-full z-20 lg:hidden animate-slide-in-right">
              <ChatPanel 
                 messages={chatMessages} 
-                onSendMessage={handleMessageSubmit} 
+                onSendMessage={handleSendMessage} 
                 onClose={() => setChatOpen(false)}
               />
           </div>
         </>
       )}
 
-      {/* Settings Modal */}
+      {/* Modals */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
         initialSettings={userSettings}
         onSave={setUserSettings}
       />
-      {/* GitHub Import Modal */}
       <GithubImportModal
         isOpen={isGithubModalOpen}
         onClose={() => setGithubModalOpen(false)}
+        onImport={handleGithubImport}
+      />
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        onClose={() => setPublishModalOpen(false)}
+      />
+      <SupabaseIntegrationModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setSupabaseModalOpen(false)}
+        onIntegrate={handleSupabaseIntegrate}
       />
     </div>
   );
