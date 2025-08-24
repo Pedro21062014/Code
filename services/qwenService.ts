@@ -26,21 +26,24 @@ Current project files:
 ${fileContentToString(files)}
 `;
 
-export const generateCodeStreamWithDeepSeek = async (
+export const generateCodeStreamWithQwen = async (
   prompt: string,
   existingFiles: ProjectFile[],
   onChunk: (chunk: string) => void,
   apiKey: string,
-  model: string,
+  model: string
 ): Promise<string> => {
   const systemPrompt = getSystemPrompt(existingFiles);
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://codegen.studio';
 
   try {
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': siteUrl,
+        'X-Title': 'Codegen Studio',
       },
       body: JSON.stringify({
         model: model,
@@ -56,8 +59,8 @@ export const generateCodeStreamWithDeepSeek = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
     }
     
     const reader = response.body!.getReader();
@@ -93,7 +96,7 @@ export const generateCodeStreamWithDeepSeek = async (
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with DeepSeek:", error);
+    console.error("Error generating code with Qwen (OpenRouter):", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
         message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,

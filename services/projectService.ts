@@ -1,11 +1,10 @@
-
 import { ProjectFile } from '../types';
 
 declare const JSZip: any;
 
 export const downloadProjectAsZip = async (files: ProjectFile[], projectName: string = 'ai-codegen-project') => {
   if (typeof JSZip === 'undefined') {
-    alert('JSZip library not loaded. Cannot download project.');
+    alert('A biblioteca JSZip não foi carregada. Não é possível baixar o projeto.');
     return;
   }
   
@@ -26,6 +25,6 @@ export const downloadProjectAsZip = async (files: ProjectFile[], projectName: st
     URL.revokeObjectURL(link.href);
   } catch (error) {
     console.error("Error creating zip file:", error);
-    alert("An error occurred while creating the zip file.");
+    alert("Ocorreu um erro ao criar o arquivo zip.");
   }
 };

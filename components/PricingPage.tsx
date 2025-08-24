@@ -1,17 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppLogo } from './Icons';
+import { handleCheckout } from '../services/stripeService';
 
 interface PricingPageProps {
   onBack: () => void;
 }
 
-const PricingCard: React.FC<{ title: string; price: string; description: string; features: string[]; isFeatured?: boolean }> = ({ title, price, description, features, isFeatured }) => (
+const PricingCard: React.FC<{ 
+    title: string; 
+    price: string; 
+    description: string; 
+    features: string[]; 
+    isFeatured?: boolean;
+    onClick: () => void;
+    isLoading: boolean;
+    buttonText?: string;
+}> = ({ title, price, description, features, isFeatured, onClick, isLoading, buttonText = "Começar" }) => (
     <div className={`flex flex-col p-8 rounded-2xl border ${isFeatured ? 'bg-gray-800/50 border-blue-500/50' : 'bg-[#1C1C1F] border-gray-700/50'}`}>
         <h3 className="text-xl font-semibold text-white">{title}</h3>
         <p className="mt-2 text-gray-400">{description}</p>
         <div className="mt-6">
             <span className="text-5xl font-bold text-white">{price}</span>
-            <span className="text-gray-400">{price !== "Free" && " / month"}</span>
+            <span className="text-gray-400">{price !== "Grátis" && " / mês"}</span>
         </div>
         <ul className="mt-8 space-y-4 text-gray-300 flex-grow">
             {features.map((feature, index) => (
@@ -21,14 +31,30 @@ const PricingCard: React.FC<{ title: string; price: string; description: string;
                 </li>
             ))}
         </ul>
-        <button className={`w-full mt-8 py-3 rounded-lg font-semibold transition-colors ${isFeatured ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-600/50 text-gray-200 hover:bg-gray-700'}`}>
-            Get Started
+        <button 
+            onClick={onClick}
+            disabled={isLoading}
+            className={`w-full mt-8 py-3 rounded-lg font-semibold transition-colors disabled:bg-gray-500 disabled:cursor-wait ${isFeatured ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-600/50 text-gray-200 hover:bg-gray-700'}`}>
+            {isLoading ? 'Processando...' : buttonText}
         </button>
     </div>
 );
 
 
 export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+
+  const onCheckoutClick = async (priceId: string, planName: string) => {
+    setIsLoading(planName);
+    try {
+      await handleCheckout(priceId);
+    } catch (error) {
+      console.error("Stripe checkout error:", error);
+      // If redirection fails, stop loading
+      setIsLoading(null);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen w-screen bg-[#0B0C10] text-gray-300 overflow-y-auto font-sans">
        <header className="fixed top-0 left-0 right-0 z-10 p-4">
@@ -38,50 +64,57 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
             <span className="text-white font-bold">codegen<span className="font-light">studio</span></span>
           </div>
           <button onClick={onBack} className="text-sm text-gray-300 hover:text-white transition-colors">
-            &larr; Back to Home
+            &larr; Voltar para o Início
           </button>
         </div>
       </header>
        <main className="flex-1 flex flex-col items-center justify-center text-center px-4 pt-24 pb-12">
-        <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">Find the right plan for you</h1>
-        <p className="mt-4 text-lg text-gray-400 max-w-2xl">Start for free, then scale up as you grow. All plans include access to our powerful AI code generation features.</p>
+        <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">Encontre o plano certo para você</h1>
+        <p className="mt-4 text-lg text-gray-400 max-w-2xl">Comece de graça e expanda conforme você cresce. Todos os planos incluem acesso aos nossos poderosos recursos de geração de código por IA.</p>
 
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full text-left">
             <PricingCard
                 title="Hobby"
-                price="Free"
-                description="For personal projects and exploration."
+                price="Grátis"
+                description="Para projetos pessoais e exploração."
                 features={[
-                    "Access to Gemini Flash model",
-                    "10 generations per day",
-                    "Community support",
-                    "Download projects as ZIP",
+                    "Acesso ao modelo Gemini Flash",
+                    "10 gerações por dia",
+                    "Suporte da comunidade",
+                    "Baixar projetos como ZIP",
                 ]}
+                onClick={onBack}
+                isLoading={isLoading === 'Hobby'}
             />
              <PricingCard
                 title="Pro"
                 price="$20"
-                description="For professionals and small teams."
+                description="Para profissionais e equipes pequenas."
                 features={[
-                    "Everything in Hobby, plus:",
-                    "Access to all AI models (OpenAI, DeepSeek)",
-                    "Unlimited generations",
-                    "Priority support",
-                    "GitHub integration",
+                    "Tudo do Hobby, e mais:",
+                    "Acesso a todos os modelos de IA (OpenAI, DeepSeek)",
+                    "Gerações ilimitadas",
+                    "Suporte prioritário",
+                    "Integração com GitHub",
                 ]}
                 isFeatured
+                onClick={() => onCheckoutClick('price_1PgWd12KmkAgJHb0i16n431o', 'Pro')} // NOTE: This is a sample Price ID. Replace with your actual ID from Stripe.
+                isLoading={isLoading === 'Pro'}
             />
              <PricingCard
                 title="Enterprise"
                 price="Custom"
-                description="For large organizations with specific needs."
+                description="Para grandes organizações com necessidades específicas."
                 features={[
-                    "Everything in Pro, plus:",
-                    "On-premise deployment options",
-                    "Custom model fine-tuning",
-                    "Dedicated account manager",
-                    "SAML SSO",
+                    "Tudo do Pro, e mais:",
+                    "Opções de implantação local (On-premise)",
+                    "Ajuste fino de modelos personalizados",
+                    "Gerente de contas dedicado",
+                    "SSO SAML",
                 ]}
+                onClick={() => window.location.href = 'mailto:sales@codegen.studio'}
+                isLoading={isLoading === 'Enterprise'}
+                buttonText="Contatar Vendas"
             />
         </div>
 
