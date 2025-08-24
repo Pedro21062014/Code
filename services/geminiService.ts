@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { ProjectFile } from '../types';
 
 const fileContentToString = (files: ProjectFile[]): string => {
@@ -6,7 +5,7 @@ const fileContentToString = (files: ProjectFile[]): string => {
     return "Nenhum arquivo existe ainda.";
   }
   return files.map(file => 
-    ` --- FILE: ${file.name} --- \`\`\`${file.language} ${file.content} \`\`\` `
+    ` --- FILE: ${file.name} --- \`\`\`${file.language}\n${file.content}\n\`\`\` `
   ).join('\n');
 };
 
@@ -22,65 +21,82 @@ const getSystemPrompt = (files: ProjectFile[]): string =>
 - Respond with a JSON object that strictly adheres to the provided schema. The JSON object must contain two keys: "message" (a friendly, conversational message to the user, in Portuguese) and "files" (an array of file objects). Each file object must have "name", "language", and "content".
 Current project files: ${fileContentToString(files)}`;
 
-const responseSchema = {
-  type: Type.OBJECT,
-  properties: {
-    message: { type: Type.STRING },
-    files: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          language: { type: Type.STRING },
-          content: { type: Type.STRING },
-        },
-        required: ["name", "language", "content"],
-      },
-    },
-  },
-  required: ["message", "files"],
-};
-
 export const generateCodeStreamWithGemini = async (
   prompt: string,
   existingFiles: ProjectFile[],
   onChunk: (chunk: string) => void,
-  modelId: string = "gemini-2.5-flash"
+  apiKey: string,
+  modelId: string
 ): Promise<string> => {
+  const systemPrompt = getSystemPrompt(existingFiles);
+  
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    const stream = await ai.models.generateContentStream({
-      model: modelId,
-      contents: prompt,
-      config: {
-        systemInstruction: getSystemPrompt(existingFiles),
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://codegen.studio',
+        'X-Title': 'Codegen Studio',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
         temperature: 0.1,
-        topP: 0.9,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      }
+        top_p: 0.9,
+        response_format: { type: "json_object" },
+        stream: true,
+      }),
     });
 
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
     let fullResponse = "";
-    for await (const chunk of stream) {
-        const chunkText = chunk.text;
-        if (chunkText) {
-            fullResponse += chunkText;
-            onChunk(chunkText);
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const dataStr = line.substring(6);
+                if (dataStr === '[DONE]') {
+                    break;
+                }
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                        const contentChunk = data.choices[0].delta.content;
+                        fullResponse += contentChunk;
+                        onChunk(contentChunk);
+                    }
+                } catch (e) {
+                    console.error('Error parsing stream data chunk:', line, e);
+                }
+            }
         }
     }
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with Gemini:", error);
+    console.error("Error generating code with Gemini (OpenRouter):", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
         message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,
         files: existingFiles
     });
-    onChunk(errorJson); // Send the error as a chunk to update the UI
+    onChunk(errorJson);
     return errorJson;
   }
 };

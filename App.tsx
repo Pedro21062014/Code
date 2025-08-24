@@ -44,10 +44,11 @@ const App: React.FC = () => {
   const [isSupabaseModalOpen, setSupabaseModalOpen] = useState(false);
 
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', {
-    openAIKey: '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',
-    deepSeekKey: '',
-    kimiKey: 'sk-D7OUN5FnsdVYygLckq5agPZDEVaBa217S65T7ugyzzrhja3G',
-    qwenKey: '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',
+    geminiKey: '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',
+    openAIKey: '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',
+    deepSeekKey: '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',
+    kimiKey: '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',
+    qwenKey: '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',
   });
   
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
@@ -96,7 +97,8 @@ const App: React.FC = () => {
       let fullResponse;
       switch (provider) {
         case AIProvider.Gemini:
-          fullResponse = await generateCodeStreamWithGemini(prompt, files, onChunk, model);
+          if (!userSettings.geminiKey) throw new Error('A chave de API do Gemini não está definida. Por favor, adicione-a nas Configurações.');
+          fullResponse = await generateCodeStreamWithGemini(prompt, files, onChunk, userSettings.geminiKey, model);
           break;
         case AIProvider.OpenAI:
           if (!userSettings.openAIKey) throw new Error('A chave de API da OpenAI não está definida. Por favor, adicione-a nas Configurações.');
@@ -148,7 +150,7 @@ const App: React.FC = () => {
   };
 
   const handleWelcomePrompt = (prompt: string) => {
-    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+    handleSendMessage(prompt, AIProvider.Gemini, 'google/gemma-2-9b-it');
   };
 
   const handleGithubImport = (importedFiles: ProjectFile[]) => {
@@ -168,7 +170,7 @@ const App: React.FC = () => {
     - Then, create a sample component 'components/SupabaseData.tsx' that demonstrates fetching data from a hypothetical 'profiles' table and displaying it.
     - Finally, update App.tsx to import and render the new SupabaseData component.
     Do not modify any other existing files unless absolutely necessary to render the new component.`;
-    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+    handleSendMessage(prompt, AIProvider.Gemini, 'google/gemma-2-9b-it');
     setSupabaseModalOpen(false);
   }
 

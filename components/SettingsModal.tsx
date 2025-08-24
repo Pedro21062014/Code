@@ -46,8 +46,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
         
         <div className="space-y-4">
           <div>
+            <label htmlFor="geminiKey" className="block text-sm font-medium text-gray-300 mb-1">
+              Chave de API do Gemini (OpenRouter)
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <KeyIcon />
+              </span>
+              <input
+                type="password"
+                id="geminiKey"
+                name="geminiKey"
+                value={settings.geminiKey}
+                onChange={handleChange}
+                placeholder="sk-or-..."
+                className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              />
+            </div>
+          </div>
+          <div>
             <label htmlFor="openAIKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da OpenAI
+              Chave de API da OpenAI (OpenRouter)
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -59,14 +78,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 name="openAIKey"
                 value={settings.openAIKey}
                 onChange={handleChange}
-                placeholder="sk-..."
+                placeholder="sk-or-..."
                 className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
           </div>
           <div>
             <label htmlFor="deepSeekKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da DeepSeek
+              Chave de API da DeepSeek (OpenRouter)
             </label>
             <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -78,14 +97,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                     name="deepSeekKey"
                     value={settings.deepSeekKey}
                     onChange={handleChange}
-                    placeholder="sk-..."
+                    placeholder="sk-or-..."
                     className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>
           </div>
           <div>
             <label htmlFor="kimiKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da Kimi (Moonshot)
+              Chave de API da Kimi (OpenRouter)
             </label>
             <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -97,7 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                     name="kimiKey"
                     value={settings.kimiKey}
                     onChange={handleChange}
-                    placeholder="sk-..."
+                    placeholder="sk-or-..."
                     className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>

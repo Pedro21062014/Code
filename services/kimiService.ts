@@ -36,11 +36,13 @@ export const generateCodeStreamWithKimi = async (
   const systemPrompt = getSystemPrompt(existingFiles);
 
   try {
-    const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://codegen.studio',
+        'X-Title': 'Codegen Studio',
       },
       body: JSON.stringify({
         model: model,
@@ -51,8 +53,7 @@ export const generateCodeStreamWithKimi = async (
         temperature: 0.1,
         top_p: 0.9,
         stream: true,
-        // Kimi does not support response_format with streaming, so we remove it.
-        // The prompt should be strong enough to guide it to JSON.
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -86,26 +87,16 @@ export const generateCodeStreamWithKimi = async (
                         onChunk(contentChunk);
                     }
                 } catch (e) {
-                    // Kimi might send a non-JSON chunk first, so we cautiously append raw chunks if parsing fails
-                    if(line.includes(`"content":`)) {
-                      onChunk(line);
-                      fullResponse += line;
-                    }
                     console.error('Error parsing stream data chunk:', line, e);
                 }
             }
         }
     }
     
-    // The response might be wrapped in ```json ... ```, so we extract it.
-    const jsonMatch = fullResponse.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      return jsonMatch[1];
-    }
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with Kimi:", error);
+    console.error("Error generating code with Kimi (OpenRouter):", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
         message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,
