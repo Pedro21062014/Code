@@ -14,9 +14,6 @@ import { INITIAL_CHAT_MESSAGE } from './constants';
 import { generateCodeStreamWithGemini } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
-import { generateCodeStreamWithKimi } from './services/kimiService';
-import { generateCodeStreamWithQwen } from './services/qwenService';
-import { generateCodeStreamWithClaude } from './services/claudeService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon } from './components/Icons';
 
@@ -38,21 +35,15 @@ const decodeKey = (encodedKey: string): string => {
 const getInitialSettings = (): UserSettings => {
   // Obfuscated default keys (reversed string, then base64 encoded)
   const encodedDefaults = {
-    geminiKey: 'QXdxMHJmTjF0QmV1dDBxbnhSMHkzdWVJczJMcHhhanlTYXpJQQ==',
-    openAIKey: 'QUU1X2FmdTBzazZOUUV6ZXY5OmtKUTVwR2VJMVFhU1NIeWNaTGZjZV80WEgzcmljeVpMSS01eHVmdlNpbkZrYnBsM1Q4dlRidxRsRDZvc1dISmNmZ1RXMUUtdEtqeVEwSnhzM25lYTB1RThucDlTMzhqQXVwVi1KRlB3enJ1TGpjLWpvcnAtaz',
-    deepSeekKey: 'MmI1NjkwYmYzZGEzNGE0ODBmNjQyNTQ1YTdlZmM4LWtz',
-    kimiKey: '',
-    qwenKey: '',
-    claudeKey: 'QUFndmlrUi1BaXFWMHUtLVp2ZTBZTjJiMzV2czc3ZWRadVB3bEp3WFhrakNKcGpKYVRRUnZZN3ZxWkw5eGxBVVluT0M4OF9iclBoNWF1UE0xQS0zMGlwYS10bmEta3M=',
+    geminiKey: 'NEh0STFLdFh1blhoUVlYR2RnUmhTM29IbUxBWWppU3lhelJB',
+    openAIKey: 'QUU1X2FmbTBzazZORTl6WmtqNUMtcGVIMW1hcVNTSEGNWRlpMY2VkXzRYWGJyaWNoWnlNLTV4ZnNWbkpGQmtidDh2VEJpd25hdDZDb1NTSGNKZmdUVzFFLXRLanlRMHzM25lYXp1cGxKYy1qb3JwLXNr',
+    deepSeekKey: 'QUU1X2FmbTBzazZORTl6WmtqNUMtcGVIMW1hcVNTSEGNWRlpMY2VkXzRYWGJyaWNoWnlNLTV4ZnNWbkpGQmtidDh2VEJpd25hdDZDb1NTSGNKZmdUVzFFLXRLanlRMHzM25lYXp1cGxKYy1qb3JwLXNr',
   };
 
   return {
     geminiKey: decodeKey(encodedDefaults.geminiKey),
     openAIKey: decodeKey(encodedDefaults.openAIKey),
     deepSeekKey: decodeKey(encodedDefaults.deepSeekKey),
-    kimiKey: encodedDefaults.kimiKey,
-    qwenKey: encodedDefaults.qwenKey,
-    claudeKey: decodeKey(encodedDefaults.claudeKey),
   };
 };
 
@@ -126,6 +117,7 @@ const App: React.FC = () => {
 
     try {
       let fullResponse;
+
       switch (provider) {
         case AIProvider.Gemini:
           if (!userSettings.geminiKey) throw new Error('A chave de API do Gemini não está definida. Por favor, adicione-a nas Configurações.');
@@ -136,20 +128,8 @@ const App: React.FC = () => {
           fullResponse = await generateCodeStreamWithOpenAI(prompt, files, onChunk, userSettings.openAIKey, model);
           break;
         case AIProvider.DeepSeek:
-           if (!userSettings.deepSeekKey) throw new Error('A chave de API da DeepSeek não está definida. Por favor, adicione-a nas Configurações.');
+           if (!userSettings.deepSeekKey) throw new Error('A chave de API do DeepSeek não está definida. Por favor, adicione-a nas Configurações.');
            fullResponse = await generateCodeStreamWithDeepSeek(prompt, files, onChunk, userSettings.deepSeekKey, model);
-          break;
-        case AIProvider.Kimi:
-          if (!userSettings.kimiKey) throw new Error('A chave de API da Kimi não está definida. Por favor, adicione-a nas Configurações.');
-          fullResponse = await generateCodeStreamWithKimi(prompt, files, onChunk, userSettings.kimiKey, model);
-          break;
-        case AIProvider.Qwen:
-          if (!userSettings.qwenKey) throw new Error('A chave de API da Qwen não está definida. Por favor, adicione-a nas Configurações.');
-          fullResponse = await generateCodeStreamWithQwen(prompt, files, onChunk, userSettings.qwenKey, model);
-          break;
-        case AIProvider.Claude:
-          if (!userSettings.claudeKey) throw new Error('A chave de API do Claude não está definida. Por favor, adicione-a nas Configurações.');
-          fullResponse = await generateCodeStreamWithClaude(prompt, files, onChunk, userSettings.claudeKey, model);
           break;
         default:
           throw new Error('Provedor de IA não suportado');

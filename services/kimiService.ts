@@ -20,7 +20,7 @@ const getSystemPrompt = (files: ProjectFile[]): string => `You are an expert sen
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
 - If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. Use the exported Supabase client from that file for any data-related tasks. Do not re-initialize the client.
-- Respond with a JSON object that strictly adheres to the provided schema. The JSON object must contain two keys: "message" (a friendly, conversational message to the user, in Portuguese) and "files" (an array of file objects). Each file object must have "name", "language", and "content".
+- You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain two keys: "message" (a friendly, conversational message to the user, in Portuguese) and "files" (an array of file objects). Each file object must have "name", "language", and "content".
 
 Current project files:
 ${fileContentToString(files)}
@@ -36,11 +36,13 @@ export const generateCodeStreamWithKimi = async (
   const systemPrompt = getSystemPrompt(existingFiles);
 
   try {
-    const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': `https://codegen.studio`,
+        'X-Title': `Codegen Studio`,
       },
       body: JSON.stringify({
         model: model,
@@ -94,10 +96,10 @@ export const generateCodeStreamWithKimi = async (
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with Kimi:", error);
+    console.error("Error generating code with Kimi via OpenRouter:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
-      message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,
+      message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique sua chave OpenRouter e a conexão com a internet.`,
       files: existingFiles
     });
     onChunk(errorJson);
