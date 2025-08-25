@@ -16,8 +16,45 @@ import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { generateCodeStreamWithKimi } from './services/kimiService';
 import { generateCodeStreamWithQwen } from './services/qwenService';
+import { generateCodeStreamWithClaude } from './services/claudeService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon } from './components/Icons';
+
+// Function to get initial settings, decoding them from base64
+const getInitialSettings = (): UserSettings => {
+  // Obfuscated default keys
+  const encodedDefaults = {
+    geminiKey: 'QUl6YVN5QWpaeHBMMnNJZXUzeTBSeG5xMHV0eEJ0MU5mckQwcXdB',
+    openAIKey: 'c2stcHJvai1jakx1cnB6d1BZRkp2LVZwdUFqODNTOXBuOEUwdTBhZW5aM014SmQwUW55akt0LUUxV1RnZmNKSFdTU29DNnRhZG53bGJpQlR2OGlUM0JsYmtGSW5zdlN4ZnV4NS1JbVp5aGNpYnIzSFg0X2ZkZWNaTFpmY1Z5SFNTUWFtRDFJZUdwQzVxS1VKazo5emVzRVFONmtzMG11ZmFfNUVB',
+    deepSeekKey: 'c2stYzhmYzdlNWE1NDUyNDZmMDg0YTQzYWQzZmIwOTY1YjI=',
+    kimiKey: '',
+    qwenKey: '',
+    claudeKey: 'c2stYW50LWFwaTAzLUExTVB1YTVoZ1ByYl9kODFDS09uWUFVeGw5WmVMWnF2N1l3VnJSUVRKYU1wUkpDamtYWFd3Smx3UDJ1WmRlNzdzdkg1M2IyTlkwZXZaLS11MFZxWWlBLURSa2l2Z0FB',
+  };
+
+  try {
+    // atob can throw an error if the string is not correctly encoded.
+    return {
+      geminiKey: encodedDefaults.geminiKey ? atob(encodedDefaults.geminiKey) : '',
+      openAIKey: encodedDefaults.openAIKey ? atob(encodedDefaults.openAIKey) : '',
+      deepSeekKey: encodedDefaults.deepSeekKey ? atob(encodedDefaults.deepSeekKey) : '',
+      kimiKey: encodedDefaults.kimiKey,
+      qwenKey: encodedDefaults.qwenKey,
+      claudeKey: encodedDefaults.claudeKey ? atob(encodedDefaults.claudeKey) : '',
+    };
+  } catch (error) {
+    console.error("Error decoding default API keys:", error);
+    // Fallback to empty strings if decoding fails
+    return {
+      geminiKey: '',
+      openAIKey: '',
+      deepSeekKey: '',
+      kimiKey: '',
+      qwenKey: '',
+      claudeKey: '',
+    };
+  }
+};
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }> = ({ onToggleSidebar, onToggleChat }) => (
   <div className="lg:hidden flex justify-between items-center p-2 bg-[#111217] border-b border-white/10 flex-shrink-0">
@@ -43,13 +80,7 @@ const App: React.FC = () => {
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isSupabaseModalOpen, setSupabaseModalOpen] = useState(false);
 
-  const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', {
-    geminiKey: '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',
-    openAIKey: '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',
-    deepSeekKey: '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',
-    kimiKey: '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',
-    qwenKey: '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',
-  });
+  const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-api-keys', getInitialSettings);
   
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
     const userMessage: ChatMessage = { role: 'user', content: prompt };
@@ -116,6 +147,10 @@ const App: React.FC = () => {
           if (!userSettings.qwenKey) throw new Error('A chave de API da Qwen não está definida. Por favor, adicione-a nas Configurações.');
           fullResponse = await generateCodeStreamWithQwen(prompt, files, onChunk, userSettings.qwenKey, model);
           break;
+        case AIProvider.Claude:
+          if (!userSettings.claudeKey) throw new Error('A chave de API do Claude não está definida. Por favor, adicione-a nas Configurações.');
+          fullResponse = await generateCodeStreamWithClaude(prompt, files, onChunk, userSettings.claudeKey, model);
+          break;
         default:
           throw new Error('Provedor de IA não suportado');
       }
@@ -150,7 +185,7 @@ const App: React.FC = () => {
   };
 
   const handleWelcomePrompt = (prompt: string) => {
-    handleSendMessage(prompt, AIProvider.Gemini, 'google/gemma-2-9b-it');
+    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
   };
 
   const handleGithubImport = (importedFiles: ProjectFile[]) => {
@@ -170,7 +205,7 @@ const App: React.FC = () => {
     - Then, create a sample component 'components/SupabaseData.tsx' that demonstrates fetching data from a hypothetical 'profiles' table and displaying it.
     - Finally, update App.tsx to import and render the new SupabaseData component.
     Do not modify any other existing files unless absolutely necessary to render the new component.`;
-    handleSendMessage(prompt, AIProvider.Gemini, 'google/gemma-2-9b-it');
+    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
     setSupabaseModalOpen(false);
   }
 

@@ -47,7 +47,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
         <div className="space-y-4">
           <div>
             <label htmlFor="geminiKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API do Gemini (OpenRouter)
+              Chave de API do Gemini
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -59,14 +59,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 name="geminiKey"
                 value={settings.geminiKey}
                 onChange={handleChange}
-                placeholder="sk-or-..."
+                placeholder="AIza..."
                 className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
           </div>
           <div>
             <label htmlFor="openAIKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da OpenAI (OpenRouter)
+              Chave de API da OpenAI
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -78,14 +78,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 name="openAIKey"
                 value={settings.openAIKey}
                 onChange={handleChange}
-                placeholder="sk-or-..."
+                placeholder="sk-..."
                 className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
           </div>
           <div>
+            <label htmlFor="claudeKey" className="block text-sm font-medium text-gray-300 mb-1">
+              Chave de API do Claude
+            </label>
+            <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                    <KeyIcon />
+                </span>
+                <input
+                    type="password"
+                    id="claudeKey"
+                    name="claudeKey"
+                    value={settings.claudeKey}
+                    onChange={handleChange}
+                    placeholder="sk-ant-..."
+                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                />
+            </div>
+          </div>
+          <div>
             <label htmlFor="deepSeekKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da DeepSeek (OpenRouter)
+              Chave de API da DeepSeek
             </label>
             <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -97,14 +116,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                     name="deepSeekKey"
                     value={settings.deepSeekKey}
                     onChange={handleChange}
-                    placeholder="sk-or-..."
+                    placeholder="sk-..."
                     className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>
           </div>
           <div>
             <label htmlFor="kimiKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da Kimi (OpenRouter)
+              Chave de API da Kimi
             </label>
             <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -116,14 +135,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                     name="kimiKey"
                     value={settings.kimiKey}
                     onChange={handleChange}
-                    placeholder="sk-or-..."
+                    placeholder="sk-..."
                     className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>
           </div>
            <div>
             <label htmlFor="qwenKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da Qwen (OpenRouter)
+              Chave de API da Qwen
             </label>
             <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -135,7 +154,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                     name="qwenKey"
                     value={settings.qwenKey}
                     onChange={handleChange}
-                    placeholder="sk-or-..."
+                    placeholder="sk-..."
                     className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>

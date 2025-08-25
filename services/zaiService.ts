@@ -41,6 +41,8 @@ export const generateCodeStreamWithZAI = async (
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': `https://codegen.studio`,
+        'X-Title': `Codegen Studio`,
       },
       body: JSON.stringify({
         model: model, // This will now correctly be 'zhipu/glm-4.5-air'
