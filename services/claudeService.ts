@@ -36,22 +36,23 @@ export const generateCodeStreamWithClaude = async (
   const systemPrompt = getSystemPrompt(existingFiles);
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': `https://codegen.studio`,
+        'X-Title': `Codegen Studio`,
       },
       body: JSON.stringify({
         model: model,
-        system: systemPrompt,
         messages: [
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
         top_p: 0.9,
-        max_tokens: 4096,
+        response_format: { type: "json_object" },
         stream: true,
       }),
     });
@@ -70,29 +71,34 @@ export const generateCodeStreamWithClaude = async (
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data:'));
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
 
         for (const line of lines) {
-            const dataStr = line.substring(5).trim();
-            try {
-                const data = JSON.parse(dataStr);
-                if (data.type === 'content_block_delta' && data.delta.type === 'text_delta') {
-                    const contentChunk = data.delta.text;
-                    fullResponse += contentChunk;
-                    onChunk(contentChunk);
+            if (line.startsWith('data: ')) {
+                const dataStr = line.substring(6);
+                if (dataStr === '[DONE]') {
+                    break;
                 }
-            } catch (e) {
-                // Ignore parsing errors for non-JSON or incomplete lines
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                        const contentChunk = data.choices[0].delta.content;
+                        fullResponse += contentChunk;
+                        onChunk(contentChunk);
+                    }
+                } catch (e) {
+                    // Ignore parsing errors for non-JSON or incomplete lines
+                }
             }
         }
     }
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with Claude:", error);
+    console.error("Error generating code with Claude via OpenRouter:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
-        message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,
+        message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique sua chave OpenRouter e a conexão com a internet.`,
         files: existingFiles
     });
     onChunk(errorJson);

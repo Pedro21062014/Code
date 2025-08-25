@@ -76,7 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 type="password"
                 id="openAIKey"
                 name="openAIKey"
-                value={settings.openAIKey}
+                value={settings.openAIKey || ''}
                 onChange={handleChange}
                 placeholder="sk-..."
                 className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
@@ -84,79 +84,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
             </div>
           </div>
           <div>
-            <label htmlFor="claudeKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API do Claude
-            </label>
-            <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    <KeyIcon />
-                </span>
-                <input
-                    type="password"
-                    id="claudeKey"
-                    name="claudeKey"
-                    value={settings.claudeKey}
-                    onChange={handleChange}
-                    placeholder="sk-ant-..."
-                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                />
-            </div>
-          </div>
-          <div>
             <label htmlFor="deepSeekKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da DeepSeek
+              Chave de API do DeepSeek
             </label>
             <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    <KeyIcon />
-                </span>
-                <input
-                    type="password"
-                    id="deepSeekKey"
-                    name="deepSeekKey"
-                    value={settings.deepSeekKey}
-                    onChange={handleChange}
-                    placeholder="sk-..."
-                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="kimiKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da Kimi
-            </label>
-            <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    <KeyIcon />
-                </span>
-                <input
-                    type="password"
-                    id="kimiKey"
-                    name="kimiKey"
-                    value={settings.kimiKey}
-                    onChange={handleChange}
-                    placeholder="sk-..."
-                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                />
-            </div>
-          </div>
-           <div>
-            <label htmlFor="qwenKey" className="block text-sm font-medium text-gray-300 mb-1">
-              Chave de API da Qwen
-            </label>
-            <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                    <KeyIcon />
-                </span>
-                <input
-                    type="password"
-                    id="qwenKey"
-                    name="qwenKey"
-                    value={settings.qwenKey}
-                    onChange={handleChange}
-                    placeholder="sk-..."
-                    className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                />
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <KeyIcon />
+              </span>
+              <input
+                type="password"
+                id="deepSeekKey"
+                name="deepSeekKey"
+                value={settings.deepSeekKey || ''}
+                onChange={handleChange}
+                placeholder="sk-..."
+                className="w-full pl-10 p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              />
             </div>
           </div>
         </div>

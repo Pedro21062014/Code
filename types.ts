@@ -3,9 +3,6 @@ export enum AIProvider {
   Gemini = 'Gemini',
   OpenAI = 'OpenAI',
   DeepSeek = 'DeepSeek',
-  Kimi = 'Kimi',
-  Qwen = 'Qwen',
-  Claude = 'Claude',
 }
 
 export enum IntegrationProvider {
@@ -35,7 +32,4 @@ export interface UserSettings {
   geminiKey: string;
   openAIKey: string;
   deepSeekKey: string;
-  kimiKey: string;
-  qwenKey: string;
-  claudeKey: string;
 }
