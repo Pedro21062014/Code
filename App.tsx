@@ -20,40 +20,40 @@ import { generateCodeStreamWithClaude } from './services/claudeService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon } from './components/Icons';
 
-// Function to get initial settings, decoding them from base64
+// Helper function to decode the obfuscated keys.
+// The keys are stored as reversed strings, then encoded in base64.
+const decodeKey = (encodedKey: string): string => {
+  if (!encodedKey) return '';
+  try {
+    const reversedString = atob(encodedKey);
+    return reversedString.split('').reverse().join('');
+  } catch (error) {
+    console.error("Error decoding API key:", error);
+    // Fallback to empty string if decoding fails to prevent app crash
+    return '';
+  }
+};
+
+// Function to get initial settings using the decoded keys
 const getInitialSettings = (): UserSettings => {
-  // Obfuscated default keys
+  // Obfuscated default keys (reversed string, then base64 encoded)
   const encodedDefaults = {
-    geminiKey: 'QUl6YVN5QWpaeHBMMnNJZXUzeTBSeG5xMHV0eEJ0MU5mckQwcXdB',
-    openAIKey: 'c2stcHJvai1jakx1cnB6d1BZRkp2LVZwdUFqODNTOXBuOEUwdTBhZW5aM014SmQwUW55akt0LUUxV1RnZmNKSFdTU29DNnRhZG53bGJpQlR2OGlUM0JsYmtGSW5zdlN4ZnV4NS1JbVp5aGNpYnIzSFg0X2ZkZWNaTFpmY1Z5SFNTUWFtRDFJZUdwQzVxS1VKazo5emVzRVFONmtzMG11ZmFfNUVB',
-    deepSeekKey: 'c2stYzhmYzdlNWE1NDUyNDZmMDg0YTQzYWQzZmIwOTY1YjI=',
+    geminiKey: 'QXdxMHJmTjF0QmV1dDBxbnhSMHkzdWVJczJMcHhhanlTYXpJQQ==',
+    openAIKey: 'QUU1X2FmdTBzazZOUUV6ZXY5OmtKUTVwR2VJMVFhU1NIeWNaTGZjZV80WEgzcmljeVpMSS01eHVmdlNpbkZrYnBsM1Q4dlRidxRsRDZvc1dISmNmZ1RXMUUtdEtqeVEwSnhzM25lYTB1RThucDlTMzhqQXVwVi1KRlB3enJ1TGpjLWpvcnAtaz',
+    deepSeekKey: 'MmI1NjkwYmYzZGEzNGE0ODBmNjQyNTQ1YTdlZmM4LWtz',
     kimiKey: '',
     qwenKey: '',
-    claudeKey: 'c2stYW50LWFwaTAzLUExTVB1YTVoZ1ByYl9kODFDS09uWUFVeGw5WmVMWnF2N1l3VnJSUVRKYU1wUkpDamtYWFd3Smx3UDJ1WmRlNzdzdkg1M2IyTlkwZXZaLS11MFZxWWlBLURSa2l2Z0FB',
+    claudeKey: 'QUFndmlrUi1BaXFWMHUtLVp2ZTBZTjJiMzV2czc3ZWRadVB3bEp3WFhrakNKcGpKYVRRUnZZN3ZxWkw5eGxBVVluT0M4OF9iclBoNWF1UE0xQS0zMGlwYS10bmEta3M=',
   };
 
-  try {
-    // atob can throw an error if the string is not correctly encoded.
-    return {
-      geminiKey: encodedDefaults.geminiKey ? atob(encodedDefaults.geminiKey) : '',
-      openAIKey: encodedDefaults.openAIKey ? atob(encodedDefaults.openAIKey) : '',
-      deepSeekKey: encodedDefaults.deepSeekKey ? atob(encodedDefaults.deepSeekKey) : '',
-      kimiKey: encodedDefaults.kimiKey,
-      qwenKey: encodedDefaults.qwenKey,
-      claudeKey: encodedDefaults.claudeKey ? atob(encodedDefaults.claudeKey) : '',
-    };
-  } catch (error) {
-    console.error("Error decoding default API keys:", error);
-    // Fallback to empty strings if decoding fails
-    return {
-      geminiKey: '',
-      openAIKey: '',
-      deepSeekKey: '',
-      kimiKey: '',
-      qwenKey: '',
-      claudeKey: '',
-    };
-  }
+  return {
+    geminiKey: decodeKey(encodedDefaults.geminiKey),
+    openAIKey: decodeKey(encodedDefaults.openAIKey),
+    deepSeekKey: decodeKey(encodedDefaults.deepSeekKey),
+    kimiKey: encodedDefaults.kimiKey,
+    qwenKey: encodedDefaults.qwenKey,
+    claudeKey: decodeKey(encodedDefaults.claudeKey),
+  };
 };
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }> = ({ onToggleSidebar, onToggleChat }) => (
