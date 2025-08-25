@@ -36,13 +36,11 @@ export const generateCodeStreamWithQwen = async (
   const systemPrompt = getSystemPrompt(existingFiles);
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://codegen.studio',
-        'X-Title': 'Codegen Studio',
       },
       body: JSON.stringify({
         model: model,
@@ -95,7 +93,7 @@ export const generateCodeStreamWithQwen = async (
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with Qwen (OpenRouter):", error);
+    console.error("Error generating code with Qwen:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
         message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,

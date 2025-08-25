@@ -5,6 +5,7 @@ export enum AIProvider {
   DeepSeek = 'DeepSeek',
   Kimi = 'Kimi',
   Qwen = 'Qwen',
+  Claude = 'Claude',
 }
 
 export enum IntegrationProvider {
@@ -36,4 +37,5 @@ export interface UserSettings {
   deepSeekKey: string;
   kimiKey: string;
   qwenKey: string;
+  claudeKey: string;
 }

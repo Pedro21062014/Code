@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import { ProjectFile } from '../types';
 
 const fileContentToString = (files: ProjectFile[]): string => {
@@ -9,7 +10,7 @@ const fileContentToString = (files: ProjectFile[]): string => {
   ).join('\n');
 };
 
-const getSystemPrompt = (files: ProjectFile[]): string => 
+const getSystemInstruction = (files: ProjectFile[]): string => 
   `You are an expert senior full-stack engineer specializing in creating complete, functional, and aesthetically pleasing web applications.
 - Your primary goal is to generate all necessary code files based on the user's prompt. You are proficient in a wide range of web technologies including HTML, CSS, JavaScript, TypeScript, React, Vue, Svelte, Node.js, and more.
 - Always generate complete, runnable code. Do not use placeholders like "// your code here".
@@ -28,69 +29,45 @@ export const generateCodeStreamWithGemini = async (
   apiKey: string,
   modelId: string
 ): Promise<string> => {
-  const systemPrompt = getSystemPrompt(existingFiles);
-  
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://codegen.studio',
-        'X-Title': 'Codegen Studio',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
+    const ai = new GoogleGenAI({ apiKey });
+    const systemInstruction = getSystemInstruction(existingFiles);
+
+    const response = await ai.models.generateContentStream({
+      model: modelId,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
         temperature: 0.1,
-        top_p: 0.9,
-        response_format: { type: "json_object" },
-        stream: true,
-      }),
+        topP: 0.9,
+      }
     });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+    let fullResponse = "";
+    for await (const chunk of response) {
+      const chunkText = chunk.text;
+      if (chunkText) {
+        fullResponse += chunkText;
+        onChunk(chunkText);
+      }
     }
     
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let fullResponse = "";
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-        for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                const dataStr = line.substring(6);
-                if (dataStr === '[DONE]') {
-                    break;
-                }
-                try {
-                    const data = JSON.parse(dataStr);
-                    if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
-                        const contentChunk = data.choices[0].delta.content;
-                        fullResponse += contentChunk;
-                        onChunk(contentChunk);
-                    }
-                } catch (e) {
-                    console.error('Error parsing stream data chunk:', line, e);
-                }
-            }
-        }
+    // In case the stream ends but the last chunk was empty
+    if (fullResponse === "") {
+        console.warn("Gemini stream finished with no text content.");
+        const errorJson = JSON.stringify({
+            message: `A resposta do modelo estava vazia. Tente novamente ou com um prompt diferente.`,
+            files: existingFiles
+        });
+        onChunk(errorJson);
+        return errorJson;
     }
+
     return fullResponse;
 
   } catch (error) {
-    console.error("Error generating code with Gemini (OpenRouter):", error);
+    console.error("Error generating code with Gemini:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
         message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique o console para mais detalhes.`,
