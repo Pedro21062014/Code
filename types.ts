@@ -29,6 +29,5 @@ export interface ChatMessage {
 }
 
 export interface UserSettings {
-  // As chaves de API foram movidas para o backend para segurança.
-  // Este tipo é mantido para futuras configurações do usuário.
+  geminiApiKey?: string;
 }

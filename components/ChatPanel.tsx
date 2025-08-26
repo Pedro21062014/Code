@@ -6,18 +6,27 @@ import { SparklesIcon, CloseIcon } from './Icons';
 interface ChatPanelProps {
   messages: ChatMessage[];
   onSendMessage: (prompt: string, provider: AIProvider, model: string) => void;
+  isProUser: boolean;
   onClose?: () => void;
 }
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, onClose }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose }) => {
   const [input, setInput] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AIProvider.Gemini);
   const [selectedModel, setSelectedModel] = useState<string>('');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   
+  const availableProviders = isProUser ? Object.values(AIProvider) : [AIProvider.Gemini];
   const providerModels = AI_MODELS.filter(m => m.provider === selectedProvider);
 
+  useEffect(() => {
+    // If the current provider is no longer available (e.g. user logs out of pro), switch to Gemini
+    if (!availableProviders.includes(selectedProvider)) {
+      setSelectedProvider(AIProvider.Gemini);
+    }
+  }, [isProUser, selectedProvider, availableProviders]);
+  
   useEffect(() => {
     // Set the default model when the provider changes or on initial load
     if (providerModels.length > 0 && !providerModels.some(m => m.id === selectedModel)) {
@@ -54,7 +63,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
               <div className={`p-3 rounded-lg max-w-xs md:max-w-md ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-[#212329] text-gray-200'}`}>
                 {msg.isThinking ? 
                   <div className="flex flex-col space-y-2">
-                    <span className="text-sm italic">{msg.content}</span>
+                    <span className="text-sm italic whitespace-pre-wrap">{msg.content}</span>
                     <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
@@ -77,7 +86,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, o
               onChange={e => setSelectedProvider(e.target.value as AIProvider)}
               className="bg-[#2A2B30] border border-gray-700/50 rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             >
-              {Object.values(AIProvider).map(p => <option key={p} value={p}>{p}</option>)}
+              {availableProviders.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             <select 
               value={selectedModel}
