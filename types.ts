@@ -29,7 +29,6 @@ export interface ChatMessage {
 }
 
 export interface UserSettings {
-  geminiKey: string;
-  openAIKey: string;
-  deepSeekKey: string;
+  // As chaves de API foram movidas para o backend para segurança.
+  // Este tipo é mantido para futuras configurações do usuário.
 }
