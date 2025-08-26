@@ -89,10 +89,19 @@ export const CodePreview: React.FC<{ files: ProjectFile[] }> = ({ files }) => {
 
       const allFilesMap = new Map(files.map(f => [f.name, f]));
       const jsFiles = files.filter(f => /\.(tsx|ts|jsx|js)$/.test(f.name));
+      const cssFiles = files.filter(f => f.name.endsWith('.css'));
       const createdUrls: string[] = [];
       const importMap = JSON.parse(JSON.stringify(BASE_IMPORT_MAP)); // Deep copy base map
 
       try {
+        const cssBlobUrls = new Map<string, string>();
+        for (const file of cssFiles) {
+          const blob = new Blob([file.content], { type: 'text/css' });
+          const url = URL.createObjectURL(blob);
+          createdUrls.push(url);
+          cssBlobUrls.set(file.name, url);
+        }
+
         for (const file of jsFiles) {
           let content = file.content;
           
@@ -151,6 +160,15 @@ export const CodePreview: React.FC<{ files: ProjectFile[] }> = ({ files }) => {
 
         let finalHtml = htmlFile.content;
         
+        // Replace CSS links with blob URLs
+        finalHtml = finalHtml.replace(/<link[^>]+href=["']([^"']+)["'][^>]*>/g, (match, href) => {
+            const cssFileName = href.split('/').pop();
+            if (cssFileName && cssBlobUrls.has(cssFileName)) {
+              return match.replace(href, cssBlobUrls.get(cssFileName)!);
+            }
+            return match;
+        });
+
         finalHtml = finalHtml.replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>/, '');
         finalHtml = finalHtml.replace('</head>', `<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
         

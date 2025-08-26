@@ -34,6 +34,21 @@ const getFileLanguage = (fileName: string): string => {
         case 'css': return 'css';
         case 'json': return 'json';
         case 'md': return 'markdown';
+        case 'py': return 'python';
+        case 'rb': return 'ruby';
+        case 'go': return 'go';
+        case 'rs': return 'rust';
+        case 'java': return 'java';
+        case 'cs': return 'csharp';
+        case 'php': return 'php';
+        case 'sh': return 'shell';
+        case 'yml':
+        case 'yaml': return 'yaml';
+        case 'dockerfile': return 'dockerfile';
+        case 'sql': return 'sql';
+        case 'graphql': return 'graphql';
+        case 'vue': return 'vue';
+        case 'svelte': return 'svelte';
         default: return 'plaintext';
     }
 }

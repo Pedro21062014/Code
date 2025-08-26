@@ -99,7 +99,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
                     "Integração com GitHub",
                 ]}
                 isFeatured
-                onClick={() => onCheckoutClick('price_1PgWd12KmkAgJHb0i16n431o', 'Pro')} // NOTE: This is a sample Price ID. Replace with your actual ID from Stripe.
+                onClick={() => onCheckoutClick('price_1OuP5A2eZvKYlo2Ce2C20s2k', 'Pro')} // NOTE: This is a sample Price ID. Replace with your actual ID from Stripe.
                 isLoading={isLoading === 'Pro'}
                 buttonText="Atualizar para Pro"
             />

@@ -142,9 +142,9 @@ const App: React.FC = () => {
        setChatMessages(prev => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
-                return [...prev.slice(0, -1), { ...lastMessage, content: result.message || 'Geração concluída.', isThinking: false }];
+                return [...prev.slice(0, -1), { ...lastMessage, content: result.message || 'Geração concluída.', summary: result.summary, isThinking: false }];
             }
-            return [...prev, { role: 'assistant', content: result.message || 'Geração concluída.', isThinking: false }];
+            return [...prev, { role: 'assistant', content: result.message || 'Geração concluída.', summary: result.summary, isThinking: false }];
         });
         
     } catch (error) {

@@ -25,6 +25,7 @@ export interface ProjectFile {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  summary?: string;
   isThinking?: boolean;
 }
 
