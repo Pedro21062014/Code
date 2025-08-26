@@ -64,7 +64,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
             <span className="text-white font-bold">codegen<span className="font-light">studio</span></span>
           </div>
           <button onClick={onBack} className="text-sm text-gray-300 hover:text-white transition-colors">
-            &larr; Voltar para o Início
+            &larr; Voltar
           </button>
         </div>
       </header>
@@ -78,13 +78,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
                 price="Grátis"
                 description="Para projetos pessoais e exploração."
                 features={[
-                    "Acesso ao modelo Gemini Flash",
-                    "10 gerações por dia",
+                    "Acesso aos modelos Gemini (requer sua chave de API)",
+                    "Gerações ilimitadas com sua chave",
                     "Suporte da comunidade",
                     "Baixar projetos como ZIP",
                 ]}
                 onClick={onBack}
                 isLoading={isLoading === 'Hobby'}
+                buttonText="Continuar com Grátis"
             />
              <PricingCard
                 title="Pro"
@@ -93,13 +94,14 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
                 features={[
                     "Tudo do Hobby, e mais:",
                     "Acesso a todos os modelos de IA (OpenAI, DeepSeek)",
-                    "Gerações ilimitadas",
+                    "Nossas chaves de API gerenciadas para você",
                     "Suporte prioritário",
                     "Integração com GitHub",
                 ]}
                 isFeatured
                 onClick={() => onCheckoutClick('price_1PgWd12KmkAgJHb0i16n431o', 'Pro')} // NOTE: This is a sample Price ID. Replace with your actual ID from Stripe.
                 isLoading={isLoading === 'Pro'}
+                buttonText="Atualizar para Pro"
             />
              <PricingCard
                 title="Enterprise"

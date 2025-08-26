@@ -4,6 +4,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
+import { ApiKeyModal } from './components/ApiKeyModal';
 import { PricingPage } from './components/PricingPage';
 import { GithubImportModal } from './components/GithubImportModal';
 import { PublishModal } from './components/PublishModal';
@@ -31,31 +32,61 @@ const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }
 
 const App: React.FC = () => {
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing'>('welcome');
-  const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [files, setFiles] =useState<ProjectFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isSupabaseModalOpen, setSupabaseModalOpen] = useState(false);
-
-  // API keys are now handled by the backend proxy for security.
-  // The UserSettings can be used for other preferences in the future.
-  const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
   
+  const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
+  const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
+  const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string} | null>(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('payment') && urlParams.get('payment') === 'success') {
+      setIsProUser(true);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [setIsProUser]);
+
+  useEffect(() => {
+    if (pendingPrompt && userSettings.geminiApiKey) {
+      const { prompt, provider, model } = pendingPrompt;
+      setPendingPrompt(null);
+      handleSendMessage(prompt, provider, model);
+    }
+  }, [pendingPrompt, userSettings.geminiApiKey]);
+
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
+    // Check for Gemini API key
+    if (provider === AIProvider.Gemini && !userSettings.geminiApiKey) {
+      setPendingPrompt({ prompt, provider, model });
+      setApiKeyModalOpen(true);
+      return;
+    }
+    
+    // Check for Pro plan for other providers
+    if (provider !== AIProvider.Gemini && !isProUser) {
+        alert('Este modelo está disponível apenas para usuários Pro. Por favor, atualize seu plano na página de preços.');
+        return;
+    }
+
     const userMessage: ChatMessage = { role: 'user', content: prompt };
     const thinkingMessage: ChatMessage = {
       role: 'assistant',
-      content: '', // Start with empty content for streaming
+      content: 'Pensando...',
       isThinking: true,
     };
 
     if (view !== 'editor') {
       setView('editor');
-      // Set messages directly for welcome screen prompt
       setChatMessages([userMessage, thinkingMessage]);
     } else {
       setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
@@ -81,7 +112,7 @@ const App: React.FC = () => {
 
       switch (provider) {
         case AIProvider.Gemini:
-          fullResponse = await generateCodeStreamWithGemini(prompt, files, onChunk, model);
+          fullResponse = await generateCodeStreamWithGemini(prompt, files, onChunk, model, userSettings.geminiApiKey!);
           break;
         case AIProvider.OpenAI:
           fullResponse = await generateCodeStreamWithOpenAI(prompt, files, onChunk, model);
@@ -92,7 +123,7 @@ const App: React.FC = () => {
         default:
           throw new Error('Provedor de IA não suportado');
       }
-
+      
       const result = JSON.parse(fullResponse);
       
       setFiles(prevFiles => {
@@ -118,13 +149,22 @@ const App: React.FC = () => {
         
     } catch (error) {
       console.error("Error handling send message:", error);
-      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+      const errorMessageText = accumulatedContent.includes('{') ? accumulatedContent : (error instanceof Error ? error.message : "Ocorreu um erro desconhecido");
+      
+      let finalMessage = `Erro: ${errorMessageText}`;
+      try {
+        const parsedError = JSON.parse(errorMessageText);
+        if (parsedError.message) {
+            finalMessage = parsedError.message;
+        }
+      } catch (e) { /* Ignore parsing error, use raw text */ }
+
        setChatMessages(prev => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isThinking) {
-                return [...prev.slice(0, -1), { role: 'assistant', content: `Erro: ${errorMessage}` }];
+                return [...prev.slice(0, -1), { role: 'assistant', content: finalMessage, isThinking: false }];
             }
-            return [...prev, { role: 'assistant', content: `Erro: ${errorMessage}` }];
+            return [...prev, { role: 'assistant', content: finalMessage, isThinking: false }];
         });
     }
   };
@@ -173,24 +213,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
 
   const handleFileClose = (fileNameToClose: string) => {
     setFiles(currentFiles => {
-      // Find the index of the file to close
       const closingFileIndex = currentFiles.findIndex(f => f.name === fileNameToClose);
-      
-      // If the closed file was the active one, determine the new active file
       if (activeFile === fileNameToClose) {
         if (currentFiles.length > 1) {
-          // If there are other files, set the active file to the previous one (or the next one if it's the first)
           const newActiveIndex = closingFileIndex > 0 ? closingFileIndex - 1 : 0;
-          // The new file to be active is at index `newActiveIndex` *after* removing the old one
           const remainingFiles = currentFiles.filter(f => f.name !== fileNameToClose);
           setActiveFile(remainingFiles[newActiveIndex]?.name || null);
         } else {
           setActiveFile(null);
         }
       }
-      // Return the list of files without the closed one
       return currentFiles.filter(f => f.name !== fileNameToClose);
     });
+  };
+  
+  const handleSaveApiKey = (key: string) => {
+    setUserSettings(prev => ({ ...prev, geminiApiKey: key }));
+    setApiKeyModalOpen(false);
   };
 
   useEffect(() => {
@@ -213,13 +252,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
           onImportFromGithub={() => setGithubModalOpen(true)}
         />;
       case 'pricing':
-        return <PricingPage onBack={() => setView('welcome')} />;
+        return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} />;
       case 'editor':
         return (
           <div className="flex flex-col h-screen">
             <Header onToggleSidebar={() => setSidebarOpen(true)} onToggleChat={() => setChatOpen(true)} />
             <div className="flex flex-1 overflow-hidden">
-              {/* Sidebar for Desktop */}
               <div className="hidden lg:block w-[320px] flex-shrink-0">
                 <Sidebar
                   files={files}
@@ -232,7 +270,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
                 />
               </div>
               
-              {/* Sidebar for Mobile (Drawer) */}
               {isSidebarOpen && (
                  <div className="absolute top-0 left-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)}>
                     <div className="w-[320px] h-full bg-[#111217]" onClick={e => e.stopPropagation()}>
@@ -259,17 +296,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
                   onPublish={() => setPublishModalOpen(true)}
                 />
               </main>
-
-              {/* Chat Panel for Desktop */}
+              
               <div className="hidden lg:block w-full max-w-sm xl:max-w-md flex-shrink-0">
-                <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} />
+                <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} />
               </div>
               
-               {/* Chat Panel for Mobile (Drawer) */}
               {isChatOpen && (
                  <div className="absolute top-0 right-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setChatOpen(false)}>
                     <div className="absolute right-0 w-full max-w-sm h-full bg-[#111217]" onClick={e => e.stopPropagation()}>
-                       <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} onClose={() => setChatOpen(false)} />
+                       <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} onClose={() => setChatOpen(false)} />
                     </div>
                 </div>
               )}
@@ -287,6 +322,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
+        settings={userSettings}
+        onSettingsChange={setUserSettings}
+      />
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => { setApiKeyModalOpen(false); setPendingPrompt(null); }}
+        onSave={handleSaveApiKey}
       />
       <GithubImportModal
         isOpen={isGithubModalOpen}
