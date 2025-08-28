@@ -31,4 +31,5 @@ export interface ChatMessage {
 
 export interface UserSettings {
   geminiApiKey?: string;
+  githubAccessToken?: string;
 }
