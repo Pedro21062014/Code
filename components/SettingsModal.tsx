@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CloseIcon, KeyIcon } from './Icons';
+import { CloseIcon, KeyIcon, GithubIcon } from './Icons';
 import { UserSettings } from '../types';
 import { GoogleGenAI } from '@google/genai';
 
@@ -27,14 +27,16 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSettingsChange }) => {
   const [geminiKey, setGeminiKey] = useState(settings.geminiApiKey || '');
+  const [githubToken, setGithubToken] = useState(settings.githubAccessToken || '');
   const [testStatus, setTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' });
   
   React.useEffect(() => {
     if (isOpen) {
         setGeminiKey(settings.geminiApiKey || '');
+        setGithubToken(settings.githubAccessToken || '');
         setTestStatus({ status: 'idle', message: '' });
     }
-  }, [isOpen, settings.geminiApiKey]);
+  }, [isOpen, settings.geminiApiKey, settings.githubAccessToken]);
 
   if (!isOpen) return null;
 
@@ -49,7 +51,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
   };
   
   const handleSave = () => {
-    onSettingsChange(prev => ({ ...prev, geminiApiKey: geminiKey }));
+    onSettingsChange(prev => ({ 
+      ...prev, 
+      geminiApiKey: geminiKey,
+      githubAccessToken: githubToken
+    }));
     onClose();
   };
 
@@ -102,6 +108,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         {testStatus.message}
                     </p>
                 )}
+            </div>
+
+            <div className="p-4 bg-gray-800/50 rounded-lg">
+                <div className="flex items-center gap-3 mb-2">
+                    <GithubIcon />
+                    <h3 className="font-semibold text-white">Token de Acesso do GitHub</h3>
+                </div>
+                <p className="text-xs text-gray-400 mb-3">
+                    Forneça um token de acesso pessoal para importar repositórios privados. Para repositórios públicos, isso aumenta os limites de taxa da API.
+                </p>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="password"
+                        value={githubToken}
+                        onChange={(e) => setGithubToken(e.target.value)}
+                        placeholder="Cole seu token aqui (ex: ghp_...)"
+                        className="w-full p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    />
+                </div>
+                 <p className="text-xs text-gray-400 mt-2">
+                   O token precisa ter escopo de <code className="bg-gray-700 px-1 py-0.5 rounded-sm text-xs font-mono">repo</code>.
+                </p>
             </div>
             
             <div className="p-4 bg-gray-800/50 rounded-lg">

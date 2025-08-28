@@ -334,6 +334,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
         isOpen={isGithubModalOpen}
         onClose={() => setGithubModalOpen(false)}
         onImport={handleImportFromGithub}
+        githubToken={userSettings.githubAccessToken}
+        onOpenSettings={() => {
+          setGithubModalOpen(false);
+          setSettingsOpen(true);
+        }}
       />
       <PublishModal 
         isOpen={isPublishModalOpen}
