@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, AppLogo, GithubIcon, LinkedInIcon } from './Icons';
+import type { Session } from '@supabase/supabase-js';
 
 interface WelcomeScreenProps {
   onPromptSubmit: (prompt: string) => void;
   onShowPricing: () => void;
   onImportFromGithub: () => void;
+  session: Session | null;
+  onLoginClick: () => void;
 }
 
 // FIX: Updated component to accept all standard anchor tag props except `className`, allowing `target` to be used.
@@ -21,7 +24,7 @@ const examplePrompts = [
     "uma landing page para um app de delivery...",
 ];
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onImportFromGithub }) => {
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onImportFromGithub, session, onLoginClick }) => {
   const [prompt, setPrompt] = useState('');
   const [placeholder, setPlaceholder] = useState('');
   
@@ -91,11 +94,22 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
           <nav className="hidden md:flex items-center gap-6">
             <NavLink onClick={(e) => { e.preventDefault(); onShowPricing(); }}>Preços</NavLink>
             <NavLink href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank">LinkedIn</NavLink>
+            {!session && (
+                 <button onClick={onLoginClick} className="px-3 py-1.5 text-sm bg-var-accent text-var-accent-fg rounded-md hover:opacity-90 transition-opacity font-semibold">
+                    Login
+                </button>
+            )}
           </nav>
            <div className="flex items-center gap-4 md:hidden">
-             <a href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank" rel="noopener noreferrer" className="text-var-fg-muted hover:text-var-fg-default transition-colors">
-                <LinkedInIcon />
-             </a>
+             {!session ? (
+                 <button onClick={onLoginClick} className="px-3 py-1.5 text-sm bg-var-accent text-var-accent-fg rounded-md hover:opacity-90 transition-opacity font-semibold">
+                    Login
+                </button>
+             ) : (
+                <a href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank" rel="noopener noreferrer" className="text-var-fg-muted hover:text-var-fg-default transition-colors">
+                    <LinkedInIcon />
+                </a>
+             )}
           </div>
         </div>
       </header>

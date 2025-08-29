@@ -1,6 +1,7 @@
 import React from 'react';
-import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon } from './Icons';
+import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon } from './Icons';
 import { IntegrationProvider, ProjectFile } from '../types';
+import type { Session } from '@supabase/supabase-js';
 
 interface SidebarProps {
   files: ProjectFile[];
@@ -8,9 +9,11 @@ interface SidebarProps {
   onDownload: () => void;
   onOpenSettings: () => void;
   onOpenGithubImport: () => void;
-  onOpenSupabaseIntegration: () => void;
   activeFile: string | null;
   onClose?: () => void;
+  session: Session | null;
+  onLogin: () => void;
+  onLogout: () => void;
 }
 
 const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => {
@@ -30,9 +33,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onDownload, 
     onOpenSettings, 
     onOpenGithubImport,
-    onOpenSupabaseIntegration,
     activeFile, 
-    onClose 
+    onClose,
+    session,
+    onLogin,
+    onLogout
 }) => {
   const [activeTab, setActiveTab] = React.useState('files');
   
@@ -60,11 +65,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <DownloadIcon />
                     </button>
                 </Tooltip>
-                <Tooltip text="Conta (em breve)">
-                    <button className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                        <UserIcon />
-                    </button>
-                </Tooltip>
+                {session ? (
+                    <Tooltip text={`Sair (${session.user.email})`}>
+                        <button onClick={onLogout} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                            <LogOutIcon />
+                        </button>
+                    </Tooltip>
+                ) : (
+                    <Tooltip text="Login / Registrar">
+                        <button onClick={onLogin} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                            <LogInIcon />
+                        </button>
+                    </Tooltip>
+                )}
                 <Tooltip text="Configurações">
                     <button onClick={onOpenSettings} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
                         <SettingsIcon />
@@ -117,17 +130,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             Conectar
                         </button>
                     </div>
-                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
+                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default opacity-60">
                         <div className="flex items-center gap-3 mb-2">
                             <SupabaseIcon />
                             <h3 className="font-semibold text-var-fg-default">Supabase</h3>
                         </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Adicione um backend Supabase ao seu projeto.</p>
+                        <p className="text-xs text-var-fg-muted mb-3">Supabase foi integrado para autenticação.</p>
                         <button 
-                            onClick={onOpenSupabaseIntegration}
-                            className="w-full bg-green-600/80 hover:bg-green-600 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
+                            disabled
+                            className="w-full bg-green-600/50 text-white text-sm font-medium py-1.5 rounded-md cursor-not-allowed"
                         >
-                            Integrar
+                            Integrado
                         </button>
                     </div>
                 </div>

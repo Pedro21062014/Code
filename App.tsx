@@ -8,7 +8,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { PricingPage } from './components/PricingPage';
 import { GithubImportModal } from './components/GithubImportModal';
 import { PublishModal } from './components/PublishModal';
-import { SupabaseIntegrationModal } from './components/SupabaseIntegrationModal';
+import { AuthModal } from './components/AuthModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme } from './types';
 import { downloadProjectAsZip, createProjectZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
@@ -17,6 +17,9 @@ import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon, AppLogo } from './components/Icons';
+import { supabase } from './services/supabase';
+import type { Session } from '@supabase/supabase-js';
+
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void; projectName: string }> = ({ onToggleSidebar, onToggleChat, projectName }) => (
   <div className="lg:hidden flex justify-between items-center p-2 bg-var-bg-subtle border-b border-var-border-default flex-shrink-0">
@@ -79,7 +82,7 @@ const App: React.FC = () => {
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
-  const [isSupabaseModalOpen, setSupabaseModalOpen] = useState(false);
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
@@ -93,9 +96,24 @@ const App: React.FC = () => {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
+  const [session, setSession] = useState<Session | null>(null);
+
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -287,34 +305,6 @@ const App: React.FC = () => {
     setView('editor');
   };
 
-  const handleIntegrateWithSupabase = (url: string, key: string) => {
-    const supabaseClientFile: ProjectFile = {
-      name: 'services/supabase.ts',
-      language: 'typescript',
-      content: `import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = '${url}';
-const supabaseAnonKey = '${key}';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
-    };
-
-    setFiles(prevFiles => {
-      const fileExists = prevFiles.some(f => f.name === supabaseClientFile.name);
-      if (fileExists) {
-        return prevFiles.map(f => f.name === supabaseClientFile.name ? supabaseClientFile : f);
-      }
-      return [...prevFiles, supabaseClientFile];
-    });
-
-    setChatMessages(prev => [...prev, {
-      role: 'assistant',
-      content: 'A integração com o Supabase foi configurada! O arquivo `services/supabase.ts` foi adicionado/atualizado. Agora posso usar o Supabase para tarefas de banco de dados.'
-    }]);
-
-    setSupabaseModalOpen(false);
-  };
-
   const handleFileClose = (fileNameToClose: string) => {
     const updatedFiles = files.filter(f => f.name !== fileNameToClose);
     setFiles(updatedFiles);
@@ -351,6 +341,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
     switch (view) {
       case 'welcome':
         return <WelcomeScreen 
+          session={session}
+          onLoginClick={() => setAuthModalOpen(true)}
           onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash')} 
           onShowPricing={() => setView('pricing')}
           onImportFromGithub={() => setGithubModalOpen(true)}
@@ -371,7 +363,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
                   onDownload={() => downloadProjectAsZip(files, projectName)}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onOpenGithubImport={() => setGithubModalOpen(true)}
-                  onOpenSupabaseIntegration={() => setSupabaseModalOpen(true)}
+                  session={session}
+                  onLogin={() => setAuthModalOpen(true)}
+                  onLogout={() => supabase.auth.signOut()}
                 />
               </div>
               
@@ -385,8 +379,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
                             onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}}
                             onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
                             onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}}
-                            onOpenSupabaseIntegration={() => {setSupabaseModalOpen(true); setSidebarOpen(false);}}
                             onClose={() => setSidebarOpen(false)}
+                            session={session}
+                            onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }}
+                            onLogout={() => { supabase.auth.signOut(); setSidebarOpen(false); }}
                         />
                     </div>
                 </div>
@@ -431,6 +427,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
   return (
     <div className={theme}>
       {mainContent()}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -458,11 +455,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
         isLoading={isPublishing}
         publishUrl={publishResult.url}
         error={publishResult.error}
-      />
-      <SupabaseIntegrationModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setSupabaseModalOpen(false)}
-        onIntegrate={handleIntegrateWithSupabase}
       />
     </div>
   );
