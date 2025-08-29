@@ -128,6 +128,12 @@ export const SparklesIcon = () => (
     </svg>
 );
 
+export const PlusIcon = () => (
+    <svg {...iconProps} viewBox="0 0 24 24">
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+    </svg>
+);
 
 export const MenuIcon = () => (
     <svg {...iconProps} viewBox="0 0 24 24">

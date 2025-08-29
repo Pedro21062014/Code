@@ -131,6 +131,17 @@ const App: React.FC = () => {
     }
   }, [pendingPrompt, userSettings.geminiApiKey]);
 
+  const handleNewProject = () => {
+    setFiles([]);
+    setActiveFile(null);
+    setChatMessages([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
+    setProjectName('NovoProjeto');
+    setCodeError(null);
+    setView('welcome');
+    setSidebarOpen(false);
+    setChatOpen(false);
+  };
+
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
     setCodeError(null);
     setLastModelUsed({ provider, model });
@@ -363,6 +374,7 @@ const App: React.FC = () => {
                   onDownload={() => downloadProjectAsZip(files, projectName)}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onOpenGithubImport={() => setGithubModalOpen(true)}
+                  onNewProject={handleNewProject}
                   session={session}
                   onLogin={() => setAuthModalOpen(true)}
                   onLogout={() => supabase.auth.signOut()}
@@ -379,6 +391,7 @@ const App: React.FC = () => {
                             onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}}
                             onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
                             onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}}
+                            onNewProject={handleNewProject}
                             onClose={() => setSidebarOpen(false)}
                             session={session}
                             onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }}

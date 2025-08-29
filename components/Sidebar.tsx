@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon } from './Icons';
+import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, PlusIcon } from './Icons';
 import { IntegrationProvider, ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -9,6 +9,7 @@ interface SidebarProps {
   onDownload: () => void;
   onOpenSettings: () => void;
   onOpenGithubImport: () => void;
+  onNewProject: () => void;
   activeFile: string | null;
   onClose?: () => void;
   session: Session | null;
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onDownload, 
     onOpenSettings, 
     onOpenGithubImport,
+    onNewProject,
     activeFile, 
     onClose,
     session,
@@ -55,6 +57,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip text="Integrações">
                         <button onClick={() => setActiveTab('integrations')} className={`p-2 rounded-lg transition-colors ${activeTab === 'integrations' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
                             <CubeIcon />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Novo Projeto">
+                        <button onClick={onNewProject} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                            <PlusIcon />
                         </button>
                     </Tooltip>
                 </div>
