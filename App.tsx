@@ -9,26 +9,35 @@ import { PricingPage } from './components/PricingPage';
 import { GithubImportModal } from './components/GithubImportModal';
 import { PublishModal } from './components/PublishModal';
 import { SupabaseIntegrationModal } from './components/SupabaseIntegrationModal';
-import { ProjectFile, ChatMessage, AIProvider, UserSettings } from './types';
+import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme } from './types';
 import { downloadProjectAsZip, createProjectZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
-import { generateCodeStreamWithGemini } from './services/geminiService';
+import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { MenuIcon, ChatIcon } from './components/Icons';
+import { MenuIcon, ChatIcon, AppLogo } from './components/Icons';
 
-const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }> = ({ onToggleSidebar, onToggleChat }) => (
-  <div className="lg:hidden flex justify-between items-center p-2 bg-[#111217] border-b border-white/10 flex-shrink-0">
-    <button onClick={onToggleSidebar} className="p-2 rounded-md text-gray-300 hover:bg-white/10">
+const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void; projectName: string }> = ({ onToggleSidebar, onToggleChat, projectName }) => (
+  <div className="lg:hidden flex justify-between items-center p-2 bg-var-bg-subtle border-b border-var-border-default flex-shrink-0">
+    <button onClick={onToggleSidebar} className="p-2 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
       <MenuIcon />
     </button>
-    <h1 className="text-lg font-semibold text-white truncate">Codegen Studio</h1>
-    <button onClick={onToggleChat} className="p-2 rounded-md text-gray-300 hover:bg-white/10">
+    <h1 className="text-sm font-semibold text-var-fg-default truncate">{projectName}</h1>
+    <button onClick={onToggleChat} className="p-2 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
       <ChatIcon />
     </button>
   </div>
 );
+
+const InitializingOverlay: React.FC<{ projectName: string }> = ({ projectName }) => (
+  <div className="absolute inset-0 bg-var-bg-default/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-var-fg-default animate-fadeIn">
+    <AppLogo className="w-12 h-12 text-var-accent animate-pulse" style={{ animationDuration: '2s' }} />
+    <h2 className="mt-4 text-2xl font-bold">Gerando seu novo projeto...</h2>
+    <p className="text-lg text-var-fg-muted">{projectName}</p>
+  </div>
+);
+
 
 /**
  * Extracts and parses a JSON object from a string that might contain other text (like markdown).
@@ -38,7 +47,6 @@ const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }
  * @throws An error if a valid JSON object cannot be found or parsed.
  */
 const extractAndParseJson = (text: string): any => {
-  // Find the first '{' and the last '}' which usually wrap the JSON object.
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
 
@@ -47,16 +55,13 @@ const extractAndParseJson = (text: string): any => {
     throw new Error("Não foi encontrado nenhum objeto JSON válido na resposta da IA. A resposta pode estar incompleta ou em um formato inesperado.");
   }
 
-  // Extract the potential JSON string
   const jsonString = text.substring(firstBrace, lastBrace + 1);
 
-  // Attempt to parse the extracted string
   try {
     return JSON.parse(jsonString);
   } catch (parseError) {
     console.error("Failed to parse extracted JSON:", parseError);
     console.error("Extracted JSON string:", jsonString);
-    // Give a more specific error message from the parser
     const message = parseError instanceof Error ? parseError.message : "Erro de análise desconhecido.";
     throw new Error(`A resposta da IA continha um JSON malformado. Detalhes: ${message}`);
   }
@@ -78,7 +83,10 @@ const App: React.FC = () => {
   
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
+  const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
   const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string} | null>(null);
+  const [projectName, setProjectName] = useState('NovoProjeto');
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ url: string | null; error: string | null }>({ url: null, error: null });
@@ -86,10 +94,13 @@ const App: React.FC = () => {
   const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
   useEffect(() => {
+    document.documentElement.className = theme;
+  }, [theme]);
+
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('payment') && urlParams.get('payment') === 'success') {
       setIsProUser(true);
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [setIsProUser]);
@@ -105,18 +116,19 @@ const App: React.FC = () => {
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
     setCodeError(null);
     setLastModelUsed({ provider, model });
-    // Check for Gemini API key
+    
     if (provider === AIProvider.Gemini && !userSettings.geminiApiKey) {
       setPendingPrompt({ prompt, provider, model });
       setApiKeyModalOpen(true);
       return;
     }
     
-    // Check for Pro plan for other providers
     if (provider !== AIProvider.Gemini && !isProUser) {
         alert('Este modelo está disponível apenas para usuários Pro. Por favor, atualize seu plano na página de preços.');
         return;
     }
+
+    const isFirstGeneration = files.length === 0;
 
     const userMessage: ChatMessage = { role: 'user', content: prompt };
     const thinkingMessage: ChatMessage = {
@@ -132,6 +144,12 @@ const App: React.FC = () => {
       setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
     }
     
+    if (isFirstGeneration && userSettings.geminiApiKey) {
+      setIsInitializing(true);
+      const newName = await generateProjectName(prompt, userSettings.geminiApiKey);
+      setProjectName(newName);
+    }
+
     let accumulatedContent = "";
     const onChunk = (chunk: string) => {
         accumulatedContent += chunk;
@@ -139,14 +157,10 @@ const App: React.FC = () => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
                 const updatedMessage = { ...lastMessage, content: accumulatedContent };
-                // Keep the 'isThinking' flag until the very end for visual consistency
                 if (lastMessage.isThinking) {
                     updatedMessage.isThinking = true; 
                 }
-                return [
-                    ...prev.slice(0, -1),
-                    updatedMessage
-                ];
+                return [ ...prev.slice(0, -1), updatedMessage ];
             }
             return prev;
         });
@@ -197,7 +211,6 @@ const App: React.FC = () => {
       const errorMessageText = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
       
       let finalMessage = `Erro: ${errorMessageText}`;
-      // Attempt to parse the accumulated content as a potential JSON error from the stream
       try {
         if (accumulatedContent.includes('{')) {
           const parsedError = extractAndParseJson(accumulatedContent);
@@ -205,7 +218,7 @@ const App: React.FC = () => {
               finalMessage = parsedError.message;
           }
         }
-      } catch (e) { /* Ignore parsing error, use raw text from the main error object */ }
+      } catch (e) { /* Ignore */ }
 
        setChatMessages(prev => {
             const lastMessage = prev[prev.length - 1];
@@ -214,6 +227,10 @@ const App: React.FC = () => {
             }
             return [...prev, { role: 'assistant', content: finalMessage, isThinking: false }];
         });
+    } finally {
+        if (isFirstGeneration) {
+            setIsInitializing(false);
+        }
     }
   };
 
@@ -299,19 +316,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
   };
 
   const handleFileClose = (fileNameToClose: string) => {
-    setFiles(currentFiles => {
-      const closingFileIndex = currentFiles.findIndex(f => f.name === fileNameToClose);
-      if (activeFile === fileNameToClose) {
-        if (currentFiles.length > 1) {
-          const newActiveIndex = closingFileIndex > 0 ? closingFileIndex - 1 : 0;
-          const remainingFiles = currentFiles.filter(f => f.name !== fileNameToClose);
-          setActiveFile(remainingFiles[newActiveIndex]?.name || null);
-        } else {
-          setActiveFile(null);
-        }
+    const updatedFiles = files.filter(f => f.name !== fileNameToClose);
+    setFiles(updatedFiles);
+  
+    if (activeFile === fileNameToClose) {
+      if (updatedFiles.length > 0) {
+        const closingFileIndex = files.findIndex(f => f.name === fileNameToClose);
+        // Activate the previous file, or the first one if the closed file was the first
+        const newActiveIndex = Math.max(0, closingFileIndex - 1);
+        setActiveFile(updatedFiles[newActiveIndex]?.name || null);
+      } else {
+        setActiveFile(null); // No files left
       }
-      return currentFiles.filter(f => f.name !== fileNameToClose);
-    });
+    }
   };
   
   const handleSaveApiKey = (key: string) => {
@@ -342,15 +359,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
         return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} />;
       case 'editor':
         return (
-          <div className="flex flex-col h-screen">
-            <Header onToggleSidebar={() => setSidebarOpen(true)} onToggleChat={() => setChatOpen(true)} />
-            <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-col h-screen bg-var-bg-default">
+            <Header onToggleSidebar={() => setSidebarOpen(true)} onToggleChat={() => setChatOpen(true)} projectName={projectName} />
+            <div className="flex flex-1 overflow-hidden relative">
+              {isInitializing && <InitializingOverlay projectName={projectName} />}
               <div className="hidden lg:block w-[320px] flex-shrink-0">
                 <Sidebar
                   files={files}
                   activeFile={activeFile}
                   onFileSelect={setActiveFile}
-                  onDownload={() => downloadProjectAsZip(files)}
+                  onDownload={() => downloadProjectAsZip(files, projectName)}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onOpenGithubImport={() => setGithubModalOpen(true)}
                   onOpenSupabaseIntegration={() => setSupabaseModalOpen(true)}
@@ -359,12 +377,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
               
               {isSidebarOpen && (
                  <div className="absolute top-0 left-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)}>
-                    <div className="w-[320px] h-full bg-[#111217]" onClick={e => e.stopPropagation()}>
+                    <div className="w-[320px] h-full bg-var-bg-subtle shadow-2xl" onClick={e => e.stopPropagation()}>
                         <Sidebar
                             files={files}
                             activeFile={activeFile}
                             onFileSelect={(file) => {setActiveFile(file); setSidebarOpen(false);}}
-                            onDownload={() => {downloadProjectAsZip(files); setSidebarOpen(false);}}
+                            onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}}
                             onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
                             onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}}
                             onOpenSupabaseIntegration={() => {setSupabaseModalOpen(true); setSidebarOpen(false);}}
@@ -377,7 +395,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
               <main className="flex-1 min-w-0">
                 <EditorView 
                   files={files} 
-                  activeFile={activeFile} 
+                  activeFile={activeFile}
+                  projectName={projectName}
+                  theme={theme}
+                  onThemeChange={setTheme}
                   onFileSelect={setActiveFile}
                   onFileClose={handleFileClose}
                   onPublish={handlePublish}
@@ -394,7 +415,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
               
               {isChatOpen && (
                  <div className="absolute top-0 right-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setChatOpen(false)}>
-                    <div className="absolute right-0 w-full max-w-sm h-full bg-[#111217]" onClick={e => e.stopPropagation()}>
+                    <div className="absolute right-0 w-full max-w-sm h-full bg-var-bg-subtle shadow-2xl" onClick={e => e.stopPropagation()}>
                        <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} onClose={() => setChatOpen(false)} />
                     </div>
                 </div>
@@ -408,7 +429,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
   };
 
   return (
-    <>
+    <div className={theme}>
       {mainContent()}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -443,7 +464,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
         onClose={() => setSupabaseModalOpen(false)}
         onIntegrate={handleIntegrateWithSupabase}
       />
-    </>
+    </div>
   );
 };
 

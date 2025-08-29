@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProjectFile } from '../types';
+import { ProjectFile, Theme } from '../types';
 
 declare global {
   interface Window {
@@ -9,7 +9,7 @@ declare global {
 
 const LOADING_HTML = `
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,7 +23,7 @@ const LOADING_HTML = `
     }
   </style>
 </head>
-<body class="bg-[#111217] text-gray-300">
+<body class="bg-gray-900 text-gray-300">
   <div class="flex flex-col items-center justify-center h-screen">
     <svg class="animate-spin h-8 w-8 text-blue-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -67,7 +67,7 @@ const resolvePath = (base: string, relative: string): string => {
 };
 
 
-export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessage: string) => void; }> = ({ files, onError }) => {
+export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessage: string) => void; theme: Theme }> = ({ files, onError, theme }) => {
   const [srcDoc, setSrcDoc] = useState(LOADING_HTML);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
 
       const htmlFile = files.find(f => f.name.endsWith('.html'));
       if (!htmlFile) {
-        return { html: '<div class="flex items-center justify-center h-full text-gray-400 bg-[#111217] p-4 text-center">Nenhum arquivo index.html encontrado no projeto.</div>', urlsToRevoke: [] };
+        return { html: `<div class="flex items-center justify-center h-full text-gray-400 bg-var-bg-subtle p-4 text-center">Nenhum arquivo index.html encontrado no projeto.</div>`, urlsToRevoke: [] };
       }
 
       const allFilesMap = new Map(files.map(f => [f.name, f]));
@@ -136,7 +136,6 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
           });
           
           let transformedCode;
-          // Only transpile files with JSX or TS syntax
           if (/\.(tsx|ts|jsx)$/.test(file.name)) {
             const presets: any[] = ['react'];
             if (/\.(ts|tsx)$/.test(file.name)) {
@@ -149,7 +148,6 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
             });
             transformedCode = transformResult.code;
           } else {
-            // For plain .js files, assume modern browser compatibility and don't transpile
             transformedCode = content;
           }
 
@@ -161,7 +159,6 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
 
         let finalHtml = htmlFile.content;
         
-        // Replace CSS links with blob URLs
         finalHtml = finalHtml.replace(/<link[^>]+href=["']([^"']+)["'][^>]*>/g, (match, href) => {
             const cssFileName = href.split('/').pop();
             if (cssFileName && cssBlobUrls.has(cssFileName)) {
@@ -170,19 +167,29 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
             return match;
         });
 
+        const themeScript = `
+          <script>
+            document.documentElement.className = '${theme}';
+          </script>
+        `;
+
         finalHtml = finalHtml.replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>/, '');
-        finalHtml = finalHtml.replace('</head>', `<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
+        finalHtml = finalHtml.replace('</head>', `${themeScript}<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
         
         const scriptSrcRegex = /(<script[^>]*src=["'])([^"']+)(["'][^>]*>)/;
         const match = finalHtml.match(scriptSrcRegex);
         if (match) {
             const originalSrc = match[2];
-            const key = originalSrc.startsWith('/') ? originalSrc : `/${originalSrc}`;
-            const blobUrl = importMap.imports[key];
+            let key = originalSrc.startsWith('/') ? originalSrc : `/${originalSrc}`;
+            if(!key.endsWith('.js') && !key.endsWith('.tsx') && !key.endsWith('.ts')) {
+              key = `${key}.tsx`; // Best guess for React projects
+            }
+            const blobUrl = importMap.imports[key] || importMap.imports[key.replace('.tsx', '.js')];
+
             if (blobUrl) {
                 finalHtml = finalHtml.replace(originalSrc, blobUrl);
             } else {
-                console.warn(`Could not find blob URL for main script: ${originalSrc}`);
+                console.warn(`Could not find blob URL for main script: ${originalSrc} (resolved to ${key})`);
             }
         }
 
@@ -191,7 +198,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
           console.error("Erro ao gerar a visualização:", error);
           const errorMessage = error instanceof Error ? error.message.replace(/ \(\d+:\d+\)$/, '') : "Ocorreu um erro desconhecido.";
           onError(errorMessage);
-          return { html: `<div class="p-4 text-red-400 bg-[#111217]"><pre>Erro ao gerar a visualização:\n${errorMessage}</pre></div>`, urlsToRevoke: createdUrls };
+          return { html: `<div class="p-4 text-red-400 bg-var-bg-subtle"><pre>Erro ao gerar a visualização:\n${errorMessage}</pre></div>`, urlsToRevoke: createdUrls };
       }
     };
 
@@ -205,10 +212,10 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
     return () => {
       urlsToRevoke.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [files, onError]);
+  }, [files, onError, theme]);
 
   return (
-    <div className="w-full h-full bg-[#111217]">
+    <div className="w-full h-full bg-var-bg-muted">
       <iframe
         srcDoc={srcDoc}
         title="Visualização do Projeto"
