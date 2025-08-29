@@ -89,7 +89,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
             <span className="text-var-fg-default font-semibold text-lg">codegen<span className="font-light">studio</span></span>
           </div>
           <nav className="hidden md:flex items-center gap-6">
-            <NavLink href="#">Comunidade</NavLink>
             <NavLink onClick={(e) => { e.preventDefault(); onShowPricing(); }}>Preços</NavLink>
             <NavLink href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank">LinkedIn</NavLink>
           </nav>

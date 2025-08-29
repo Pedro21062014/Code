@@ -76,7 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         </div>
         
         <div className="space-y-4 text-var-fg-default">
-            <div className="p-4 bg-var-bg-interactive/50 rounded-lg border border-var-border-default">
+            <div className="p-4 bg-var-bg-interactive rounded-lg border border-var-border-default">
                 <div className="flex items-center gap-3 mb-2">
                     <KeyIcon />
                     <h3 className="font-semibold text-var-fg-default">Chave de API do Gemini</h3>
@@ -110,7 +110,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                 )}
             </div>
 
-            <div className="p-4 bg-var-bg-interactive/50 rounded-lg border border-var-border-default">
+            <div className="p-4 bg-var-bg-interactive rounded-lg border border-var-border-default">
                 <div className="flex items-center gap-3 mb-2">
                     <GithubIcon />
                     <h3 className="font-semibold text-var-fg-default">Token de Acesso do GitHub</h3>
