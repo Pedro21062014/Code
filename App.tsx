@@ -10,7 +10,7 @@ import { GithubImportModal } from './components/GithubImportModal';
 import { PublishModal } from './components/PublishModal';
 import { SupabaseIntegrationModal } from './components/SupabaseIntegrationModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings } from './types';
-import { downloadProjectAsZip } from './services/projectService';
+import { downloadProjectAsZip, createProjectZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
 import { generateCodeStreamWithGemini } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
@@ -30,6 +30,39 @@ const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void }
   </div>
 );
 
+/**
+ * Extracts and parses a JSON object from a string that might contain other text (like markdown).
+ * It finds the first '{' and the last '}' to demarcate the JSON string.
+ * @param text The string containing the JSON object.
+ * @returns The parsed JSON object.
+ * @throws An error if a valid JSON object cannot be found or parsed.
+ */
+const extractAndParseJson = (text: string): any => {
+  // Find the first '{' and the last '}' which usually wrap the JSON object.
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+    console.error("Could not find valid JSON object delimiters {} in AI response:", text);
+    throw new Error("Não foi encontrado nenhum objeto JSON válido na resposta da IA. A resposta pode estar incompleta ou em um formato inesperado.");
+  }
+
+  // Extract the potential JSON string
+  const jsonString = text.substring(firstBrace, lastBrace + 1);
+
+  // Attempt to parse the extracted string
+  try {
+    return JSON.parse(jsonString);
+  } catch (parseError) {
+    console.error("Failed to parse extracted JSON:", parseError);
+    console.error("Extracted JSON string:", jsonString);
+    // Give a more specific error message from the parser
+    const message = parseError instanceof Error ? parseError.message : "Erro de análise desconhecido.";
+    throw new Error(`A resposta da IA continha um JSON malformado. Detalhes: ${message}`);
+  }
+};
+
+
 const App: React.FC = () => {
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing'>('welcome');
   const [files, setFiles] =useState<ProjectFile[]>([]);
@@ -46,6 +79,11 @@ const App: React.FC = () => {
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string} | null>(null);
+
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ url: string | null; error: string | null }>({ url: null, error: null });
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -65,6 +103,8 @@ const App: React.FC = () => {
   }, [pendingPrompt, userSettings.geminiApiKey]);
 
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
+    setCodeError(null);
+    setLastModelUsed({ provider, model });
     // Check for Gemini API key
     if (provider === AIProvider.Gemini && !userSettings.geminiApiKey) {
       setPendingPrompt({ prompt, provider, model });
@@ -98,9 +138,14 @@ const App: React.FC = () => {
         setChatMessages(prev => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage && lastMessage.role === 'assistant') {
+                const updatedMessage = { ...lastMessage, content: accumulatedContent };
+                // Keep the 'isThinking' flag until the very end for visual consistency
+                if (lastMessage.isThinking) {
+                    updatedMessage.isThinking = true; 
+                }
                 return [
                     ...prev.slice(0, -1),
-                    { ...lastMessage, content: accumulatedContent }
+                    updatedMessage
                 ];
             }
             return prev;
@@ -124,7 +169,7 @@ const App: React.FC = () => {
           throw new Error('Provedor de IA não suportado');
       }
       
-      const result = JSON.parse(fullResponse);
+      const result = extractAndParseJson(fullResponse);
       
       setFiles(prevFiles => {
           const updatedFilesMap = new Map(prevFiles.map(f => [f.name, f]));
@@ -149,15 +194,18 @@ const App: React.FC = () => {
         
     } catch (error) {
       console.error("Error handling send message:", error);
-      const errorMessageText = accumulatedContent.includes('{') ? accumulatedContent : (error instanceof Error ? error.message : "Ocorreu um erro desconhecido");
+      const errorMessageText = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
       
       let finalMessage = `Erro: ${errorMessageText}`;
+      // Attempt to parse the accumulated content as a potential JSON error from the stream
       try {
-        const parsedError = JSON.parse(errorMessageText);
-        if (parsedError.message) {
-            finalMessage = parsedError.message;
+        if (accumulatedContent.includes('{')) {
+          const parsedError = extractAndParseJson(accumulatedContent);
+          if (parsedError.message) {
+              finalMessage = parsedError.message;
+          }
         }
-      } catch (e) { /* Ignore parsing error, use raw text */ }
+      } catch (e) { /* Ignore parsing error, use raw text from the main error object */ }
 
        setChatMessages(prev => {
             const lastMessage = prev[prev.length - 1];
@@ -166,6 +214,45 @@ const App: React.FC = () => {
             }
             return [...prev, { role: 'assistant', content: finalMessage, isThinking: false }];
         });
+    }
+  };
+
+  const handleFixCode = () => {
+    if (!codeError || !lastModelUsed) return;
+    const fixPrompt = `O código anterior gerou um erro de visualização: "${codeError}". Por favor, analise os arquivos e corrija o erro. Forneça apenas os arquivos modificados.`;
+    handleSendMessage(fixPrompt, lastModelUsed.provider, lastModelUsed.model);
+  };
+
+  const handlePublish = async () => {
+    if (files.length === 0) {
+        alert("Não há arquivos para publicar.");
+        return;
+    }
+    setIsPublishing(true);
+    setPublishResult({ url: null, error: null });
+    setPublishModalOpen(true);
+
+    try {
+        const zipBlob = await createProjectZip(files);
+        const response = await fetch('/api/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/zip' },
+            body: zipBlob,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
+        
+        setPublishResult({ url: data.url, error: null });
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Ocorreu um erro desconhecido durante a publicação.";
+        setPublishResult({ url: null, error: message });
+    } finally {
+        setIsPublishing(false);
     }
   };
 
@@ -293,7 +380,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
                   activeFile={activeFile} 
                   onFileSelect={setActiveFile}
                   onFileClose={handleFileClose}
-                  onPublish={() => setPublishModalOpen(true)}
+                  onPublish={handlePublish}
+                  codeError={codeError}
+                  onFixCode={handleFixCode}
+                  onClearError={() => setCodeError(null)}
+                  onError={setCodeError}
                 />
               </main>
               
@@ -343,6 +434,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);`
       <PublishModal 
         isOpen={isPublishModalOpen}
         onClose={() => setPublishModalOpen(false)}
+        isLoading={isPublishing}
+        publishUrl={publishResult.url}
+        error={publishResult.error}
       />
       <SupabaseIntegrationModal
         isOpen={isSupabaseModalOpen}

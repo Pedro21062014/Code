@@ -67,7 +67,7 @@ const resolvePath = (base: string, relative: string): string => {
 };
 
 
-export const CodePreview: React.FC<{ files: ProjectFile[] }> = ({ files }) => {
+export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessage: string) => void; }> = ({ files, onError }) => {
   const [srcDoc, setSrcDoc] = useState(LOADING_HTML);
 
   useEffect(() => {
@@ -79,6 +79,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[] }> = ({ files }) => {
       }
 
       if (!window.Babel) {
+        onError("Babel.js não foi carregado.");
         return { html: '<div class="flex items-center justify-center h-full text-red-400">Babel.js não foi carregado. Não é possível gerar a visualização.</div>', urlsToRevoke: [] };
       }
 
@@ -188,7 +189,8 @@ export const CodePreview: React.FC<{ files: ProjectFile[] }> = ({ files }) => {
         return { html: finalHtml, urlsToRevoke: createdUrls };
       } catch (error) {
           console.error("Erro ao gerar a visualização:", error);
-          const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+          const errorMessage = error instanceof Error ? error.message.replace(/ \(\d+:\d+\)$/, '') : "Ocorreu um erro desconhecido.";
+          onError(errorMessage);
           return { html: `<div class="p-4 text-red-400 bg-[#111217]"><pre>Erro ao gerar a visualização:\n${errorMessage}</pre></div>`, urlsToRevoke: createdUrls };
       }
     };
@@ -203,7 +205,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[] }> = ({ files }) => {
     return () => {
       urlsToRevoke.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [files]);
+  }, [files, onError]);
 
   return (
     <div className="w-full h-full bg-[#111217]">
