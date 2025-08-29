@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, AppLogo, GithubIcon, LinkedInIcon } from './Icons';
 
 interface WelcomeScreenProps {
@@ -14,8 +14,62 @@ const NavLink: React.FC<Omit<React.ComponentProps<'a'>, 'className'>> = ({ child
   </a>
 );
 
+const examplePrompts = [
+    "um clone do Trello com autenticação Supabase...",
+    "um site de portfólio para um fotógrafo...",
+    "um app de lista de tarefas com React e Tailwind CSS...",
+    "uma landing page para um app de delivery...",
+];
+
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onImportFromGithub }) => {
   const [prompt, setPrompt] = useState('');
+  const [placeholder, setPlaceholder] = useState('');
+  
+  const promptIndex = useRef(0);
+  const charIndex = useRef(0);
+  const isDeleting = useRef(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const type = () => {
+      const currentPrompt = examplePrompts[promptIndex.current];
+      let newPlaceholder = '';
+      let nextTimeout = 120; // Default typing speed
+
+      if (isDeleting.current) {
+        // Deleting
+        newPlaceholder = currentPrompt.substring(0, charIndex.current - 1);
+        charIndex.current--;
+        nextTimeout = 75; // Faster deleting speed
+
+        if (charIndex.current === 0) {
+          isDeleting.current = false;
+          promptIndex.current = (promptIndex.current + 1) % examplePrompts.length;
+          nextTimeout = 500; // Pause before typing next prompt
+        }
+      } else {
+        // Typing
+        newPlaceholder = currentPrompt.substring(0, charIndex.current + 1);
+        charIndex.current++;
+
+        if (charIndex.current === currentPrompt.length) {
+          isDeleting.current = true;
+          nextTimeout = 2000; // Pause after typing is complete
+        }
+      }
+      
+      setPlaceholder(newPlaceholder);
+      timeoutRef.current = window.setTimeout(type, nextTimeout);
+    };
+
+    timeoutRef.current = window.setTimeout(type, 100);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -53,11 +107,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
         </div>
         
         <div className="max-w-3xl w-full animate-slideInUp" style={{ animationDelay: '100ms' }}>
-            <h1 className="text-4xl md:text-6xl font-bold text-var-fg-default tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-var-fg-default to-var-fg-muted">
-                O que vamos construir hoje?
+            <h1 className="text-4xl md:text-6xl font-bold text-var-fg-default tracking-tight">
+                Bem vindo
             </h1>
             <p className="mt-4 text-lg text-var-fg-muted">
-                Crie aplicações e sites incríveis conversando com IA.
+                Crie seu novo projeto agora mesmo!
             </p>
 
             <div className="relative mt-8 group">
@@ -66,7 +120,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ex: um clone do Trello com autenticação Supabase..."
+                    placeholder={placeholder}
                     className="relative w-full h-28 p-4 bg-var-bg-subtle/80 backdrop-blur-sm border border-var-border-default rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-var-accent/50 text-var-fg-default placeholder-var-fg-subtle"
                 />
                  <button 
