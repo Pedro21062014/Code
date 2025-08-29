@@ -13,25 +13,109 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #0B0C10;
-        background-image: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(28, 78, 157, 0.4), transparent);
+      :root {
+        --font-sans: 'Inter', sans-serif;
+
+        /* Light Theme */
+        --bg-default-light: #f8f9fa;
+        --bg-subtle-light: #ffffff;
+        --bg-muted-light: #f1f3f5;
+        --bg-interactive-light: #e9ecef;
+        --fg-default-light: #212529;
+        --fg-muted-light: #495057;
+        --fg-subtle-light: #868e96;
+        --border-default-light: #dee2e6;
+        --border-subtle-light: #e9ecef;
+        --accent-light: #1c7ed6;
+        --accent-fg-light: #ffffff;
+        --shadow-color-light: 220, 13%, 69%;
+
+        /* Dark Theme */
+        --bg-default-dark: #0d1117;
+        --bg-subtle-dark: #161b22;
+        --bg-muted-dark: #010409;
+        --bg-interactive-dark: #21262d;
+        --fg-default-dark: #c9d1d9;
+        --fg-muted-dark: #8b949e;
+        --fg-subtle-dark: #484f58;
+        --border-default-dark: #30363d;
+        --border-subtle-dark: #21262d;
+        --accent-dark: #58a6ff;
+        --accent-fg-dark: #ffffff;
+        --shadow-color-dark: 216, 28%, 7%;
       }
-      /* Simple scrollbar styling for a more modern look */
+
+      /* Base styles applying CSS variables */
+      body {
+        font-family: var(--font-sans);
+        background-color: var(--bg-default);
+        color: var(--fg-default);
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      /* Theme class definitions */
+      .light {
+        --bg-default: var(--bg-default-light);
+        --bg-subtle: var(--bg-subtle-light);
+        --bg-muted: var(--bg-muted-light);
+        --bg-interactive: var(--bg-interactive-light);
+        --fg-default: var(--fg-default-light);
+        --fg-muted: var(--fg-muted-light);
+        --fg-subtle: var(--fg-subtle-light);
+        --border-default: var(--border-default-light);
+        --border-subtle: var(--border-subtle-light);
+        --accent: var(--accent-light);
+        --accent-fg: var(--accent-fg-light);
+        --shadow-color: var(--shadow-color-light);
+      }
+
+      .dark {
+        --bg-default: var(--bg-default-dark);
+        --bg-subtle: var(--bg-subtle-dark);
+        --bg-muted: var(--bg-muted-dark);
+        --bg-interactive: var(--bg-interactive-dark);
+        --fg-default: var(--fg-default-dark);
+        --fg-muted: var(--fg-muted-dark);
+        --fg-subtle: var(--fg-subtle-dark);
+        --border-default: var(--border-default-dark);
+        --border-subtle: var(--border-subtle-dark);
+        --accent: var(--accent-dark);
+        --accent-fg: var(--accent-fg-dark);
+        --shadow-color: var(--shadow-color-dark);
+      }
+
+      /* Scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1e1e1e;
+        background: var(--bg-subtle);
       }
       ::-webkit-scrollbar-thumb {
-        background-color: #4f4f4f;
+        background-color: var(--fg-subtle);
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background-color: #6a6a6a;
+        background-color: var(--fg-muted);
+      }
+
+      /* Keyframes for animations */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideInUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+       @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
       }
     </style>
   <script type="importmap">
@@ -45,7 +129,7 @@
 }
 </script>
 </head>
-  <body class="bg-[#0B0C10] text-gray-300">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

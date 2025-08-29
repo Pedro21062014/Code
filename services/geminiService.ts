@@ -68,3 +68,24 @@ export const generateCodeStreamWithGemini = async (
     return errorJson;
   }
 };
+
+export const generateProjectName = async (
+  prompt: string,
+  apiKey: string
+): Promise<string> => {
+   try {
+    const ai = new GoogleGenAI({ apiKey });
+    const namePrompt = `Gere um nome de projeto criativo e curto de duas palavras (em PascalCase, sem espaços, como 'QuantumQuill') para o seguinte conceito: "${prompt}". Responda APENAS com o nome e nada mais.`;
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: namePrompt
+    });
+
+    const projectName = response.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+    return projectName || "NovoProjeto";
+  } catch (error) {
+    console.error("Error generating project name:", error);
+    return "NovoProjeto";
+  }
+};

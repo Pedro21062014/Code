@@ -33,3 +33,5 @@ export interface UserSettings {
   geminiApiKey?: string;
   githubAccessToken?: string;
 }
+
+export type Theme = 'light' | 'dark';
