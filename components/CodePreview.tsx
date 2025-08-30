@@ -83,9 +83,31 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
         return { html: '<div class="flex items-center justify-center h-full text-red-400">Babel.js não foi carregado. Não é possível gerar a visualização.</div>', urlsToRevoke: [] };
       }
 
-      const htmlFile = files.find(f => f.name.endsWith('.html'));
+      const htmlFile = files.find(f => f.name.toLowerCase() === 'index.html');
       if (!htmlFile) {
-        return { html: `<div class="flex items-center justify-center h-full text-gray-400 bg-var-bg-subtle p-4 text-center">Nenhum arquivo index.html encontrado no projeto.</div>`, urlsToRevoke: [] };
+        const message = `
+        <!DOCTYPE html>
+        <html lang="pt-BR" class="dark">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        </head>
+        <body style="margin: 0;">
+          <div style="font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: #c9d1d9; background-color: #0d1117; padding: 2rem; text-align: center; box-sizing: border-box;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #484f58; margin-bottom: 1rem;"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"></path><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem 0;">Apenas para Visualização Web</h2>
+            <p style="color: #8b949e; max-width: 450px; line-height: 1.5; margin: 0;">
+              A aba "Visualização" foi projetada para renderizar projetos web que contêm um arquivo <code style="background-color: #21262d; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.875rem;">index.html</code>.
+              Para ver o conteúdo de outros arquivos de código, por favor, use a aba "Código".
+            </p>
+          </div>
+        </body>
+        </html>
+        `;
+        return { html: message, urlsToRevoke: [] };
       }
 
       const allFilesMap = new Map(files.map(f => [f.name, f]));
