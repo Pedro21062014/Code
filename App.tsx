@@ -6,10 +6,11 @@ import { ChatPanel } from './components/ChatPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { PricingPage } from './components/PricingPage';
+import { ProjectsPage } from './components/ProjectsPage';
 import { GithubImportModal } from './components/GithubImportModal';
 import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal';
-import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme } from './types';
+import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip, createProjectZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
 import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
@@ -72,7 +73,7 @@ const extractAndParseJson = (text: string): any => {
 
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'welcome' | 'editor' | 'pricing'>('welcome');
+  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>('welcome');
   const [files, setFiles] =useState<ProjectFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
@@ -87,6 +88,8 @@ const App: React.FC = () => {
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
+  const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('saved-projects', []);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string} | null>(null);
   const [projectName, setProjectName] = useState('NovoProjeto');
   const [isInitializing, setIsInitializing] = useState(false);
@@ -137,9 +140,63 @@ const App: React.FC = () => {
     setChatMessages([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
     setProjectName('NovoProjeto');
     setCodeError(null);
+    setCurrentProjectId(null);
     setView('welcome');
     setSidebarOpen(false);
     setChatOpen(false);
+  };
+  
+  const handleSaveProject = () => {
+    if (files.length === 0) {
+      alert("Não há nada para salvar. Comece a gerar alguns arquivos primeiro.");
+      return;
+    }
+
+    const project: SavedProject = {
+      id: currentProjectId || Date.now().toString(),
+      name: projectName,
+      files: files,
+      chatHistory: chatMessages,
+      savedAt: new Date().toISOString(),
+    };
+
+    if (currentProjectId) {
+      // Update existing project
+      setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? project : p));
+    } else {
+      // Save as new project
+      setSavedProjects(prev => [...prev, project]);
+      setCurrentProjectId(project.id);
+    }
+    alert(`Projeto "${projectName}" salvo!`);
+  };
+
+  const handleLoadProject = (projectId: string) => {
+    const projectToLoad = savedProjects.find(p => p.id === projectId);
+    if (projectToLoad) {
+      setFiles(projectToLoad.files);
+      setProjectName(projectToLoad.name);
+      setChatMessages(projectToLoad.chatHistory);
+      setCurrentProjectId(projectToLoad.id);
+      
+      const firstFile = projectToLoad.files.find(f => f.name.includes('html')) || projectToLoad.files[0];
+      setActiveFile(firstFile?.name || null);
+      
+      setCodeError(null);
+      setIsInitializing(false);
+      setView('editor');
+    } else {
+      alert("Não foi possível carregar o projeto. Ele pode ter sido excluído.");
+    }
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    setSavedProjects(prev => prev.filter(p => p.id !== projectId));
+    if (currentProjectId === projectId) {
+      // If we delete the currently loaded project, we should reset.
+      handleNewProject();
+      alert("O projeto atual foi excluído. Voltando para a tela inicial.");
+    }
   };
 
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
@@ -356,10 +413,18 @@ const App: React.FC = () => {
           onLoginClick={() => setAuthModalOpen(true)}
           onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash')} 
           onShowPricing={() => setView('pricing')}
+          onShowProjects={() => setView('projects')}
           onImportFromGithub={() => setGithubModalOpen(true)}
         />;
       case 'pricing':
         return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} />;
+      case 'projects':
+        return <ProjectsPage 
+          projects={savedProjects}
+          onLoadProject={handleLoadProject}
+          onDeleteProject={handleDeleteProject}
+          onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')}
+        />;
       case 'editor':
         return (
           <div className="flex flex-col h-screen bg-var-bg-default">
@@ -374,6 +439,8 @@ const App: React.FC = () => {
                   onDownload={() => downloadProjectAsZip(files, projectName)}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onOpenGithubImport={() => setGithubModalOpen(true)}
+                  onSaveProject={handleSaveProject}
+                  onOpenProjects={() => setView('projects')}
                   onNewProject={handleNewProject}
                   session={session}
                   onLogin={() => setAuthModalOpen(true)}
@@ -391,6 +458,8 @@ const App: React.FC = () => {
                             onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}}
                             onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
                             onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}}
+                            onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }}
+                            onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
                             onNewProject={handleNewProject}
                             onClose={() => setSidebarOpen(false)}
                             session={session}

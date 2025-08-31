@@ -35,3 +35,11 @@ export interface UserSettings {
 }
 
 export type Theme = 'light' | 'dark';
+
+export interface SavedProject {
+  id: string;
+  name: string;
+  files: ProjectFile[];
+  chatHistory: ChatMessage[];
+  savedAt: string;
+}
