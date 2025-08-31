@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, PlusIcon } from './Icons';
+import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, PlusIcon, SaveIcon, ProjectsIcon } from './Icons';
 import { IntegrationProvider, ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -10,6 +10,8 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenGithubImport: () => void;
   onNewProject: () => void;
+  onSaveProject: () => void;
+  onOpenProjects: () => void;
   activeFile: string | null;
   onClose?: () => void;
   session: Session | null;
@@ -35,6 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onOpenSettings, 
     onOpenGithubImport,
     onNewProject,
+    onSaveProject,
+    onOpenProjects,
     activeFile, 
     onClose,
     session,
@@ -62,6 +66,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip text="Novo Projeto">
                         <button onClick={onNewProject} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
                             <PlusIcon />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Salvar Projeto">
+                        <button onClick={onSaveProject} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                            <SaveIcon />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Meus Projetos">
+                        <button onClick={onOpenProjects} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                            <ProjectsIcon />
                         </button>
                     </Tooltip>
                 </div>
