@@ -226,8 +226,30 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
           </script>
         `;
 
+        const navigationScript = `
+          <script>
+            document.addEventListener('click', e => {
+              const anchor = e.target.closest('a');
+              if (!anchor) return;
+
+              const href = anchor.getAttribute('href');
+              if (!href || href.startsWith('#')) return;
+
+              try {
+                const targetUrl = new URL(href, window.location.href);
+                if (targetUrl.origin === window.location.origin && (anchor.target === '_blank' || anchor.target === '_top')) {
+                  e.preventDefault();
+                  window.location.assign(targetUrl.href);
+                }
+              } catch (error) {
+                console.warn('Could not parse anchor href:', href, error);
+              }
+            }, true);
+          </script>
+        `;
+
         finalHtml = finalHtml.replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>/, '');
-        finalHtml = finalHtml.replace('</head>', `${envScript}${themeScript}<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
+        finalHtml = finalHtml.replace('</head>', `${envScript}${themeScript}${navigationScript}<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
         
         const scriptSrcRegex = /(<script[^>]*src=["'])([^"']+)(["'][^>]*>)/;
         const match = finalHtml.match(scriptSrcRegex);
@@ -272,7 +294,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
       <iframe
         srcDoc={srcDoc}
         title="Visualização do Projeto"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         className="w-full h-full border-0"
       />
     </div>
