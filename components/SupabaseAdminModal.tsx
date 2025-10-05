@@ -6,31 +6,33 @@ interface SupabaseAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: UserSettings;
-  onSettingsChange: React.Dispatch<React.SetStateAction<UserSettings>>;
+  onSave: (newSettings: Omit<UserSettings, 'id' | 'updated_at'>) => void;
 }
 
-export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, onClose, settings, onSettingsChange }) => {
-  const [projectUrl, setProjectUrl] = useState(settings.supabaseProjectUrl || '');
-  const [anonKey, setAnonKey] = useState(settings.supabaseAnonKey || '');
-  const [serviceKey, setServiceKey] = useState(settings.supabaseServiceKey || '');
+export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, onClose, settings, onSave }) => {
+  const [projectUrl, setProjectUrl] = useState(settings.supabase_project_url || '');
+  const [anonKey, setAnonKey] = useState(settings.supabase_anon_key || '');
+  const [serviceKey, setServiceKey] = useState(settings.supabase_service_key || '');
 
   useEffect(() => {
     if (isOpen) {
-        setProjectUrl(settings.supabaseProjectUrl || '');
-        setAnonKey(settings.supabaseAnonKey || '');
-        setServiceKey(settings.supabaseServiceKey || '');
+        setProjectUrl(settings.supabase_project_url || '');
+        setAnonKey(settings.supabase_anon_key || '');
+        setServiceKey(settings.supabase_service_key || '');
     }
   }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
-    onSettingsChange(prev => ({
-      ...prev,
-      supabaseProjectUrl: projectUrl,
-      supabaseAnonKey: anonKey,
-      supabaseServiceKey: serviceKey
-    }));
+    onSave({
+      supabase_project_url: projectUrl,
+      supabase_anon_key: anonKey,
+      supabase_service_key: serviceKey,
+      // Preserve existing settings
+      gemini_api_key: settings.gemini_api_key,
+      github_access_token: settings.github_access_token,
+    });
     onClose();
   };
 
@@ -80,7 +82,7 @@ export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, 
            <div className="p-3 bg-red-900/50 border border-red-700/50 rounded-lg">
             <label className="block text-sm font-medium text-red-200 mb-1">Chave Service Role (Secreta)</label>
              <p className="text-xs text-red-300/80 mb-2">
-                Esta chave concede acesso de administrador total ao seu banco de dados. Manuseie com cuidado. Ela será armazenada no armazenamento local do seu navegador.
+                Esta chave concede acesso de administrador total ao seu banco de dados. Manuseie com cuidado. Ela será armazenada com segurança no seu perfil.
             </p>
             <input
               type="password"

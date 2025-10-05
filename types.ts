@@ -29,21 +29,26 @@ export interface ChatMessage {
   isThinking?: boolean;
 }
 
+// UserSettings agora reflete a estrutura da tabela 'profiles' do Supabase
 export interface UserSettings {
-  geminiApiKey?: string;
-  githubAccessToken?: string;
-  supabaseProjectUrl?: string;
-  supabaseAnonKey?: string;
-  supabaseServiceKey?: string;
+  id: string; // Corresponde a auth.users.id
+  updated_at?: string;
+  gemini_api_key?: string;
+  github_access_token?: string;
+  supabase_project_url?: string;
+  supabase_anon_key?: string;
+  supabase_service_key?: string;
 }
 
 export type Theme = 'light' | 'dark';
 
+// SavedProject agora reflete uma estrutura de armazenamento local
 export interface SavedProject {
-  id: string;
+  id: number; // ID exclusivo, pode ser um timestamp
   name: string;
   files: ProjectFile[];
-  chatHistory: ChatMessage[];
-  envVars: Record<string, string>;
-  savedAt: string;
+  chat_history: ChatMessage[];
+  env_vars: Record<string, string>;
+  created_at: string;
+  updated_at: string;
 }

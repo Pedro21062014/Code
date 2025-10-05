@@ -164,9 +164,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
                 <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && <AppLogo className="w-6 h-6 text-var-accent flex-shrink-0 mt-1" />}
                 <div className={`p-3 rounded-lg max-w-xs md:max-w-md ${msg.role === 'user' ? 'bg-var-accent text-var-accent-fg' : 'bg-var-bg-interactive text-var-fg-default'}`}>
-                    {msg.isThinking ? 
-                    <ThinkingIndicator />
-                    : (
+                    {msg.isThinking ? (
+                        <div className="flex items-center gap-2">
+                            {msg.content && msg.content !== 'Pensando...' && <span className="text-var-fg-default">{msg.content}</span>}
+                            <ThinkingIndicator />
+                        </div>
+                    ) : (
                         <div className="prose prose-sm prose-invert max-w-none">
                           {msg.role === 'user' ? (
                             <HighlightedMessage text={msg.content} />

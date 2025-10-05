@@ -22,19 +22,19 @@ export const PublishModal: React.FC<LocalRunModalProps> = ({ isOpen, onClose, on
       onClick={onClose}
     >
       <div 
-        className="bg-[#1C1C1F] rounded-lg shadow-xl w-full max-w-lg p-6 border border-gray-700/50 animate-slideInUp"
+        className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-lg p-6 border border-var-border-default animate-slideInUp"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-var-fg-default flex items-center gap-2">
             <TerminalIcon /> Executar Projeto Localmente
           </h2>
-          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-white/10">
+          <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
             <CloseIcon />
           </button>
         </div>
         
-        <div className="text-gray-300 space-y-4 text-sm">
+        <div className="text-var-fg-muted space-y-4 text-sm">
           <p>
             Para visualizar seu projeto em um ambiente de desenvolvimento local, siga estas etapas:
           </p>
@@ -57,7 +57,7 @@ export const PublishModal: React.FC<LocalRunModalProps> = ({ isOpen, onClose, on
             <li>
               <strong>Inicie um servidor local:</strong> Se você tiver o Node.js instalado, o comando mais fácil é:
               <pre className="bg-var-bg-muted p-2 rounded-md mt-1 text-xs font-mono"><code>npx serve</code></pre>
-              <p className="text-xs text-var-fg-muted mt-1">Se você não tem o `serve`, pode instalá-lo com `npm install -g serve` ou usar outro servidor local como o `Live Server` do VS Code.</p>
+              <p className="text-xs text-var-fg-subtle mt-1">Se você não tem o `serve`, pode instalá-lo com `npm install -g serve` ou usar outro servidor local como o `Live Server` do VS Code.</p>
             </li>
             <li>
               <strong>Visualize no navegador:</strong> Abra seu navegador e acesse o endereço fornecido pelo servidor, geralmente{' '}

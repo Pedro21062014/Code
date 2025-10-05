@@ -1,17 +1,18 @@
 import React from 'react';
 import { AppLogo, TrashIcon } from './Icons';
 import { SavedProject } from '../types';
+import { useSession } from '@supabase/auth-helpers-react'; // Fictional hook, illustrates the need for session
 
 interface ProjectsPageProps {
   projects: SavedProject[];
-  onLoadProject: (projectId: string) => void;
-  onDeleteProject: (projectId: string) => void;
+  onLoadProject: (projectId: number) => void;
+  onDeleteProject: (projectId: number) => void;
   onBack: () => void;
 }
 
 export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack }) => {
 
-  const handleDelete = (e: React.MouseEvent, projectId: string) => {
+  const handleDelete = (e: React.MouseEvent, projectId: number) => {
     e.stopPropagation(); // Prevent card click
     if (window.confirm('Tem certeza de que deseja excluir este projeto? Esta ação não pode ser desfeita.')) {
       onDeleteProject(projectId);
@@ -38,7 +39,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
         <div className="mt-12 w-full max-w-4xl">
           {projects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()).map(project => (
+              {projects.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).map(project => (
                 <div 
                   key={project.id} 
                   onClick={() => onLoadProject(project.id)}
@@ -47,7 +48,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                   <div>
                     <h2 className="text-lg font-semibold text-var-fg-default truncate group-hover:text-var-accent">{project.name}</h2>
                     <p className="text-sm text-var-fg-muted mt-1">
-                      Salvo em: {new Date(project.savedAt).toLocaleString()}
+                      Atualizado em: {new Date(project.updated_at).toLocaleString()}
                     </p>
                   </div>
                   <button 
@@ -62,8 +63,12 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
             </div>
           ) : (
             <div className="text-center py-16 border-2 border-dashed border-var-border-default rounded-lg">
-              <h2 className="text-xl font-semibold text-var-fg-muted">Nenhum projeto salvo encontrado.</h2>
-              <p className="text-var-fg-subtle mt-2">Use o ícone de salvar na barra lateral do editor para salvar seu trabalho.</p>
+              <h2 className="text-xl font-semibold text-var-fg-muted">
+                Nenhum projeto salvo encontrado.
+              </h2>
+              <p className="text-var-fg-subtle mt-2">
+                Use o ícone de salvar na barra lateral do editor para salvar seu trabalho.
+              </p>
             </div>
           )}
         </div>

@@ -198,13 +198,13 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center h-64 text-gray-300">
-           <svg className="animate-spin h-8 w-8 text-blue-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div className="flex flex-col items-center justify-center h-64 text-var-fg-muted">
+           <svg className="animate-spin h-8 w-8 text-var-accent mb-4" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p>Importando <span className="font-bold">{importingRepoName}</span>...</p>
-          <p className="text-sm text-gray-500">Isso pode levar alguns instantes.</p>
+          <p>Importando <span className="font-bold text-var-fg-default">{importingRepoName}</span>...</p>
+          <p className="text-sm text-var-fg-subtle">Isso pode levar alguns instantes.</p>
         </div>
       );
     }
@@ -225,36 +225,36 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar em seus repositórios..."
-            className="w-full p-2 bg-[#2A2B30] border border-gray-700/50 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50"
           />
         </div>
         
-        {loadingRepos && <div className="flex items-center justify-center h-64 text-gray-400"><svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Buscando repositórios...</div>}
+        {loadingRepos && <div className="flex items-center justify-center h-64 text-var-fg-muted"><svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Buscando repositórios...</div>}
         {repoError && <p className="text-red-400 text-sm py-4 text-center">{repoError}</p>}
         
         {!loadingRepos && !repoError && (
-          <div className="max-h-80 overflow-y-auto border border-gray-700/50 rounded-md bg-black/20">
+          <div className="max-h-80 overflow-y-auto border border-var-border-default rounded-md bg-var-bg-muted">
             {filteredRepositories.length > 0 ? (
               <ul>
                 {filteredRepositories.map(repo => (
-                  <li key={repo.id} className="border-b border-gray-700/50 last:border-b-0">
+                  <li key={repo.id} className="border-b border-var-border-default last:border-b-0">
                     <button
                       onClick={() => handleImport(repo)}
-                      className="w-full text-left p-3 hover:bg-blue-500/10 transition-colors duration-150"
+                      className="w-full text-left p-3 hover:bg-var-accent/10 transition-colors duration-150"
                     >
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold text-white">{repo.full_name}</p>
+                        <p className="font-semibold text-var-fg-default">{repo.full_name}</p>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${repo.private ? 'bg-red-900 text-red-200' : 'bg-green-900 text-green-200'}`}>
                           {repo.private ? 'Privado' : 'Público'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-400 mt-1 truncate">{repo.description}</p>
+                      <p className="text-sm text-var-fg-muted mt-1 truncate">{repo.description}</p>
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-center p-8">Nenhum repositório encontrado.</p>
+              <p className="text-var-fg-subtle text-center p-8">Nenhum repositório encontrado.</p>
             )}
           </div>
         )}
@@ -269,14 +269,14 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
       onClick={isLoading ? undefined : onClose}
     >
       <div 
-        className="bg-[#1C1C1F] rounded-lg shadow-xl w-full max-w-2xl p-6 border border-gray-700/50"
+        className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-2xl p-6 border border-var-border-default"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-var-fg-default flex items-center gap-2">
             <GithubIcon /> Importar do GitHub
           </h2>
-          <button onClick={isLoading ? undefined : onClose} className="p-1 rounded-md text-gray-400 hover:bg-white/10 disabled:opacity-50" disabled={isLoading}>
+          <button onClick={isLoading ? undefined : onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive disabled:opacity-50" disabled={isLoading}>
             <CloseIcon />
           </button>
         </div>
