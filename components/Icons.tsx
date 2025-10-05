@@ -39,6 +39,12 @@ export const FileIcon = () => (
   </svg>
 );
 
+export const ShieldIcon = () => (
+  <svg {...iconProps} viewBox="0 0 24 24">
+    <path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" />
+  </svg>
+);
+
 export const CubeIcon = () => (
   <svg {...iconProps} viewBox="0 0 24 24">
     <path d="M12 2l-8 4.5v9l8 4.5l8 -4.5v-9l-8 -4.5" />
@@ -183,5 +189,27 @@ export const TrashIcon = ({ className = "w-5 h-5" }: { className?: string }) => 
 export const ProjectsIcon = () => (
     <svg {...iconProps} viewBox="0 0 24 24">
         <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
+    </svg>
+);
+
+export const TerminalIcon = () => (
+    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+        <path d="M5 7l5 5l-5 5" />
+        <path d="M12 19h7" />
+    </svg>
+);
+
+export const PaperclipIcon = () => (
+    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+        <path d="M15.5 6.5a3.5 3.5 0 1 1 -7 0v8.5a5.5 5.5 0 1 0 11 0v-6.5" />
+    </svg>
+);
+
+export const ImageIcon = () => (
+    <svg {...iconProps} viewBox="0 0 24 24">
+        <path d="M15 8h.01" />
+        <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z" />
+        <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />
+        <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l2 2" />
     </svg>
 );

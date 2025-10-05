@@ -1,17 +1,21 @@
-import React from 'react';
-import { FileIcon, CubeIcon, UserIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, PlusIcon, SaveIcon, ProjectsIcon } from './Icons';
+import React, { useState } from 'react';
+import { FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, PlusIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon } from './Icons';
 import { IntegrationProvider, ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
 interface SidebarProps {
   files: ProjectFile[];
+  envVars: Record<string, string>;
+  onEnvVarChange: (newVars: Record<string, string>) => void;
   onFileSelect: (fileName: string) => void;
   onDownload: () => void;
   onOpenSettings: () => void;
   onOpenGithubImport: () => void;
+  onOpenSupabaseAdmin: () => void;
   onNewProject: () => void;
   onSaveProject: () => void;
   onOpenProjects: () => void;
+  onOpenImageStudio: () => void;
   activeFile: string | null;
   onClose?: () => void;
   session: Session | null;
@@ -30,15 +34,90 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
     );
 };
 
+const EnvironmentPanel: React.FC<{ vars: Record<string, string>, onSave: (vars: Record<string, string>) => void }> = ({ vars, onSave }) => {
+    const [localVars, setLocalVars] = useState(Object.entries(vars));
+    const [hasChanges, setHasChanges] = useState(false);
+  
+    const handleAdd = () => {
+      setLocalVars([...localVars, ['', '']]);
+      setHasChanges(true);
+    };
+  
+    const handleRemove = (index: number) => {
+      setLocalVars(localVars.filter((_, i) => i !== index));
+      setHasChanges(true);
+    };
+  
+    const handleChange = (index: number, type: 'key' | 'value', value: string) => {
+      const newVars = [...localVars];
+      newVars[index][type === 'key' ? 0 : 1] = value;
+      setLocalVars(newVars);
+      setHasChanges(true);
+    };
+  
+    const handleSaveChanges = () => {
+      const newVarsObject = localVars.reduce((acc, [key, value]) => {
+        if (key) acc[key] = value;
+        return acc;
+      }, {} as Record<string, string>);
+      onSave(newVarsObject);
+      setHasChanges(false);
+    };
+  
+    return (
+      <div className="p-2 space-y-2 mt-2 flex flex-col h-full">
+        <div className="flex-grow overflow-y-auto space-y-2 pr-2">
+            {localVars.map(([key, value], index) => (
+            <div key={index} className="flex items-center gap-1">
+                <input
+                type="text"
+                placeholder="NOME"
+                value={key}
+                onChange={(e) => handleChange(index, 'key', e.target.value)}
+                className="w-full p-1.5 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle text-xs font-mono focus:outline-none focus:ring-1 focus:ring-var-accent/50"
+                />
+                <input
+                type="password"
+                placeholder="VALOR"
+                value={value}
+                onChange={(e) => handleChange(index, 'value', e.target.value)}
+                className="w-full p-1.5 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle text-xs font-mono focus:outline-none focus:ring-1 focus:ring-var-accent/50"
+                />
+                <button onClick={() => handleRemove(index)} className="p-1 text-var-fg-subtle hover:text-red-400">
+                    <TrashIcon className="w-4 h-4" />
+                </button>
+            </div>
+            ))}
+        </div>
+        <div className="flex-shrink-0 mt-2 space-y-2">
+            <button onClick={handleAdd} className="w-full text-sm py-1.5 border border-dashed border-var-border-default rounded-md text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                Adicionar Variável
+            </button>
+            <button 
+                onClick={handleSaveChanges} 
+                disabled={!hasChanges}
+                className="w-full bg-var-accent text-var-accent-fg text-sm font-medium py-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Salvar Alterações
+            </button>
+        </div>
+      </div>
+    );
+};
+  
+
 export const Sidebar: React.FC<SidebarProps> = ({ 
     files, 
+    envVars,
+    onEnvVarChange,
     onFileSelect, 
     onDownload, 
     onOpenSettings, 
     onOpenGithubImport,
+    onOpenSupabaseAdmin,
     onNewProject,
     onSaveProject,
     onOpenProjects,
+    onOpenImageStudio,
     activeFile, 
     onClose,
     session,
@@ -56,6 +135,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip text="Explorador de Arquivos">
                         <button onClick={() => setActiveTab('files')} className={`p-2 rounded-lg transition-colors ${activeTab === 'files' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
                             <FileIcon />
+                        </button>
+                    </Tooltip>
+                     <Tooltip text="Variáveis de Ambiente">
+                        <button onClick={() => setActiveTab('environment')} className={`p-2 rounded-lg transition-colors ${activeTab === 'environment' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
+                            <ShieldIcon />
                         </button>
                     </Tooltip>
                     <Tooltip text="Integrações">
@@ -76,6 +160,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip text="Meus Projetos">
                         <button onClick={onOpenProjects} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
                             <ProjectsIcon />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Gerador de Imagem">
+                        <button onClick={onOpenImageStudio} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
+                            <ImageIcon />
                         </button>
                     </Tooltip>
                 </div>
@@ -108,10 +197,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Content Panel */}
-        <div className="w-64 bg-var-bg-subtle p-2">
-            <div className="flex justify-between items-center p-2">
+        <div className="w-64 bg-var-bg-subtle flex flex-col">
+            <div className="flex justify-between items-center p-2 flex-shrink-0">
                 <h2 className="text-sm font-bold uppercase text-var-fg-muted tracking-wider">
-                    {activeTab === 'files' ? 'Explorador' : 'Integrações'}
+                    {activeTab === 'files' ? 'Explorador' : activeTab === 'environment' ? 'Ambiente' : 'Integrações'}
                 </h2>
                 {onClose && (
                     <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive lg:hidden">
@@ -121,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {activeTab === 'files' && (
-                <ul className="mt-2 space-y-1">
+                <ul className="mt-2 space-y-1 p-2 overflow-y-auto">
                     {files.map(file => (
                     <li key={file.name}>
                         <button
@@ -135,6 +224,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </li>
                     ))}
                 </ul>
+            )}
+             {activeTab === 'environment' && (
+                <EnvironmentPanel vars={envVars} onSave={onEnvVarChange} />
             )}
             {activeTab === 'integrations' && (
                 <div className="p-2 space-y-4 mt-2">
@@ -151,17 +243,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             Conectar
                         </button>
                     </div>
-                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default opacity-60">
+                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
                         <div className="flex items-center gap-3 mb-2">
                             <SupabaseIcon />
                             <h3 className="font-semibold text-var-fg-default">Supabase</h3>
                         </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Supabase foi integrado para autenticação.</p>
+                        <p className="text-xs text-var-fg-muted mb-3">Permita que a IA modifique seu banco de dados.</p>
                         <button 
-                            disabled
-                            className="w-full bg-green-600/50 text-white text-sm font-medium py-1.5 rounded-md cursor-not-allowed"
+                            onClick={onOpenSupabaseAdmin}
+                            className="w-full bg-green-600/80 hover:bg-green-600 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
                         >
-                            Integrado
+                            Gerenciar
                         </button>
                     </div>
                 </div>

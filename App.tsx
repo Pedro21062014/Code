@@ -10,8 +10,10 @@ import { ProjectsPage } from './components/ProjectsPage';
 import { GithubImportModal } from './components/GithubImportModal';
 import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal';
+import { ImageStudioModal } from './components/ImageStudioModal';
+import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
-import { downloadProjectAsZip, createProjectZip } from './services/projectService';
+import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE } from './constants';
 import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
@@ -82,20 +84,21 @@ const App: React.FC = () => {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
-  const [isPublishModalOpen, setPublishModalOpen] = useState(false);
+  const [isLocalRunModalOpen, setLocalRunModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [isImageStudioOpen, setImageStudioOpen] = useState(false);
+  const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
   
   const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('saved-projects', []);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string} | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[] } | null>(null);
   const [projectName, setProjectName] = useState('NovoProjeto');
+  const [envVars, setEnvVars] = useState<Record<string, string>>({});
   const [isInitializing, setIsInitializing] = useState(false);
 
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishResult, setPublishResult] = useState<{ url: string | null; error: string | null }>({ url: null, error: null });
   const [codeError, setCodeError] = useState<string | null>(null);
   const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
@@ -128,9 +131,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (pendingPrompt && userSettings.geminiApiKey) {
-      const { prompt, provider, model } = pendingPrompt;
+      const { prompt, provider, model, attachments } = pendingPrompt;
       setPendingPrompt(null);
-      handleSendMessage(prompt, provider, model);
+      handleSendMessage(prompt, provider, model, attachments);
     }
   }, [pendingPrompt, userSettings.geminiApiKey]);
 
@@ -139,6 +142,7 @@ const App: React.FC = () => {
     setActiveFile(null);
     setChatMessages([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
     setProjectName('NovoProjeto');
+    setEnvVars({});
     setCodeError(null);
     setCurrentProjectId(null);
     setView('welcome');
@@ -157,6 +161,7 @@ const App: React.FC = () => {
       name: projectName,
       files: files,
       chatHistory: chatMessages,
+      envVars: envVars,
       savedAt: new Date().toISOString(),
     };
 
@@ -177,6 +182,7 @@ const App: React.FC = () => {
       setFiles(projectToLoad.files);
       setProjectName(projectToLoad.name);
       setChatMessages(projectToLoad.chatHistory);
+      setEnvVars(projectToLoad.envVars || {});
       setCurrentProjectId(projectToLoad.id);
       
       const firstFile = projectToLoad.files.find(f => f.name.includes('html')) || projectToLoad.files[0];
@@ -199,17 +205,55 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (prompt: string, provider: AIProvider, model: string) => {
+  const handleSupabaseAdminAction = async (action: { query: string }) => {
+    if (!userSettings.supabaseProjectUrl || !userSettings.supabaseServiceKey) {
+        setChatMessages(prev => [...prev, { role: 'system', content: "Ação do Supabase ignorada: Credenciais de administrador não configuradas."}]);
+        return;
+    }
+
+    setChatMessages(prev => [...prev, { role: 'system', content: `Executando consulta SQL no Supabase: ${action.query.substring(0, 100)}...`}]);
+
+    try {
+        const response = await fetch('/api/supabase-admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                projectUrl: userSettings.supabaseProjectUrl,
+                serviceKey: userSettings.supabaseServiceKey,
+                query: action.query,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            setChatMessages(prev => [...prev, { role: 'system', content: "Consulta SQL executada com sucesso!" }]);
+        } else {
+            throw new Error(result.error || "Ocorreu um erro desconhecido no servidor.");
+        }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : "Falha na comunicação com a função de back-end.";
+        setChatMessages(prev => [...prev, { role: 'system', content: `Erro ao executar a consulta SQL: ${message}` }]);
+    }
+};
+
+  const handleSendMessage = async (prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[] = []) => {
     setCodeError(null);
     setLastModelUsed({ provider, model });
     
-    if (provider === AIProvider.Gemini && !userSettings.geminiApiKey) {
-      setPendingPrompt({ prompt, provider, model });
+    if (prompt.toLowerCase().includes('ia') && !userSettings.geminiApiKey) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Para adicionar funcionalidades de IA ao seu projeto, primeiro adicione sua chave de API do Gemini.'}]);
       setApiKeyModalOpen(true);
       return;
     }
     
-    if (provider !== AIProvider.Gemini && !isProUser) {
+    if (provider === AIProvider.Gemini && !userSettings.geminiApiKey) {
+      setPendingPrompt({ prompt, provider, model, attachments });
+      setApiKeyModalOpen(true);
+      return;
+    }
+    
+    if ((provider === AIProvider.OpenAI || provider === AIProvider.DeepSeek) && !isProUser) {
         alert('Este modelo está disponível apenas para usuários Pro. Por favor, atualize seu plano na página de preços.');
         return;
     }
@@ -257,7 +301,7 @@ const App: React.FC = () => {
 
       switch (provider) {
         case AIProvider.Gemini:
-          fullResponse = await generateCodeStreamWithGemini(prompt, files, onChunk, model, userSettings.geminiApiKey!);
+          fullResponse = await generateCodeStreamWithGemini(prompt, files, envVars, onChunk, model, userSettings.geminiApiKey!, attachments);
           break;
         case AIProvider.OpenAI:
           fullResponse = await generateCodeStreamWithOpenAI(prompt, files, onChunk, model);
@@ -271,17 +315,37 @@ const App: React.FC = () => {
       
       const result = extractAndParseJson(fullResponse);
       
-      setFiles(prevFiles => {
-          const updatedFilesMap = new Map(prevFiles.map(f => [f.name, f]));
-          result.files.forEach((file: ProjectFile) => {
-              updatedFilesMap.set(file.name, file);
-          });
-          return Array.from(updatedFilesMap.values());
-      });
+      if (result.files && Array.isArray(result.files)) {
+        setFiles(prevFiles => {
+            const updatedFilesMap = new Map(prevFiles.map(f => [f.name, f]));
+            result.files.forEach((file: ProjectFile) => {
+                updatedFilesMap.set(file.name, file);
+            });
+            return Array.from(updatedFilesMap.values());
+        });
+        if (result.files.length > 0 && !activeFile) {
+          const newFile = result.files.find((f: ProjectFile) => f.name.includes('html')) || result.files[0];
+          setActiveFile(newFile.name);
+        }
+      }
+      
+      if (result.environmentVariables) {
+        // If the AI created the GEMINI_API_KEY, populate it with the user's actual key.
+        if (result.environmentVariables.GEMINI_API_KEY !== undefined && userSettings.geminiApiKey) {
+            result.environmentVariables.GEMINI_API_KEY = userSettings.geminiApiKey;
+        }
 
-      if (result.files.length > 0 && !activeFile) {
-        const newFile = result.files.find((f: ProjectFile) => f.name.includes('html')) || result.files[0];
-        setActiveFile(newFile.name);
+        setEnvVars(prev => {
+            const newVars = { ...prev };
+            for (const [key, value] of Object.entries(result.environmentVariables)) {
+                if (value === null) {
+                    delete newVars[key];
+                } else {
+                    newVars[key] = value as string;
+                }
+            }
+            return newVars;
+        });
       }
 
        setChatMessages(prev => {
@@ -291,6 +355,10 @@ const App: React.FC = () => {
             }
             return [...prev, { role: 'assistant', content: result.message || 'Geração concluída.', summary: result.summary, isThinking: false }];
         });
+
+       if (result.supabaseAdminAction) {
+         await handleSupabaseAdminAction(result.supabaseAdminAction);
+       }
         
     } catch (error) {
       console.error("Error handling send message:", error);
@@ -326,37 +394,16 @@ const App: React.FC = () => {
     handleSendMessage(fixPrompt, lastModelUsed.provider, lastModelUsed.model);
   };
 
-  const handlePublish = async () => {
+  const handleRunLocally = () => {
     if (files.length === 0) {
-        alert("Não há arquivos para publicar.");
-        return;
+      alert("Não há arquivos para executar. Gere algum código primeiro.");
+      return;
     }
-    setIsPublishing(true);
-    setPublishResult({ url: null, error: null });
-    setPublishModalOpen(true);
+    setLocalRunModalOpen(true);
+  };
 
-    try {
-        const zipBlob = await createProjectZip(files);
-        const response = await fetch('/api/publish', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/zip' },
-            body: zipBlob,
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || `HTTP error! status: ${response.status}`);
-        }
-        
-        setPublishResult({ url: data.url, error: null });
-
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Ocorreu um erro desconhecido durante a publicação.";
-        setPublishResult({ url: null, error: message });
-    } finally {
-        setIsPublishing(false);
-    }
+  const handleDownload = () => {
+    downloadProjectAsZip(files, projectName);
   };
 
   const handleImportFromGithub = (importedFiles: ProjectFile[]) => {
@@ -372,6 +419,29 @@ const App: React.FC = () => {
     setGithubModalOpen(false);
     setView('editor');
   };
+
+  const handleSaveImageToProject = (base64Data: string, fileName: string) => {
+    const newFile: ProjectFile = {
+        name: `assets/${fileName}`,
+        language: 'image',
+        content: base64Data,
+    };
+    setFiles(prev => {
+        // Create assets directory representation if it doesn't exist (not really a dir, just a prefix convention)
+        const assetFileExists = prev.some(f => f.name.startsWith('assets/'));
+        if (!assetFileExists) {
+            // This is just a conceptual placeholder; we don't create actual directory files
+        }
+
+        if (prev.find(f => f.name === newFile.name)) {
+            return prev.map(f => f.name === newFile.name ? newFile : f);
+        }
+        return [...prev, newFile];
+    });
+    alert(`Imagem "${newFile.name}" salva no projeto!`);
+    setImageStudioOpen(false);
+  };
+
 
   const handleFileClose = (fileNameToClose: string) => {
     const updatedFiles = files.filter(f => f.name !== fileNameToClose);
@@ -411,7 +481,7 @@ const App: React.FC = () => {
         return <WelcomeScreen 
           session={session}
           onLoginClick={() => setAuthModalOpen(true)}
-          onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash')} 
+          onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-pro')} 
           onShowPricing={() => setView('pricing')}
           onShowProjects={() => setView('projects')}
           onImportFromGithub={() => setGithubModalOpen(true)}
@@ -434,14 +504,18 @@ const App: React.FC = () => {
               <div className="hidden lg:block w-[320px] flex-shrink-0">
                 <Sidebar
                   files={files}
+                  envVars={envVars}
+                  onEnvVarChange={setEnvVars}
                   activeFile={activeFile}
                   onFileSelect={setActiveFile}
                   onDownload={() => downloadProjectAsZip(files, projectName)}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onOpenGithubImport={() => setGithubModalOpen(true)}
+                  onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
                   onSaveProject={handleSaveProject}
                   onOpenProjects={() => setView('projects')}
                   onNewProject={handleNewProject}
+                  onOpenImageStudio={() => setImageStudioOpen(true)}
                   session={session}
                   onLogin={() => setAuthModalOpen(true)}
                   onLogout={() => supabase.auth.signOut()}
@@ -453,14 +527,18 @@ const App: React.FC = () => {
                     <div className="w-[320px] h-full bg-var-bg-subtle shadow-2xl" onClick={e => e.stopPropagation()}>
                         <Sidebar
                             files={files}
+                            envVars={envVars}
+                            onEnvVarChange={setEnvVars}
                             activeFile={activeFile}
                             onFileSelect={(file) => {setActiveFile(file); setSidebarOpen(false);}}
                             onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}}
                             onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
                             onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}}
+                             onOpenSupabaseAdmin={() => {setSupabaseAdminModalOpen(true); setSidebarOpen(false);}}
                             onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }}
                             onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
                             onNewProject={handleNewProject}
+                            onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }}
                             onClose={() => setSidebarOpen(false)}
                             session={session}
                             onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }}
@@ -479,11 +557,12 @@ const App: React.FC = () => {
                   onThemeChange={setTheme}
                   onFileSelect={setActiveFile}
                   onFileClose={handleFileClose}
-                  onPublish={handlePublish}
+                  onRunLocally={handleRunLocally}
                   codeError={codeError}
                   onFixCode={handleFixCode}
                   onClearError={() => setCodeError(null)}
                   onError={setCodeError}
+                  envVars={envVars}
                 />
               </main>
               
@@ -532,12 +611,27 @@ const App: React.FC = () => {
         }}
       />
       <PublishModal 
-        isOpen={isPublishModalOpen}
-        onClose={() => setPublishModalOpen(false)}
-        isLoading={isPublishing}
-        publishUrl={publishResult.url}
-        error={publishResult.error}
+        isOpen={isLocalRunModalOpen}
+        onClose={() => setLocalRunModalOpen(false)}
+        onDownload={handleDownload}
+        projectName={projectName}
       />
+      <ImageStudioModal
+        isOpen={isImageStudioOpen}
+        onClose={() => setImageStudioOpen(false)}
+        onSaveImage={handleSaveImageToProject}
+        apiKey={userSettings.geminiApiKey}
+        onOpenApiKeyModal={() => {
+            setImageStudioOpen(false);
+            setApiKeyModalOpen(true);
+        }}
+       />
+       <SupabaseAdminModal
+            isOpen={isSupabaseAdminModalOpen}
+            onClose={() => setSupabaseAdminModalOpen(false)}
+            settings={userSettings}
+            onSettingsChange={setUserSettings}
+       />
     </div>
   );
 };

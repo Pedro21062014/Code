@@ -67,7 +67,7 @@ const resolvePath = (base: string, relative: string): string => {
 };
 
 
-export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessage: string) => void; theme: Theme }> = ({ files, onError, theme }) => {
+export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessage: string) => void; theme: Theme; envVars: Record<string, string> }> = ({ files, onError, theme, envVars }) => {
   const [srcDoc, setSrcDoc] = useState(LOADING_HTML);
 
   useEffect(() => {
@@ -113,18 +113,41 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
       const allFilesMap = new Map(files.map(f => [f.name, f]));
       const jsFiles = files.filter(f => /\.(tsx|ts|jsx|js)$/.test(f.name));
       const cssFiles = files.filter(f => f.name.endsWith('.css'));
+      const imageFiles = files.filter(f => /\.(png|jpe?g|gif|svg|webp)$/i.test(f.name));
       const createdUrls: string[] = [];
       const importMap = JSON.parse(JSON.stringify(BASE_IMPORT_MAP)); // Deep copy base map
 
       try {
-        const cssBlobUrls = new Map<string, string>();
+        const assetBlobUrls = new Map<string, string>();
+        
+        // Process CSS files
         for (const file of cssFiles) {
           const blob = new Blob([file.content], { type: 'text/css' });
           const url = URL.createObjectURL(blob);
           createdUrls.push(url);
-          cssBlobUrls.set(file.name, url);
+          assetBlobUrls.set(file.name, url);
         }
 
+        // Process Image files
+        for (const file of imageFiles) {
+            try {
+                const byteCharacters = atob(file.content);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const mimeType = `image/${file.name.split('.').pop() || 'png'}`;
+                const blob = new Blob([byteArray], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                createdUrls.push(url);
+                assetBlobUrls.set(file.name, url);
+            } catch (e) {
+                console.warn(`Could not create blob URL for image ${file.name}:`, e);
+            }
+        }
+
+        // Process JS files
         for (const file of jsFiles) {
           let content = file.content;
           
@@ -181,13 +204,21 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
 
         let finalHtml = htmlFile.content;
         
-        finalHtml = finalHtml.replace(/<link[^>]+href=["']([^"']+)["'][^>]*>/g, (match, href) => {
-            const cssFileName = href.split('/').pop();
-            if (cssFileName && cssBlobUrls.has(cssFileName)) {
-              return match.replace(href, cssBlobUrls.get(cssFileName)!);
+        // Replace asset paths (CSS, images) in HTML
+        finalHtml = finalHtml.replace(/(src|href)=["']((?:\.\/|\/)?)([^"']+)["']/g, (match, attr, prefix, path) => {
+            const assetPath = path.startsWith('/') ? path.substring(1) : path;
+            if (assetBlobUrls.has(assetPath)) {
+              return `${attr}="${assetBlobUrls.get(assetPath)}"`;
             }
             return match;
         });
+
+        // Create and inject environment variables script
+        const envContent = `window.process = { env: ${JSON.stringify(envVars)} };`;
+        const envBlob = new Blob([envContent], { type: 'application/javascript' });
+        const envUrl = URL.createObjectURL(envBlob);
+        createdUrls.push(envUrl);
+        const envScript = `<script src="${envUrl}"></script>`;
 
         const themeScript = `
           <script>
@@ -196,7 +227,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
         `;
 
         finalHtml = finalHtml.replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>/, '');
-        finalHtml = finalHtml.replace('</head>', `${themeScript}<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
+        finalHtml = finalHtml.replace('</head>', `${envScript}${themeScript}<script type="importmap">${JSON.stringify(importMap)}</script></head>`);
         
         const scriptSrcRegex = /(<script[^>]*src=["'])([^"']+)(["'][^>]*>)/;
         const match = finalHtml.match(scriptSrcRegex);
@@ -234,7 +265,7 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
     return () => {
       urlsToRevoke.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [files, onError, theme]);
+  }, [files, onError, theme, envVars]);
 
   return (
     <div className="w-full h-full bg-var-bg-muted">
