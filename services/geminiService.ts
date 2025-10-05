@@ -26,6 +26,7 @@ ${file.content}
   - 2. The API key for this service MUST be read from an environment variable named 'GEMINI_API_KEY' (e.g., 'process.env.GEMINI_API_KEY').
   - 3. In your JSON response, you MUST include the 'environmentVariables' field and create a key named 'GEMINI_API_KEY'. Set its value to an empty string (e.g., "GEMINI_API_KEY": ""). The application will automatically populate it with the user's key.
   - 4. Update the application's UI and logic files to import and use the new Gemini service, creating the AI feature requested by the user.
+- IMPORTANT: You MUST begin your response with a short, single-line "thought" process message explaining what you are about to do, in Portuguese. For example: "Entendido. Criando um aplicativo de lista de tarefas com React e Tailwind." After this line, you MUST add a separator '---' on a new line. Then, begin the main JSON response.
 - You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain the "message" and "files" keys, and can optionally contain "summary", "environmentVariables", and "supabaseAdminAction".
   - "message": (string) A friendly, conversational message to the user, in Portuguese.
   - "files": (array) An array of file objects. Each file object must have "name", "language", and "content".
@@ -68,10 +69,11 @@ export const generateCodeStreamWithGemini = async (
 
     const stream = await ai.models.generateContentStream({
         model: modelId,
-        contents: { role: 'user', parts: userParts },
+        // FIX: Removed `role: 'user'` from contents to align with the recommended format for single-turn, multi-part requests.
+        contents: { parts: userParts },
         config: {
             systemInstruction,
-            responseMimeType: "application/json",
+            // Instructing for a plain text response as we will parse the thought and JSON manually
         },
     });
 

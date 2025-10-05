@@ -1,7 +1,7 @@
 import { AIProvider, AIModel } from './types';
 
 export const AI_MODELS: AIModel[] = [
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: AIProvider.Gemini },
+  // FIX: Removed 'gemini-2.5-pro' as 'gemini-2.5-flash' is the recommended model for general text tasks.
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: AIProvider.Gemini },
   { id: 'gpt-4o', name: 'GPT-4o', provider: AIProvider.OpenAI },
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: AIProvider.OpenAI },
@@ -11,3 +11,6 @@ export const AI_MODELS: AIModel[] = [
 ];
 
 export const INITIAL_CHAT_MESSAGE = `Olá! Sou seu assistente de codificação de IA. Descreva a aplicação web que você deseja construir. Por exemplo: "Crie um site de portfólio simples com uma página inicial, sobre e de contato."`;
+
+// Adicionada uma chave de API padrão do Gemini como fallback
+export const DEFAULT_GEMINI_API_KEY = 'AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU';

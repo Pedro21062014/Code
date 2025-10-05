@@ -86,7 +86,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
 
   return (
     <div className="flex flex-col h-screen w-screen bg-var-bg-default text-var-fg-default overflow-hidden font-sans">
-      <header className="fixed top-0 left-0 right-0 z-10 p-4">
+      <header className="fixed top-0 left-0 right-0 z-10 p-4 bg-var-bg-default/80 backdrop-blur-sm border-b border-var-border-subtle">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <AppLogo className="w-6 h-6 text-var-accent" />
@@ -136,7 +136,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="relative w-full h-28 p-4 bg-var-bg-subtle/80 backdrop-blur-sm border border-var-border-default rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-var-accent/50 text-var-fg-default placeholder-var-fg-subtle"
+                    className="relative w-full h-28 p-4 bg-var-bg-subtle border border-var-border-default rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-var-accent/50 text-var-fg-default placeholder-var-fg-subtle"
                 />
                  <button 
                     onClick={() => onPromptSubmit(prompt.trim())}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
@@ -14,14 +14,14 @@ import { ImageStudioModal } from './components/ImageStudioModal';
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE } from './constants';
+import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY } from './constants';
 import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { MenuIcon, ChatIcon, AppLogo } from './components/Icons';
 import { supabase } from './services/supabase';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 
 
 const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void; projectName: string }> = ({ onToggleSidebar, onToggleChat, projectName }) => (
@@ -45,13 +45,6 @@ const InitializingOverlay: React.FC<{ projectName: string }> = ({ projectName })
 );
 
 
-/**
- * Extracts and parses a JSON object from a string that might contain other text (like markdown).
- * It finds the first '{' and the last '}' to demarcate the JSON string.
- * @param text The string containing the JSON object.
- * @returns The parsed JSON object.
- * @throws An error if a valid JSON object cannot be found or parsed.
- */
 const extractAndParseJson = (text: string): any => {
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
@@ -73,12 +66,32 @@ const extractAndParseJson = (text: string): any => {
   }
 };
 
+interface ProjectState {
+  files: ProjectFile[];
+  activeFile: string | null;
+  chatMessages: ChatMessage[];
+  projectName: string;
+  envVars: Record<string, string>;
+  currentProjectId: number | null; // Database ID
+}
+
+const initialProjectState: ProjectState = {
+  files: [],
+  activeFile: null,
+  chatMessages: [{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }],
+  projectName: 'NovoProjeto',
+  envVars: {},
+  currentProjectId: null,
+};
+
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>('welcome');
-  const [files, setFiles] =useState<ProjectFile[]>([]);
-  const [activeFile, setActiveFile] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
+  const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
+  const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
+  
+  const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
+  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>();
+
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -89,36 +102,117 @@ const App: React.FC = () => {
   const [isImageStudioOpen, setImageStudioOpen] = useState(false);
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
   
-  const [userSettings, setUserSettings] = useLocalStorage<UserSettings>('user-settings', {});
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
-  const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('saved-projects', []);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[] } | null>(null);
-  const [projectName, setProjectName] = useState('NovoProjeto');
-  const [envVars, setEnvVars] = useState<Record<string, string>>({});
   const [isInitializing, setIsInitializing] = useState(false);
 
   const [codeError, setCodeError] = useState<string | null>(null);
   const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
   const [session, setSession] = useState<Session | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const effectiveGeminiApiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
 
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+  // --- Data Fetching and Auth ---
+  const fetchUserSettings = useCallback(async (user: User) => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
+      if (profileError && profileError.code !== 'PGRST116') throw profileError;
+      setUserSettings(profileData);
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+    }
+  }, []);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) {
+        fetchUserSettings(session.user);
+      } else {
+        setUserSettings(null);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          fetchUserSettings(session.user);
+        }
+        setIsLoadingData(false); // Done loading auth info
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchUserSettings]);
+
+  // --- Project Management & URL Handling ---
+  const handleLoadProject = useCallback((projectId: number, confirmLoad: boolean = true) => {
+    if (confirmLoad && files.length > 0 && !window.confirm("Carregar este projeto substituirá seu trabalho local atual. Deseja continuar?")) {
+        return;
+    }
+
+    const projectToLoad = savedProjects.find(p => p.id === projectId);
+    if (projectToLoad) {
+        setProject({
+            files: projectToLoad.files,
+            projectName: projectToLoad.name,
+            chatMessages: projectToLoad.chat_history,
+            envVars: projectToLoad.env_vars || {},
+            currentProjectId: projectToLoad.id,
+            activeFile: projectToLoad.files.find(f => f.name.includes('html'))?.name || projectToLoad.files[0]?.name || null,
+        });
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('projectId', String(projectToLoad.id));
+        window.history.pushState({ path: url.href }, '', url.href);
+        
+        setCodeError(null);
+        setIsInitializing(false);
+        setView('editor');
+    } else {
+        alert("Não foi possível carregar o projeto. Ele pode ter sido excluído.");
+        const url = new URL(window.location.href);
+        url.searchParams.delete('projectId');
+        window.history.pushState({ path: url.href }, '', url.href);
+    }
+  }, [files.length, savedProjects, setProject]);
+
+  // Effect to handle initial view logic, including URL parsing
+  useEffect(() => {
+    if (view) return; // Already determined
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectIdStr = urlParams.get('projectId');
+    
+    if (projectIdStr) {
+      const projectId = parseInt(projectIdStr, 10);
+      const projectExists = savedProjects.some(p => p.id === projectId);
+      if (projectExists) {
+        handleLoadProject(projectId, false); // Load without confirmation
+        setView('editor');
+        return;
+      }
+    }
+    
+    // Fallback to default logic if no valid project ID in URL
+    if (files.length > 0) {
+      setView('editor');
+    } else {
+      setView('welcome');
+    }
+  }, [view, savedProjects, files.length, handleLoadProject]);
 
 
   useEffect(() => {
@@ -130,96 +224,96 @@ const App: React.FC = () => {
   }, [setIsProUser]);
 
   useEffect(() => {
-    if (pendingPrompt && userSettings.geminiApiKey) {
+    if (pendingPrompt && effectiveGeminiApiKey) {
       const { prompt, provider, model, attachments } = pendingPrompt;
       setPendingPrompt(null);
       handleSendMessage(prompt, provider, model, attachments);
     }
-  }, [pendingPrompt, userSettings.geminiApiKey]);
+  }, [pendingPrompt, effectiveGeminiApiKey]);
 
-  const handleNewProject = () => {
-    setFiles([]);
-    setActiveFile(null);
-    setChatMessages([{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]);
-    setProjectName('NovoProjeto');
-    setEnvVars({});
-    setCodeError(null);
-    setCurrentProjectId(null);
-    setView('welcome');
-    setSidebarOpen(false);
-    setChatOpen(false);
+  const handleNewProject = (confirmNew: boolean = true) => {
+    const startNew = () => {
+        setProject(initialProjectState);
+        setCodeError(null);
+        setView('welcome');
+        setSidebarOpen(false);
+        setChatOpen(false);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('projectId');
+        window.history.pushState({ path: url.href }, '', url.href);
+    };
+
+    if (confirmNew && files.length > 0) {
+        if (window.confirm("Tem certeza de que deseja iniciar um novo projeto? Seu trabalho local atual será perdido.")) {
+            startNew();
+        }
+    } else {
+        startNew();
+    }
   };
   
-  const handleSaveProject = () => {
+  const handleSaveProject = async () => {
     if (files.length === 0) {
       alert("Não há nada para salvar. Comece a gerar alguns arquivos primeiro.");
       return;
     }
 
-    const project: SavedProject = {
-      id: currentProjectId || Date.now().toString(),
+    const now = new Date().toISOString();
+    const projectId = currentProjectId || Date.now();
+
+    const projectData: SavedProject = {
+      id: projectId,
       name: projectName,
       files: files,
-      chatHistory: chatMessages,
-      envVars: envVars,
-      savedAt: new Date().toISOString(),
+      chat_history: chatMessages,
+      env_vars: envVars,
+      created_at: savedProjects.find(p => p.id === projectId)?.created_at || now,
+      updated_at: now,
     };
 
-    if (currentProjectId) {
-      // Update existing project
-      setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? project : p));
-    } else {
-      // Save as new project
-      setSavedProjects(prev => [...prev, project]);
-      setCurrentProjectId(project.id);
-    }
-    alert(`Projeto "${projectName}" salvo!`);
+    setSavedProjects(prev => {
+      const existingIndex = prev.findIndex(p => p.id === projectId);
+      if (existingIndex > -1) {
+        const newProjects = [...prev];
+        newProjects[existingIndex] = projectData;
+        return newProjects;
+      }
+      return [projectData, ...prev];
+    });
+
+    setProject(p => ({ ...p, currentProjectId: projectId }));
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('projectId', String(projectId));
+    window.history.pushState({ path: url.href }, '', url.href);
+
+    alert(`Projeto "${projectName}" salvo localmente!`);
   };
 
-  const handleLoadProject = (projectId: string) => {
-    const projectToLoad = savedProjects.find(p => p.id === projectId);
-    if (projectToLoad) {
-      setFiles(projectToLoad.files);
-      setProjectName(projectToLoad.name);
-      setChatMessages(projectToLoad.chatHistory);
-      setEnvVars(projectToLoad.envVars || {});
-      setCurrentProjectId(projectToLoad.id);
-      
-      const firstFile = projectToLoad.files.find(f => f.name.includes('html')) || projectToLoad.files[0];
-      setActiveFile(firstFile?.name || null);
-      
-      setCodeError(null);
-      setIsInitializing(false);
-      setView('editor');
-    } else {
-      alert("Não foi possível carregar o projeto. Ele pode ter sido excluído.");
-    }
-  };
-
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: number) => {
     setSavedProjects(prev => prev.filter(p => p.id !== projectId));
     if (currentProjectId === projectId) {
-      // If we delete the currently loaded project, we should reset.
-      handleNewProject();
-      alert("O projeto atual foi excluído. Voltando para a tela inicial.");
+        handleNewProject(false);
+        alert("O projeto atual foi excluído. Iniciando um novo projeto.");
     }
   };
 
+  // --- AI and API Interactions ---
   const handleSupabaseAdminAction = async (action: { query: string }) => {
-    if (!userSettings.supabaseProjectUrl || !userSettings.supabaseServiceKey) {
-        setChatMessages(prev => [...prev, { role: 'system', content: "Ação do Supabase ignorada: Credenciais de administrador não configuradas."}]);
+    if (!userSettings?.supabase_project_url || !userSettings?.supabase_service_key) {
+        setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: "Ação do Supabase ignorada: Credenciais de administrador não configuradas."}] }));
         return;
     }
-
-    setChatMessages(prev => [...prev, { role: 'system', content: `Executando consulta SQL no Supabase: ${action.query.substring(0, 100)}...`}]);
+    
+    setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: `Executando consulta SQL no Supabase: ${action.query.substring(0, 100)}...`}] }));
 
     try {
         const response = await fetch('/api/supabase-admin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                projectUrl: userSettings.supabaseProjectUrl,
-                serviceKey: userSettings.supabaseServiceKey,
+                projectUrl: userSettings.supabase_project_url,
+                serviceKey: userSettings.supabase_service_key,
                 query: action.query,
             }),
         });
@@ -227,27 +321,27 @@ const App: React.FC = () => {
         const result = await response.json();
 
         if (response.ok && result.success) {
-            setChatMessages(prev => [...prev, { role: 'system', content: "Consulta SQL executada com sucesso!" }]);
+            setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: "Consulta SQL executada com sucesso!" }] }));
         } else {
             throw new Error(result.error || "Ocorreu um erro desconhecido no servidor.");
         }
     } catch (err) {
         const message = err instanceof Error ? err.message : "Falha na comunicação com a função de back-end.";
-        setChatMessages(prev => [...prev, { role: 'system', content: `Erro ao executar a consulta SQL: ${message}` }]);
+        setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: `Erro ao executar a consulta SQL: ${message}` }] }));
     }
-};
+  };
 
   const handleSendMessage = async (prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[] = []) => {
     setCodeError(null);
     setLastModelUsed({ provider, model });
     
-    if (prompt.toLowerCase().includes('ia') && !userSettings.geminiApiKey) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Para adicionar funcionalidades de IA ao seu projeto, primeiro adicione sua chave de API do Gemini.'}]);
+    if (prompt.toLowerCase().includes('ia') && !effectiveGeminiApiKey) {
+      setProject(p => ({...p, chatMessages: [...p.chatMessages, { role: 'assistant', content: 'Para adicionar funcionalidades de IA ao seu projeto, primeiro adicione sua chave de API do Gemini.'}]}));
       setApiKeyModalOpen(true);
       return;
     }
     
-    if (provider === AIProvider.Gemini && !userSettings.geminiApiKey) {
+    if (provider === AIProvider.Gemini && !effectiveGeminiApiKey) {
       setPendingPrompt({ prompt, provider, model, attachments });
       setApiKeyModalOpen(true);
       return;
@@ -261,39 +355,40 @@ const App: React.FC = () => {
     const isFirstGeneration = files.length === 0;
 
     const userMessage: ChatMessage = { role: 'user', content: prompt };
-    const thinkingMessage: ChatMessage = {
-      role: 'assistant',
-      content: 'Pensando...',
-      isThinking: true,
-    };
+    const thinkingMessage: ChatMessage = { role: 'assistant', content: 'Pensando...', isThinking: true };
+    
+    const newChatHistory = view !== 'editor' ? [userMessage, thinkingMessage] : [...chatMessages, userMessage, thinkingMessage];
+    setProject(p => ({ ...p, chatMessages: newChatHistory }));
 
     if (view !== 'editor') {
       setView('editor');
-      setChatMessages([userMessage, thinkingMessage]);
-    } else {
-      setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
     }
     
-    if (isFirstGeneration && userSettings.geminiApiKey) {
+    if (isFirstGeneration && effectiveGeminiApiKey) {
       setIsInitializing(true);
-      const newName = await generateProjectName(prompt, userSettings.geminiApiKey);
-      setProjectName(newName);
+      const newName = await generateProjectName(prompt, effectiveGeminiApiKey);
+      setProject(p => ({...p, projectName: newName}));
     }
 
+    let thoughtMessageFound = false;
     let accumulatedContent = "";
     const onChunk = (chunk: string) => {
         accumulatedContent += chunk;
-        setChatMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-                const updatedMessage = { ...lastMessage, content: accumulatedContent };
-                if (lastMessage.isThinking) {
-                    updatedMessage.isThinking = true; 
-                }
-                return [ ...prev.slice(0, -1), updatedMessage ];
+        if (!thoughtMessageFound) {
+            const separatorIndex = accumulatedContent.indexOf('\n---\n');
+            if (separatorIndex !== -1) {
+                const thought = accumulatedContent.substring(0, separatorIndex).trim();
+                setProject(p => {
+                    const newMessages = [...p.chatMessages];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage?.isThinking) {
+                        lastMessage.content = thought;
+                    }
+                    return { ...p, chatMessages: newMessages };
+                });
+                thoughtMessageFound = true;
             }
-            return prev;
-        });
+        }
     };
 
     try {
@@ -301,7 +396,7 @@ const App: React.FC = () => {
 
       switch (provider) {
         case AIProvider.Gemini:
-          fullResponse = await generateCodeStreamWithGemini(prompt, files, envVars, onChunk, model, userSettings.geminiApiKey!, attachments);
+          fullResponse = await generateCodeStreamWithGemini(prompt, files, envVars, onChunk, model, effectiveGeminiApiKey!, attachments);
           break;
         case AIProvider.OpenAI:
           fullResponse = await generateCodeStreamWithOpenAI(prompt, files, onChunk, model);
@@ -313,30 +408,37 @@ const App: React.FC = () => {
           throw new Error('Provedor de IA não suportado');
       }
       
-      const result = extractAndParseJson(fullResponse);
+      let finalJsonPayload = fullResponse;
+      const separatorIndex = fullResponse.indexOf('\n---\n');
+      if (separatorIndex !== -1) {
+          finalJsonPayload = fullResponse.substring(separatorIndex + 5);
+      }
+      
+      const result = extractAndParseJson(finalJsonPayload);
       
       if (result.files && Array.isArray(result.files)) {
-        setFiles(prevFiles => {
-            const updatedFilesMap = new Map(prevFiles.map(f => [f.name, f]));
+        setProject(p => {
+            const updatedFilesMap = new Map(p.files.map(f => [f.name, f]));
             result.files.forEach((file: ProjectFile) => {
                 updatedFilesMap.set(file.name, file);
             });
-            return Array.from(updatedFilesMap.values());
+            const newFiles = Array.from(updatedFilesMap.values());
+            let newActiveFile = p.activeFile;
+            if (result.files.length > 0 && !newActiveFile) {
+                const foundFile = result.files.find((f: ProjectFile) => f.name.includes('html')) || result.files[0];
+                newActiveFile = foundFile.name;
+            }
+            return { ...p, files: newFiles, activeFile: newActiveFile };
         });
-        if (result.files.length > 0 && !activeFile) {
-          const newFile = result.files.find((f: ProjectFile) => f.name.includes('html')) || result.files[0];
-          setActiveFile(newFile.name);
-        }
       }
       
       if (result.environmentVariables) {
-        // If the AI created the GEMINI_API_KEY, populate it with the user's actual key.
-        if (result.environmentVariables.GEMINI_API_KEY !== undefined && userSettings.geminiApiKey) {
-            result.environmentVariables.GEMINI_API_KEY = userSettings.geminiApiKey;
+        if (result.environmentVariables.GEMINI_API_KEY !== undefined && userSettings?.gemini_api_key) {
+            result.environmentVariables.GEMINI_API_KEY = userSettings.gemini_api_key;
         }
 
-        setEnvVars(prev => {
-            const newVars = { ...prev };
+        setProject(p => {
+            const newVars = { ...p.envVars };
             for (const [key, value] of Object.entries(result.environmentVariables)) {
                 if (value === null) {
                     delete newVars[key];
@@ -344,16 +446,20 @@ const App: React.FC = () => {
                     newVars[key] = value as string;
                 }
             }
-            return newVars;
+            return { ...p, envVars: newVars };
         });
       }
 
-       setChatMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-                return [...prev.slice(0, -1), { ...lastMessage, content: result.message || 'Geração concluída.', summary: result.summary, isThinking: false }];
+       setProject(p => {
+            const newMessages = [...p.chatMessages];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage?.role === 'assistant') {
+                lastMessage.content = result.message || 'Geração concluída.';
+                lastMessage.summary = result.summary;
+                lastMessage.isThinking = false;
+                return { ...p, chatMessages: newMessages };
             }
-            return [...prev, { role: 'assistant', content: result.message || 'Geração concluída.', summary: result.summary, isThinking: false }];
+            return p;
         });
 
        if (result.supabaseAdminAction) {
@@ -364,22 +470,16 @@ const App: React.FC = () => {
       console.error("Error handling send message:", error);
       const errorMessageText = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
       
-      let finalMessage = `Erro: ${errorMessageText}`;
-      try {
-        if (accumulatedContent.includes('{')) {
-          const parsedError = extractAndParseJson(accumulatedContent);
-          if (parsedError.message) {
-              finalMessage = parsedError.message;
-          }
-        }
-      } catch (e) { /* Ignore */ }
-
-       setChatMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isThinking) {
-                return [...prev.slice(0, -1), { role: 'assistant', content: finalMessage, isThinking: false }];
+      setProject(p => {
+            const newMessages = [...p.chatMessages];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage?.isThinking) {
+                 lastMessage.content = `Erro: ${errorMessageText}`;
+                 lastMessage.isThinking = false;
+            } else {
+                newMessages.push({ role: 'assistant', content: `Erro: ${errorMessageText}`, isThinking: false });
             }
-            return [...prev, { role: 'assistant', content: finalMessage, isThinking: false }];
+            return { ...p, chatMessages: newMessages };
         });
     } finally {
         if (isFirstGeneration) {
@@ -393,7 +493,8 @@ const App: React.FC = () => {
     const fixPrompt = `O código anterior gerou um erro de visualização: "${codeError}". Por favor, analise os arquivos e corrija o erro. Forneça apenas os arquivos modificados.`;
     handleSendMessage(fixPrompt, lastModelUsed.provider, lastModelUsed.model);
   };
-
+  
+  // --- UI Handlers and Other Functions ---
   const handleRunLocally = () => {
     if (files.length === 0) {
       alert("Não há arquivos para executar. Gere algum código primeiro.");
@@ -407,73 +508,76 @@ const App: React.FC = () => {
   };
 
   const handleImportFromGithub = (importedFiles: ProjectFile[]) => {
-    setFiles(importedFiles);
-    setChatMessages([
-      { role: 'assistant', content: INITIAL_CHAT_MESSAGE },
-      { role: 'assistant', content: `Importei ${importedFiles.length} arquivos do seu repositório. O que você gostaria de construir ou modificar?` }
-    ]);
-    if (importedFiles.length > 0) {
-      const htmlFile = importedFiles.find(f => f.name.endsWith('index.html')) || importedFiles[0];
-      setActiveFile(htmlFile.name);
-    }
+    const htmlFile = importedFiles.find(f => f.name.endsWith('index.html')) || importedFiles[0];
+    setProject(p => ({
+        ...p,
+        files: importedFiles,
+        chatMessages: [
+            { role: 'assistant', content: INITIAL_CHAT_MESSAGE },
+            { role: 'assistant', content: `Importei ${importedFiles.length} arquivos do seu repositório. O que você gostaria de construir ou modificar?` }
+        ],
+        activeFile: htmlFile?.name || null,
+    }));
+    
     setGithubModalOpen(false);
     setView('editor');
   };
 
   const handleSaveImageToProject = (base64Data: string, fileName: string) => {
-    const newFile: ProjectFile = {
-        name: `assets/${fileName}`,
-        language: 'image',
-        content: base64Data,
-    };
-    setFiles(prev => {
-        // Create assets directory representation if it doesn't exist (not really a dir, just a prefix convention)
-        const assetFileExists = prev.some(f => f.name.startsWith('assets/'));
-        if (!assetFileExists) {
-            // This is just a conceptual placeholder; we don't create actual directory files
-        }
-
-        if (prev.find(f => f.name === newFile.name)) {
-            return prev.map(f => f.name === newFile.name ? newFile : f);
-        }
-        return [...prev, newFile];
+    const newFile: ProjectFile = { name: `assets/${fileName}`, language: 'image', content: base64Data };
+    setProject(p => {
+        const existingFile = p.files.find(f => f.name === newFile.name);
+        const newFiles = existingFile ? p.files.map(f => f.name === newFile.name ? newFile : f) : [...p.files, newFile];
+        return { ...p, files: newFiles };
     });
     alert(`Imagem "${newFile.name}" salva no projeto!`);
     setImageStudioOpen(false);
   };
 
-
   const handleFileClose = (fileNameToClose: string) => {
-    const updatedFiles = files.filter(f => f.name !== fileNameToClose);
-    setFiles(updatedFiles);
+    setProject(p => {
+        const updatedFiles = p.files.filter(f => f.name !== fileNameToClose);
+        let newActiveFile = p.activeFile;
+        if (p.activeFile === fileNameToClose) {
+            if (updatedFiles.length > 0) {
+                const closingFileIndex = p.files.findIndex(f => f.name === fileNameToClose);
+                const newActiveIndex = Math.max(0, closingFileIndex - 1);
+                newActiveFile = updatedFiles[newActiveIndex]?.name || null;
+            } else {
+                newActiveFile = null;
+            }
+        }
+        return { ...p, files: updatedFiles, activeFile: newActiveFile };
+    });
+  };
   
-    if (activeFile === fileNameToClose) {
-      if (updatedFiles.length > 0) {
-        const closingFileIndex = files.findIndex(f => f.name === fileNameToClose);
-        // Activate the previous file, or the first one if the closed file was the first
-        const newActiveIndex = Math.max(0, closingFileIndex - 1);
-        setActiveFile(updatedFiles[newActiveIndex]?.name || null);
-      } else {
-        setActiveFile(null); // No files left
-      }
+  const handleSaveSettings = async (newSettings: Omit<UserSettings, 'id' | 'updated_at'>) => {
+    if (!session?.user) return;
+    const settingsData = { ...newSettings, id: session.user.id, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from('profiles').upsert(settingsData).select().single();
+    if (error) {
+        alert(`Erro ao salvar configurações: ${error.message}`);
+    } else {
+        setUserSettings(data);
     }
   };
   
-  const handleSaveApiKey = (key: string) => {
-    setUserSettings(prev => ({ ...prev, geminiApiKey: key }));
-    setApiKeyModalOpen(false);
-  };
-
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setSidebarOpen(false);
-        setChatOpen(false);
-      }
+      if (window.innerWidth >= 1024) { setSidebarOpen(false); setChatOpen(false); }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  if (isLoadingData || !view) {
+    return (
+        <div className={`${theme} flex flex-col items-center justify-center h-screen bg-var-bg-default text-var-fg-default`}>
+            <AppLogo className="w-12 h-12 text-var-accent animate-pulse" style={{ animationDuration: '2s' }} />
+            <p className="mt-4 text-lg">Carregando...</p>
+        </div>
+    );
+  }
 
   const mainContent = () => {
     switch (view) {
@@ -481,7 +585,8 @@ const App: React.FC = () => {
         return <WelcomeScreen 
           session={session}
           onLoginClick={() => setAuthModalOpen(true)}
-          onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-pro')} 
+          // FIX: Changed default model from gemini-2.5-pro to the recommended gemini-2.5-flash.
+          onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash')} 
           onShowPricing={() => setView('pricing')}
           onShowProjects={() => setView('projects')}
           onImportFromGithub={() => setGithubModalOpen(true)}
@@ -503,22 +608,10 @@ const App: React.FC = () => {
               {isInitializing && <InitializingOverlay projectName={projectName} />}
               <div className="hidden lg:block w-[320px] flex-shrink-0">
                 <Sidebar
-                  files={files}
-                  envVars={envVars}
-                  onEnvVarChange={setEnvVars}
-                  activeFile={activeFile}
-                  onFileSelect={setActiveFile}
-                  onDownload={() => downloadProjectAsZip(files, projectName)}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                  onOpenGithubImport={() => setGithubModalOpen(true)}
-                  onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
-                  onSaveProject={handleSaveProject}
-                  onOpenProjects={() => setView('projects')}
-                  onNewProject={handleNewProject}
-                  onOpenImageStudio={() => setImageStudioOpen(true)}
-                  session={session}
-                  onLogin={() => setAuthModalOpen(true)}
-                  onLogout={() => supabase.auth.signOut()}
+                  files={files} envVars={envVars} onEnvVarChange={newVars => setProject(p => ({ ...p, envVars: newVars }))} activeFile={activeFile} onFileSelect={name => setProject(p => ({...p, activeFile: name}))} onDownload={() => downloadProjectAsZip(files, projectName)}
+                  onOpenSettings={() => setSettingsOpen(true)} onOpenGithubImport={() => setGithubModalOpen(true)} onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
+                  onSaveProject={handleSaveProject} onOpenProjects={() => setView('projects')} onNewProject={() => handleNewProject()} onOpenImageStudio={() => setImageStudioOpen(true)}
+                  session={session} onLogin={() => setAuthModalOpen(true)} onLogout={() => supabase.auth.signOut()}
                 />
               </div>
               
@@ -526,23 +619,12 @@ const App: React.FC = () => {
                  <div className="absolute top-0 left-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)}>
                     <div className="w-[320px] h-full bg-var-bg-subtle shadow-2xl" onClick={e => e.stopPropagation()}>
                         <Sidebar
-                            files={files}
-                            envVars={envVars}
-                            onEnvVarChange={setEnvVars}
-                            activeFile={activeFile}
-                            onFileSelect={(file) => {setActiveFile(file); setSidebarOpen(false);}}
-                            onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}}
-                            onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
-                            onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}}
-                             onOpenSupabaseAdmin={() => {setSupabaseAdminModalOpen(true); setSidebarOpen(false);}}
-                            onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }}
-                            onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
-                            onNewProject={handleNewProject}
-                            onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }}
-                            onClose={() => setSidebarOpen(false)}
-                            session={session}
-                            onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }}
-                            onLogout={() => { supabase.auth.signOut(); setSidebarOpen(false); }}
+                            files={files} envVars={envVars} onEnvVarChange={newVars => setProject(p => ({ ...p, envVars: newVars }))} activeFile={activeFile} onFileSelect={(file) => {setProject(p => ({...p, activeFile: file})); setSidebarOpen(false);}}
+                            onDownload={() => {downloadProjectAsZip(files, projectName); setSidebarOpen(false);}} onOpenSettings={() => {setSettingsOpen(true); setSidebarOpen(false);}}
+                            onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}} onOpenSupabaseAdmin={() => {setSupabaseAdminModalOpen(true); setSidebarOpen(false);}}
+                            onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }} onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
+                            onNewProject={() => handleNewProject()} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
+                            session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { supabase.auth.signOut(); setSidebarOpen(false); }}
                         />
                     </div>
                 </div>
@@ -550,19 +632,9 @@ const App: React.FC = () => {
 
               <main className="flex-1 min-w-0">
                 <EditorView 
-                  files={files} 
-                  activeFile={activeFile}
-                  projectName={projectName}
-                  theme={theme}
-                  onThemeChange={setTheme}
-                  onFileSelect={setActiveFile}
-                  onFileClose={handleFileClose}
-                  onRunLocally={handleRunLocally}
-                  codeError={codeError}
-                  onFixCode={handleFixCode}
-                  onClearError={() => setCodeError(null)}
-                  onError={setCodeError}
-                  envVars={envVars}
+                  files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
+                  onFileSelect={name => setProject(p => ({...p, activeFile: name}))} onFileClose={handleFileClose} onRunLocally={handleRunLocally}
+                  codeError={codeError} onFixCode={handleFixCode} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
                 />
               </main>
               
@@ -589,26 +661,33 @@ const App: React.FC = () => {
     <div className={theme}>
       {mainContent()}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={userSettings}
-        onSettingsChange={setUserSettings}
-      />
+      {session && userSettings && (
+        <>
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setSettingsOpen(false)}
+                settings={userSettings}
+                onSave={handleSaveSettings}
+            />
+            <SupabaseAdminModal
+                isOpen={isSupabaseAdminModalOpen}
+                onClose={() => setSupabaseAdminModalOpen(false)}
+                settings={userSettings}
+                onSave={handleSaveSettings}
+            />
+        </>
+      )}
       <ApiKeyModal
         isOpen={isApiKeyModalOpen}
         onClose={() => { setApiKeyModalOpen(false); setPendingPrompt(null); }}
-        onSave={handleSaveApiKey}
+        onSave={(key) => handleSaveSettings({ gemini_api_key: key })}
       />
       <GithubImportModal
         isOpen={isGithubModalOpen}
         onClose={() => setGithubModalOpen(false)}
         onImport={handleImportFromGithub}
-        githubToken={userSettings.githubAccessToken}
-        onOpenSettings={() => {
-          setGithubModalOpen(false);
-          setSettingsOpen(true);
-        }}
+        githubToken={userSettings?.github_access_token}
+        onOpenSettings={() => { setGithubModalOpen(false); setSettingsOpen(true); }}
       />
       <PublishModal 
         isOpen={isLocalRunModalOpen}
@@ -620,17 +699,8 @@ const App: React.FC = () => {
         isOpen={isImageStudioOpen}
         onClose={() => setImageStudioOpen(false)}
         onSaveImage={handleSaveImageToProject}
-        apiKey={userSettings.geminiApiKey}
-        onOpenApiKeyModal={() => {
-            setImageStudioOpen(false);
-            setApiKeyModalOpen(true);
-        }}
-       />
-       <SupabaseAdminModal
-            isOpen={isSupabaseAdminModalOpen}
-            onClose={() => setSupabaseAdminModalOpen(false)}
-            settings={userSettings}
-            onSettingsChange={setUserSettings}
+        apiKey={effectiveGeminiApiKey}
+        onOpenApiKeyModal={() => { setImageStudioOpen(false); setApiKeyModalOpen(true); }}
        />
     </div>
   );

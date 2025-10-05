@@ -16,17 +16,17 @@ const PricingCard: React.FC<{
     isLoading: boolean;
     buttonText?: string;
 }> = ({ title, price, description, features, isFeatured, onClick, isLoading, buttonText = "Começar" }) => (
-    <div className={`flex flex-col p-8 rounded-2xl border ${isFeatured ? 'bg-gray-800/50 border-blue-500/50' : 'bg-[#1C1C1F] border-gray-700/50'}`}>
-        <h3 className="text-xl font-semibold text-white">{title}</h3>
-        <p className="mt-2 text-gray-400">{description}</p>
+    <div className={`flex flex-col p-8 rounded-2xl border ${isFeatured ? 'bg-var-bg-interactive border-var-accent' : 'bg-var-bg-subtle border-var-border-default'}`}>
+        <h3 className="text-xl font-semibold text-var-fg-default">{title}</h3>
+        <p className="mt-2 text-var-fg-muted">{description}</p>
         <div className="mt-6">
-            <span className="text-5xl font-bold text-white">{price}</span>
-            <span className="text-gray-400">{price !== "Grátis" && " / mês"}</span>
+            <span className="text-5xl font-bold text-var-fg-default">{price}</span>
+            <span className="text-var-fg-muted">{price !== "Grátis" && " / mês"}</span>
         </div>
-        <ul className="mt-8 space-y-4 text-gray-300 flex-grow">
+        <ul className="mt-8 space-y-4 text-var-fg-default flex-grow">
             {features.map((feature, index) => (
                 <li key={index} className="flex items-center gap-3">
-                    <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    <svg className="w-5 h-5 text-var-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     <span>{feature}</span>
                 </li>
             ))}
@@ -34,7 +34,7 @@ const PricingCard: React.FC<{
         <button 
             onClick={onClick}
             disabled={isLoading}
-            className={`w-full mt-8 py-3 rounded-lg font-semibold transition-colors disabled:bg-gray-500 disabled:cursor-wait ${isFeatured ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-600/50 text-gray-200 hover:bg-gray-700'}`}>
+            className={`w-full mt-8 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-wait ${isFeatured ? 'bg-var-accent text-var-accent-fg hover:opacity-90' : 'bg-var-bg-interactive text-var-fg-default hover:bg-var-bg-default'}`}>
             {isLoading ? 'Processando...' : buttonText}
         </button>
     </div>
@@ -56,21 +56,21 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-screen bg-[#0B0C10] text-gray-300 overflow-y-auto font-sans">
+    <div className="flex flex-col min-h-screen w-screen bg-var-bg-default text-var-fg-default overflow-y-auto font-sans">
        <header className="fixed top-0 left-0 right-0 z-10 p-4">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <AppLogo className="w-6 h-6 text-white" />
-            <span className="text-white font-bold">codegen<span className="font-light">studio</span></span>
+            <AppLogo className="w-6 h-6 text-var-fg-default" />
+            <span className="text-var-fg-default font-bold">codegen<span className="font-light">studio</span></span>
           </div>
-          <button onClick={onBack} className="text-sm text-gray-300 hover:text-white transition-colors">
+          <button onClick={onBack} className="text-sm text-var-fg-muted hover:text-var-fg-default transition-colors">
             &larr; Voltar
           </button>
         </div>
       </header>
        <main className="flex-1 flex flex-col items-center justify-center text-center px-4 pt-24 pb-12">
-        <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">Encontre o plano certo para você</h1>
-        <p className="mt-4 text-lg text-gray-400 max-w-2xl">Comece de graça e expanda conforme você cresce. Todos os planos incluem acesso aos nossos poderosos recursos de geração de código por IA.</p>
+        <h1 className="text-5xl md:text-6xl font-bold text-var-fg-default tracking-tight">Encontre o plano certo para você</h1>
+        <p className="mt-4 text-lg text-var-fg-muted max-w-2xl">Comece de graça e expanda conforme você cresce. Todos os planos incluem acesso aos nossos poderosos recursos de geração de código por IA.</p>
 
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full text-left">
             <PricingCard

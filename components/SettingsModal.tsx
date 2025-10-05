@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CloseIcon, KeyIcon, GithubIcon } from './Icons';
 import { UserSettings } from '../types';
 import { GoogleGenAI } from '@google/genai';
@@ -7,7 +7,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: UserSettings;
-  onSettingsChange: React.Dispatch<React.SetStateAction<UserSettings>>;
+  onSave: (newSettings: Omit<UserSettings, 'id' | 'updated_at'>) => void;
 }
 
 const testApiKey = async (key: string): Promise<{ success: boolean; message: string }> => {
@@ -25,18 +25,18 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
     }
 };
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSettingsChange }) => {
-  const [geminiKey, setGeminiKey] = useState(settings.geminiApiKey || '');
-  const [githubToken, setGithubToken] = useState(settings.githubAccessToken || '');
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
+  const [geminiKey, setGeminiKey] = useState(settings.gemini_api_key || '');
+  const [githubToken, setGithubToken] = useState(settings.github_access_token || '');
   const [geminiTestStatus, setGeminiTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' });
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
-        setGeminiKey(settings.geminiApiKey || '');
-        setGithubToken(settings.githubAccessToken || '');
+        setGeminiKey(settings.gemini_api_key || '');
+        setGithubToken(settings.github_access_token || '');
         setGeminiTestStatus({ status: 'idle', message: '' });
     }
-  }, [isOpen, settings.geminiApiKey, settings.githubAccessToken]);
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
@@ -51,11 +51,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
   };
   
   const handleSave = () => {
-    onSettingsChange(prev => ({ 
-      ...prev, 
-      geminiApiKey: geminiKey,
-      githubAccessToken: githubToken
-    }));
+    onSave({ 
+      gemini_api_key: geminiKey,
+      github_access_token: githubToken,
+      // Preserve existing supabase settings
+      supabase_project_url: settings.supabase_project_url,
+      supabase_anon_key: settings.supabase_anon_key,
+      supabase_service_key: settings.supabase_service_key,
+    });
     onClose();
   };
 
@@ -82,7 +85,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     <h3 className="font-semibold text-var-fg-default">Chave de API do Gemini</h3>
                 </div>
                 <p className="text-xs text-var-fg-muted mb-3">
-                    Sua chave de API do Google Gemini é necessária. Ela é armazenada com segurança no seu navegador.
+                    Sua chave de API do Google Gemini é necessária. Ela é armazenada com segurança no seu perfil.
                 </p>
                 <div className="flex items-center gap-2">
                     <input
