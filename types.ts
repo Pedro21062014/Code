@@ -23,7 +23,7 @@ export interface ProjectFile {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   summary?: string;
   isThinking?: boolean;
@@ -32,6 +32,9 @@ export interface ChatMessage {
 export interface UserSettings {
   geminiApiKey?: string;
   githubAccessToken?: string;
+  supabaseProjectUrl?: string;
+  supabaseAnonKey?: string;
+  supabaseServiceKey?: string;
 }
 
 export type Theme = 'light' | 'dark';
@@ -41,5 +44,6 @@ export interface SavedProject {
   name: string;
   files: ProjectFile[];
   chatHistory: ChatMessage[];
+  envVars: Record<string, string>;
   savedAt: string;
 }

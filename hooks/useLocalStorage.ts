@@ -1,5 +1,6 @@
 
-import { useState, useEffect } from 'react';
+
+import React, { useState, useEffect } from 'react';
 
 function getValue<T>(key: string, initialValue: T | (() => T)): T {
   // SSR and private browsing can cause window.localStorage to be undefined.
@@ -22,6 +23,7 @@ function getValue<T>(key: string, initialValue: T | (() => T)): T {
   return initialValue instanceof Function ? initialValue() : initialValue;
 }
 
+// FIX: Import React to provide the 'React' namespace for types like React.Dispatch.
 export function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => getValue(key, initialValue));
 

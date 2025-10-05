@@ -1,13 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { ProjectFile } from '../types';
 
-const getSystemPrompt = (files: ProjectFile[]): string => {
+const getSystemPrompt = (files: ProjectFile[], envVars: Record<string, string>): string => {
   const fileContent = files.map(file => `
 --- FILE: ${file.name} ---
 \`\`\`${file.language}
 ${file.content}
 \`\`\`
 `).join('\n');
+
+  const envContent = Object.keys(envVars).length > 0
+    ? `The following environment variables are available to the project via 'process.env.VARIABLE_NAME':\n${JSON.stringify(envVars, null, 2)}`
+    : "No environment variables are currently set.";
 
   return `You are an expert senior full-stack engineer specializing in creating complete, functional, and aesthetically pleasing web applications.
 - Your primary goal is to generate all necessary code files based on the user's prompt. You are proficient in a wide range of web technologies including HTML, CSS, JavaScript, TypeScript, React, Vue, Svelte, Node.js, and more.
@@ -16,11 +20,23 @@ ${file.content}
 - For React projects, use functional components, TypeScript (.tsx), and hooks.
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
-- If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. Use the exported Supabase client from that file for any data-related tasks. Do not re-initialize the client.
-- You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain three keys: "message" (a friendly, conversational message to the user, in Portuguese), "summary" (a markdown string summarizing the files created or updated, for example a table with columns for "Arquivo" and "Status" which can be "Criado" or "Modificado"), and "files" (an array of file objects). Each file object must have "name", "language", and "content".
+- If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. You have the ability to execute SQL queries on the user's Supabase database.
+- SPECIAL COMMAND: If the user's prompt includes the word "ia" (Portuguese for "AI"), you must integrate a client-side Gemini AI feature into the project. To do this:
+  - 1. Create a new file 'services/gemini.ts'. This file should initialize the GoogleGenAI client and export a function to call the Gemini model.
+  - 2. The API key for this service MUST be read from an environment variable named 'GEMINI_API_KEY' (e.g., 'process.env.GEMINI_API_KEY').
+  - 3. In your JSON response, you MUST include the 'environmentVariables' field and create a key named 'GEMINI_API_KEY'. Set its value to an empty string (e.g., "GEMINI_API_KEY": ""). The application will automatically populate it with the user's key.
+  - 4. Update the application's UI and logic files to import and use the new Gemini service, creating the AI feature requested by the user.
+- You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain the "message" and "files" keys, and can optionally contain "summary", "environmentVariables", and "supabaseAdminAction".
+  - "message": (string) A friendly, conversational message to the user, in Portuguese.
+  - "files": (array) An array of file objects. Each file object must have "name", "language", and "content".
+  - "summary": (string, optional) A markdown string summarizing the files created or updated.
+  - "environmentVariables": (object, optional) An object of environment variables to set. To delete a variable, set its value to null.
+  - "supabaseAdminAction": (object, optional) To execute a database modification (e.g., create a table), provide an object with a "query" key containing the SQL statement to execute. Example: { "query": "CREATE TABLE posts (id bigint primary key, title text);" }. Use this ONLY for database schema or data manipulation.
 
 Current project files:
 ${fileContent.length > 0 ? fileContent : "Nenhum arquivo existe ainda."}
+
+${envContent}
 `;
 };
 
@@ -28,17 +44,31 @@ ${fileContent.length > 0 ? fileContent : "Nenhum arquivo existe ainda."}
 export const generateCodeStreamWithGemini = async (
   prompt: string,
   existingFiles: ProjectFile[],
+  envVars: Record<string, string>,
   onChunk: (chunk: string) => void,
   modelId: string,
-  apiKey: string
+  apiKey: string,
+  attachments?: { data: string; mimeType: string }[]
 ): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const systemInstruction = getSystemPrompt(existingFiles);
+    const systemInstruction = getSystemPrompt(existingFiles, envVars);
+
+    const userParts: any[] = [{ text: prompt }];
+    if (attachments && attachments.length > 0) {
+        attachments.forEach(file => {
+            userParts.push({
+                inlineData: {
+                    data: file.data,
+                    mimeType: file.mimeType,
+                },
+            });
+        });
+    }
 
     const stream = await ai.models.generateContentStream({
         model: modelId,
-        contents: { role: 'user', parts: [{ text: prompt }] },
+        contents: { role: 'user', parts: userParts },
         config: {
             systemInstruction,
             responseMimeType: "application/json",
@@ -87,5 +117,29 @@ export const generateProjectName = async (
   } catch (error) {
     console.error("Error generating project name:", error);
     return "NovoProjeto";
+  }
+};
+
+export const generateImagesWithImagen = async (
+  prompt: string,
+  apiKey: string,
+  numberOfImages: number,
+  aspectRatio: string
+): Promise<string[]> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateImages({
+      model: 'imagen-4.0-generate-001',
+      prompt,
+      config: {
+        numberOfImages,
+        outputMimeType: 'image/png',
+        aspectRatio: aspectRatio as any,
+      },
+    });
+    return response.generatedImages.map(img => img.image.imageBytes);
+  } catch (error) {
+    console.error("Error calling Imagen API:", error);
+    throw error;
   }
 };

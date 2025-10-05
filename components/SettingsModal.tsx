@@ -28,25 +28,25 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSettingsChange }) => {
   const [geminiKey, setGeminiKey] = useState(settings.geminiApiKey || '');
   const [githubToken, setGithubToken] = useState(settings.githubAccessToken || '');
-  const [testStatus, setTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' });
+  const [geminiTestStatus, setGeminiTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' });
   
   React.useEffect(() => {
     if (isOpen) {
         setGeminiKey(settings.geminiApiKey || '');
         setGithubToken(settings.githubAccessToken || '');
-        setTestStatus({ status: 'idle', message: '' });
+        setGeminiTestStatus({ status: 'idle', message: '' });
     }
   }, [isOpen, settings.geminiApiKey, settings.githubAccessToken]);
 
   if (!isOpen) return null;
 
-  const handleTest = async () => {
-    setTestStatus({ status: 'testing', message: 'Testando...' });
+  const handleGeminiTest = async () => {
+    setGeminiTestStatus({ status: 'testing', message: 'Testando...' });
     const result = await testApiKey(geminiKey);
     if (result.success) {
-      setTestStatus({ status: 'success', message: result.message });
+      setGeminiTestStatus({ status: 'success', message: result.message });
     } else {
-      setTestStatus({ status: 'error', message: result.message });
+      setGeminiTestStatus({ status: 'error', message: result.message });
     }
   };
   
@@ -90,22 +90,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         value={geminiKey}
                         onChange={(e) => {
                             setGeminiKey(e.target.value);
-                            setTestStatus({ status: 'idle', message: '' });
+                            setGeminiTestStatus({ status: 'idle', message: '' });
                         }}
                         placeholder="Cole sua chave de API aqui"
                         className="w-full p-2 bg-var-bg-subtle border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50"
                     />
                      <button
-                        onClick={handleTest}
-                        disabled={testStatus.status === 'testing' || !geminiKey}
+                        onClick={handleGeminiTest}
+                        disabled={geminiTestStatus.status === 'testing' || !geminiKey}
                         className="px-3 py-2 text-xs font-medium text-var-fg-default bg-var-bg-interactive border border-var-border-default rounded-md hover:bg-var-bg-default disabled:opacity-50 disabled:cursor-wait"
                      >
-                         {testStatus.status === 'testing' ? '...' : 'Testar'}
+                         {geminiTestStatus.status === 'testing' ? '...' : 'Testar'}
                     </button>
                 </div>
-                 {testStatus.message && (
-                    <p className={`text-xs mt-2 ${testStatus.status === 'success' ? 'text-green-400' : testStatus.status === 'error' ? 'text-red-400' : 'text-var-fg-muted'}`}>
-                        {testStatus.message}
+                 {geminiTestStatus.message && (
+                    <p className={`text-xs mt-2 ${geminiTestStatus.status === 'success' ? 'text-green-400' : geminiTestStatus.status === 'error' ? 'text-red-400' : 'text-var-fg-muted'}`}>
+                        {geminiTestStatus.message}
                     </p>
                 )}
             </div>

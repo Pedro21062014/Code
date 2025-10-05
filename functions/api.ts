@@ -1,23 +1,43 @@
 // --- Helper function to create the system prompt ---
-const getSystemPrompt = (files) => `You are an expert senior full-stack engineer specializing in creating complete, functional, and aesthetically pleasing web applications.
+const getSystemPrompt = (files, envVars = {}) => {
+  const fileContent = files.map(file => `--- FILE: ${file.name} ---\n\`\`\`${file.language}\n${file.content}\n\`\`\`\n`).join('');
+  
+  const envContent = Object.keys(envVars).length > 0
+    ? `The following environment variables are available to the project via 'process.env.VARIABLE_NAME':\n${JSON.stringify(envVars, null, 2)}`
+    : "No environment variables are currently set.";
+
+  return `You are an expert senior full-stack engineer specializing in creating complete, functional, and aesthetically pleasing web applications.
 - Your primary goal is to generate all necessary code files based on the user's prompt. You are proficient in a wide range of web technologies including HTML, CSS, JavaScript, TypeScript, React, Vue, Svelte, Node.js, and more.
 - Always generate complete, runnable code. Do not use placeholders like "// your code here".
 - For standard web projects, create an 'index.html', a CSS file for styles (e.g., 'style.css'), and a JavaScript file for logic (e.g., 'script.js').
 - For React projects, use functional components, TypeScript (.tsx), and hooks.
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
-- If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. Use the exported Supabase client from that file for any data-related tasks. Do not re-initialize the client.
-- You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain three keys: "message" (a friendly, conversational message to the user, in Portuguese), "summary" (a markdown string summarizing the files created or updated, for example a table with columns for "Arquivo" and "Status" which can be "Criado" or "Modificado"), and "files" (an array of file objects). Each file object must have "name", "language", and "content".
+- If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. You have the ability to execute SQL queries on the user's Supabase database.
+- SPECIAL COMMAND: If the user's prompt includes the word "ia" (Portuguese for "AI"), you must integrate a client-side Gemini AI feature into the project. To do this:
+  - 1. Create a new file 'services/gemini.ts'. This file should initialize the GoogleGenAI client and export a function to call the Gemini model.
+  - 2. The API key for this service MUST be read from an environment variable named 'GEMINI_API_KEY' (e.g., 'process.env.GEMINI_API_KEY').
+  - 3. In your JSON response, you MUST include the 'environmentVariables' field and create a key named 'GEMINI_API_KEY'. Set its value to an empty string (e.g., "GEMINI_API_KEY": ""). The application will automatically populate it with the user's key.
+  - 4. Update the application's UI and logic files to import and use the new Gemini service, creating the AI feature requested by the user.
+- You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain the "message" and "files" keys, and can optionally contain "summary", "environmentVariables", and "supabaseAdminAction".
+  - "message": (string) A friendly, conversational message to the user, in Portuguese.
+  - "files": (array) An array of file objects. Each file object must have "name", "language", and "content".
+  - "summary": (string, optional) A markdown string summarizing the files created or updated.
+  - "environmentVariables": (object, optional) An object of environment variables to set. To delete a variable, set its value to null.
+  - "supabaseAdminAction": (object, optional) To execute a database modification (e.g., create a table), provide an object with a "query" key containing the SQL statement to execute. Example: { "query": "CREATE TABLE posts (id bigint primary key, title text);" }. Use this ONLY for database schema or data manipulation.
 
 Current project files:
-${files.map(file => `--- FILE: ${file.name} ---\n\`\`\`${file.language}\n${file.content}\n\`\`\`\n`).join('')}
+${fileContent || "Nenhum arquivo existe ainda."}
+
+${envContent}
 `;
+};
 
 // --- API Handlers for each provider ---
 
 async function handleOpenAI(body, apiKey) {
-  const { model, prompt, existingFiles } = body;
-  const systemPrompt = getSystemPrompt(existingFiles);
+  const { model, prompt, existingFiles, envVars } = body;
+  const systemPrompt = getSystemPrompt(existingFiles, envVars);
   
   return fetch("https://api.openai.com/v1/chat/completions", {
     method: 'POST',
@@ -40,8 +60,8 @@ async function handleOpenAI(body, apiKey) {
 }
 
 async function handleDeepSeek(body, apiKey) {
-    const { model, prompt, existingFiles } = body;
-    const systemPrompt = getSystemPrompt(existingFiles);
+    const { model, prompt, existingFiles, envVars } = body;
+    const systemPrompt = getSystemPrompt(existingFiles, envVars);
     
     return fetch("https://api.deepseek.com/v1/chat/completions", {
         method: 'POST',
@@ -63,70 +83,9 @@ async function handleDeepSeek(body, apiKey) {
     });
 }
 
-async function handleGemini(body, apiKey) {
-    const { model, prompt, existingFiles } = body;
-    const systemInstruction = getSystemPrompt(existingFiles);
-    
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
-    
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: {
-                temperature: 0.1,
-                topP: 0.9,
-                responseMimeType: "application/json",
-            }
-        }),
-    });
-
-    if (!response.body) {
-        throw new Error("Empty response body from Gemini API");
-    }
-
-    // Gemini uses SSE, which is slightly different from a raw stream.
-    // We need to parse it and forward only the content.
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    const stream = new ReadableStream({
-        async start(controller) {
-            function push() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        controller.close();
-                        return;
-                    }
-                    const chunk = decoder.decode(value, { stream: true });
-                    // SSE format is `data: {...}\n\n`. We need to extract the JSON part.
-                    const lines = chunk.split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const jsonStr = line.substring(6);
-                            try {
-                                const parsed = JSON.parse(jsonStr);
-                                if (parsed.candidates && parsed.candidates[0].content.parts[0].text) {
-                                    const text = parsed.candidates[0].content.parts[0].text;
-                                    controller.enqueue(new TextEncoder().encode(text));
-                                }
-                            } catch (e) {
-                                // Incomplete JSON, just ignore and wait for next chunk
-                            }
-                        }
-                    }
-                    push();
-                });
-            }
-            push();
-        }
-    });
-
-    return new Response(stream, { headers: response.headers });
-}
-
+// Note: The direct Gemini streaming proxy is no longer used by the frontend,
+// but is kept here for potential future use or as a reference.
+// The frontend now uses the @google/genai SDK directly.
 
 // --- Main Request Handler for Netlify ---
 
@@ -141,7 +100,6 @@ export default async (req: Request) => {
     let providerResponse;
 
     const API_KEYS = {
-      Gemini: process.env.GEMINI_API_KEY,
       OpenAI: process.env.OPENAI_API_KEY,
       DeepSeek: process.env.DEEPSEEK_API_KEY,
     };
@@ -154,10 +112,6 @@ export default async (req: Request) => {
       case 'DeepSeek':
         if (!API_KEYS.DeepSeek) throw new Error("A chave de API do DeepSeek não está configurada no servidor.");
         providerResponse = await handleDeepSeek(body, API_KEYS.DeepSeek);
-        break;
-      case 'Gemini':
-        if (!API_KEYS.Gemini) throw new Error("A chave de API do Gemini não está configurada no servidor.");
-        providerResponse = await handleGemini(body, API_KEYS.Gemini);
         break;
       default:
         return new Response(JSON.stringify({ error: `Provedor não suportado: ${provider}` }), { status: 400, headers: { 'Content-Type': 'application/json' } });
