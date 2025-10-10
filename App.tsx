@@ -387,7 +387,7 @@ const App: React.FC = () => {
         setPostLoginAction(() => () => setSettingsOpen(true));
         setAuthModalOpen(true);
     }
-  }, [session, setSettingsOpen, setPostLoginAction, setAuthModalOpen]);
+  }, [session]);
 
   // --- AI and API Interactions ---
   const handleSupabaseAdminAction = useCallback(async (action: { query: string }) => {
@@ -770,22 +770,18 @@ const App: React.FC = () => {
     <div className={theme}>
       {mainContent()}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-      {session && userSettings && (
-        <>
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setSettingsOpen(false)}
-                settings={userSettings}
-                onSave={handleSaveSettings}
-            />
-            <SupabaseAdminModal
-                isOpen={isSupabaseAdminModalOpen}
-                onClose={() => setSupabaseAdminModalOpen(false)}
-                settings={userSettings}
-                onSave={handleSaveSettings}
-            />
-        </>
-      )}
+      <SettingsModal
+          isOpen={isSettingsOpen && !!session}
+          onClose={() => setSettingsOpen(false)}
+          settings={userSettings || { id: session?.user?.id || '' }}
+          onSave={handleSaveSettings}
+      />
+      <SupabaseAdminModal
+          isOpen={isSupabaseAdminModalOpen && !!session}
+          onClose={() => setSupabaseAdminModalOpen(false)}
+          settings={userSettings || { id: session?.user?.id || '' }}
+          onSave={handleSaveSettings}
+      />
       <ApiKeyModal
         isOpen={isApiKeyModalOpen}
         onClose={() => { setApiKeyModalOpen(false); setPendingPrompt(null); }}
@@ -796,7 +792,7 @@ const App: React.FC = () => {
         onClose={() => setGithubModalOpen(false)}
         onImport={handleProjectImport}
         githubToken={userSettings?.github_access_token}
-        onOpenSettings={() => { setGithubModalOpen(false); setSettingsOpen(true); }}
+        onOpenSettings={() => { setGithubModalOpen(false); handleOpenSettings(); }}
       />
       <PublishModal 
         isOpen={isLocalRunModalOpen}
