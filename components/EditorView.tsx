@@ -10,7 +10,7 @@ interface EditorViewProps {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onFileSelect: (fileName: string) => void;
-  onFileClose: (fileName:string) => void;
+  onFileDelete: (fileName:string) => void;
   onRunLocally: () => void;
   codeError: string | null;
   onFixCode: () => void;
@@ -85,14 +85,16 @@ const Toast: React.FC<{ message: string; onFix: () => void; onClose: () => void 
 };
 
 
-export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileClose, onRunLocally, codeError, onFixCode, onClearError, onError, envVars }) => {
+export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, onRunLocally, codeError, onFixCode, onClearError, onError, envVars }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
 
   const selectedFile = files.find(f => f.name === activeFile);
 
-  const handleCloseFile = (e: React.MouseEvent, fileName: string) => {
+  const handleDeleteFile = (e: React.MouseEvent, fileName: string) => {
     e.stopPropagation();
-    onFileClose(fileName);
+    if (window.confirm(`Tem certeza de que deseja excluir "${fileName}" do projeto?`)) {
+        onFileDelete(fileName);
+    }
   };
 
   return (
@@ -111,7 +113,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, proje
                 }`}
                 >
                 <span className="truncate max-w-xs">{file.name}</span>
-                <span onClick={(e) => handleCloseFile(e, file.name)} className="ml-3 p-1 rounded-full hover:bg-var-bg-interactive">
+                <span onClick={(e) => handleDeleteFile(e, file.name)} className="ml-3 p-1 rounded-full hover:bg-var-bg-interactive">
                     <CloseIcon className="w-3 h-3" />
                 </span>
                  {activeFile === file.name && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-var-accent"></div>}

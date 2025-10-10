@@ -186,8 +186,22 @@ export const TrashIcon = ({ className = "w-5 h-5" }: { className?: string }) => 
     </svg>
 );
 
+export const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
+        <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
+        <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
+        <path d="M16 5l3 3" />
+    </svg>
+);
+
 export const ProjectsIcon = () => (
     <svg {...iconProps} viewBox="0 0 24 24">
+        <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
+    </svg>
+);
+
+export const FolderIcon = () => (
+    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
         <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
     </svg>
 );

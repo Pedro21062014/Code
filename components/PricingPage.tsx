@@ -4,6 +4,7 @@ import { handleCheckout } from '../services/stripeService';
 
 interface PricingPageProps {
   onBack: () => void;
+  onNewProject: () => void;
 }
 
 const PricingCard: React.FC<{ 
@@ -41,7 +42,7 @@ const PricingCard: React.FC<{
 );
 
 
-export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
+export const PricingPage: React.FC<PricingPageProps> = ({ onBack, onNewProject }) => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
   const onCheckoutClick = async (priceId: string, planName: string) => {
@@ -59,10 +60,10 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
     <div className="flex flex-col min-h-screen w-screen bg-var-bg-default text-var-fg-default overflow-y-auto font-sans">
        <header className="fixed top-0 left-0 right-0 z-10 p-4">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
+          <button onClick={onNewProject} className="flex items-center gap-2">
             <AppLogo className="w-6 h-6 text-var-fg-default" />
             <span className="text-var-fg-default font-bold">codegen<span className="font-light">studio</span></span>
-          </div>
+          </button>
           <button onClick={onBack} className="text-sm text-var-fg-muted hover:text-var-fg-default transition-colors">
             &larr; Voltar
           </button>

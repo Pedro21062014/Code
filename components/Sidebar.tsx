@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, PlusIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon } from './Icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { AppLogo, FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon } from './Icons';
 import { IntegrationProvider, ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -16,6 +16,8 @@ interface SidebarProps {
   onSaveProject: () => void;
   onOpenProjects: () => void;
   onOpenImageStudio: () => void;
+  onRenameFile: (oldName: string, newName: string) => void;
+  onDeleteFile: (fileName: string) => void;
   activeFile: string | null;
   onClose?: () => void;
   session: Session | null;
@@ -31,6 +33,44 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
           {text}
         </span>
       </div>
+    );
+};
+
+const ContextMenu: React.FC<{
+    x: number;
+    y: number;
+    actions: { label: string; icon: React.ReactNode; onClick: () => void; isDestructive?: boolean }[];
+    onClose: () => void;
+}> = ({ x, y, actions, onClose }) => {
+    return (
+        <div 
+            className="fixed inset-0 z-50"
+            onClick={onClose}
+        >
+            <div
+                style={{ top: y, left: x }}
+                className="absolute bg-var-bg-subtle border border-var-border-default rounded-md shadow-2xl w-40 py-1.5 animate-fadeIn"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {actions.map((action, index) => (
+                    <button
+                        key={index}
+                        onClick={() => {
+                            action.onClick();
+                            onClose();
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
+                            action.isDestructive
+                                ? 'text-red-400 hover:bg-red-500/10'
+                                : 'text-var-fg-default hover:bg-var-bg-interactive'
+                        }`}
+                    >
+                        {action.icon}
+                        <span>{action.label}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 };
 
@@ -118,6 +158,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onSaveProject,
     onOpenProjects,
     onOpenImageStudio,
+    onRenameFile,
+    onDeleteFile,
     activeFile, 
     onClose,
     session,
@@ -125,12 +167,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onLogout
 }) => {
   const [activeTab, setActiveTab] = React.useState('files');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: ProjectFile } | null>(null);
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   
+  const handleContextMenu = (e: React.MouseEvent, file: ProjectFile) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, file });
+  };
+  
+  useEffect(() => {
+    if (renamingFile && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingFile]);
+
+  const handleRename = (oldName: string, newName: string) => {
+    if (newName && newName !== oldName) {
+        onRenameFile(oldName, newName);
+    }
+    setRenamingFile(null);
+  };
+
+  const contextMenuActions = contextMenu ? [
+    { label: 'Editar', icon: <EditIcon />, onClick: () => setRenamingFile(contextMenu.file.name) },
+    { label: 'Deletar', icon: <TrashIcon className="w-4 h-4" />, isDestructive: true, onClick: () => {
+        if (window.confirm(`Tem certeza que deseja deletar o arquivo "${contextMenu.file.name}"?`)) {
+            onDeleteFile(contextMenu.file.name);
+        }
+    }},
+  ] : [];
+
   return (
     <div className="bg-var-bg-subtle flex h-full">
         {/* Main Icon Bar */}
         <div className="w-16 bg-var-bg-muted p-2 flex flex-col items-center justify-between border-r border-var-border-default">
             <div>
+                 <Tooltip text="Página Inicial / Novo Projeto">
+                    <button onClick={onNewProject} className="p-1 mb-2 rounded-lg hover:bg-var-bg-interactive flex items-center justify-center w-full">
+                        <AppLogo className="w-8 h-8 text-var-accent" />
+                    </button>
+                </Tooltip>
                 <div className="space-y-2">
                     <Tooltip text="Explorador de Arquivos">
                         <button onClick={() => setActiveTab('files')} className={`p-2 rounded-lg transition-colors ${activeTab === 'files' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
@@ -145,11 +223,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip text="Integrações">
                         <button onClick={() => setActiveTab('integrations')} className={`p-2 rounded-lg transition-colors ${activeTab === 'integrations' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
                             <CubeIcon />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Novo Projeto">
-                        <button onClick={onNewProject} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                            <PlusIcon />
                         </button>
                     </Tooltip>
                     <Tooltip text="Salvar Projeto">
@@ -214,12 +287,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {files.map(file => (
                     <li key={file.name}>
                         <button
-                        onClick={() => onFileSelect(file.name)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center gap-2 transition-colors ${
-                            activeFile === file.name ? 'bg-var-accent/20 text-var-accent' : 'text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default'
-                        }`}
+                            onClick={() => onFileSelect(file.name)}
+                            onContextMenu={(e) => handleContextMenu(e, file)}
+                            className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center gap-2 transition-colors ${
+                                activeFile === file.name ? 'bg-var-accent/20 text-var-accent' : 'text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default'
+                            }`}
                         >
-                        {file.name}
+                        {renamingFile === file.name ? (
+                            <input
+                                ref={renameInputRef}
+                                type="text"
+                                defaultValue={file.name}
+                                className="bg-var-bg-default w-full text-var-fg-default text-sm outline-none ring-1 ring-var-accent"
+                                onBlur={(e) => handleRename(file.name, e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRename(file.name, e.currentTarget.value);
+                                    if (e.key === 'Escape') setRenamingFile(null);
+                                }}
+                            />
+                        ) : (
+                            <span>{file.name}</span>
+                        )}
                         </button>
                     </li>
                     ))}
@@ -259,6 +347,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
         </div>
+        {contextMenu && <ContextMenu {...contextMenu} actions={contextMenuActions} onClose={() => setContextMenu(null)} />}
     </div>
   );
 };

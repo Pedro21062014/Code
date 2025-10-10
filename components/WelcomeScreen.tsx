@@ -1,14 +1,53 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SparklesIcon, AppLogo, GithubIcon, LinkedInIcon } from './Icons';
+import { SparklesIcon, AppLogo, GithubIcon, LinkedInIcon, FolderIcon } from './Icons';
 import type { Session } from '@supabase/supabase-js';
+import { ProjectFile } from '../types';
 
 interface WelcomeScreenProps {
   onPromptSubmit: (prompt: string) => void;
   onShowPricing: () => void;
   onShowProjects: () => void;
-  onImportFromGithub: () => void;
+  onOpenGithubImport: () => void;
+  onFolderImport: (files: ProjectFile[]) => void;
   session: Session | null;
   onLoginClick: () => void;
+  onNewProject: () => void;
+}
+
+const getFileLanguage = (fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+        case 'js': return 'javascript';
+        case 'ts': return 'typescript';
+        case 'tsx': return 'typescript';
+        case 'html': return 'html';
+        case 'css': return 'css';
+        case 'json': return 'json';
+        case 'md': return 'markdown';
+        case 'py': return 'python';
+        case 'rb': return 'ruby';
+        case 'go': return 'go';
+        case 'rs': return 'rust';
+        case 'java': return 'java';
+        case 'cs': return 'csharp';
+        case 'php': return 'php';
+        case 'sh': return 'shell';
+        case 'yml':
+        case 'yaml': return 'yaml';
+        case 'dockerfile': return 'dockerfile';
+        case 'sql': return 'sql';
+        case 'graphql': return 'graphql';
+        case 'vue': return 'vue';
+        case 'svelte': return 'svelte';
+        case 'png':
+        case 'jpg':
+        case 'jpeg':
+        case 'gif':
+        case 'svg':
+        case 'webp':
+            return 'image';
+        default: return 'plaintext';
+    }
 }
 
 // FIX: Updated component to accept all standard anchor tag props except `className`, allowing `target` to be used.
@@ -25,7 +64,7 @@ const examplePrompts = [
     "uma landing page para um app de delivery...",
 ];
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onShowProjects, onImportFromGithub, session, onLoginClick }) => {
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onShowProjects, onOpenGithubImport, onFolderImport, session, onLoginClick, onNewProject }) => {
   const [prompt, setPrompt] = useState('');
   const [placeholder, setPlaceholder] = useState('');
   
@@ -33,6 +72,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
   const charIndex = useRef(0);
   const isDeleting = useRef(false);
   const timeoutRef = useRef<number | null>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const type = () => {
@@ -84,14 +124,81 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
     }
   };
 
+    const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = event.target.files;
+        if (!selectedFiles || selectedFiles.length === 0) {
+            return;
+        }
+
+        // FIX: Explicitly type `file` as `File` to resolve errors where its properties were being accessed on an `unknown` type.
+        const filePromises = Array.from(selectedFiles).map((file: File) => {
+            return new Promise<ProjectFile | null>((resolve, reject) => {
+                const reader = new FileReader();
+                const isImage = file.type.startsWith('image/');
+                
+                if (file.size > 2 * 1024 * 1024) { // 2MB limit per file
+                    console.warn(`Skipping file ${file.name} as it is too large.`);
+                    resolve(null);
+                    return;
+                }
+
+                reader.onload = () => {
+                    try {
+                        let content: string;
+                        if (isImage) {
+                            const dataUrl = reader.result as string;
+                            content = dataUrl.substring(dataUrl.indexOf(',') + 1);
+                        } else {
+                            content = reader.result as string;
+                        }
+
+                        resolve({
+                            // FIX: Cast `file` to `any` to access the non-standard `webkitRelativePath` property.
+                            name: (file as any).webkitRelativePath,
+                            language: getFileLanguage(file.name),
+                            content: content,
+                        });
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+
+                reader.onerror = reject;
+
+                if (isImage) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            });
+        });
+
+        try {
+            const results = await Promise.all(filePromises);
+            const projectFiles = results.filter((f): f is ProjectFile => f !== null);
+            if (projectFiles.length > 0) {
+                onFolderImport(projectFiles);
+            } else {
+                alert("Nenhum arquivo válido foi encontrado na pasta selecionada ou os arquivos eram muito grandes.");
+            }
+        } catch (error) {
+            console.error("Failed to import folder:", error);
+            alert("Ocorreu um erro ao importar a pasta. Verifique o console para mais detalhes.");
+        } finally {
+            if (folderInputRef.current) {
+                folderInputRef.current.value = "";
+            }
+        }
+    };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-var-bg-default text-var-fg-default overflow-hidden font-sans">
       <header className="fixed top-0 left-0 right-0 z-10 p-4 bg-var-bg-default/80 backdrop-blur-sm border-b border-var-border-subtle">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
+          <button onClick={onNewProject} className="flex items-center gap-2">
             <AppLogo className="w-6 h-6 text-var-accent" />
             <span className="text-var-fg-default font-semibold text-lg">codegen<span className="font-light">studio</span></span>
-          </div>
+          </button>
           <nav className="hidden md:flex items-center gap-6">
             <NavLink onClick={(e) => { e.preventDefault(); onShowProjects(); }}>Projetos</NavLink>
             <NavLink onClick={(e) => { e.preventDefault(); onShowPricing(); }}>Preços</NavLink>
@@ -149,9 +256,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
 
             <div className="mt-6 flex items-center justify-center gap-4 text-sm">
                 <span className="text-var-fg-muted">ou importe de</span>
-                <button onClick={onImportFromGithub} className="flex items-center gap-2 px-3 py-1.5 bg-var-bg-interactive border border-var-border-default rounded-full hover:bg-opacity-80 transition-all text-var-fg-muted hover:text-var-fg-default">
+                <button onClick={onOpenGithubImport} className="flex items-center gap-2 px-3 py-1.5 bg-var-bg-interactive border border-var-border-default rounded-full hover:bg-opacity-80 transition-all text-var-fg-muted hover:text-var-fg-default">
                     <GithubIcon />
                     <span>GitHub</span>
+                </button>
+                 <input type="file" ref={folderInputRef} onChange={handleFolderSelect} multiple style={{ display: 'none' }} {...{ webkitdirectory: "true", directory: "true" }} />
+                <button onClick={() => folderInputRef.current?.click()} className="flex items-center gap-2 px-3 py-1.5 bg-var-bg-interactive border border-var-border-default rounded-full hover:bg-opacity-80 transition-all text-var-fg-muted hover:text-var-fg-default">
+                    <FolderIcon />
+                    <span>Pasta Local</span>
                 </button>
             </div>
         </div>
