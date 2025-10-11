@@ -268,13 +268,29 @@ const App: React.FC = () => {
   const handleLogout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      alert(`Erro ao sair: ${error.message}`);
-    } else {
-      // onAuthStateChange will handle setting session and userSettings to null.
-      // We explicitly reset the project and view here for an immediate UI update.
-      handleNewProject();
+      alert(`Erro ao tentar sair: ${error.message}`);
+      return;
     }
-  }, [handleNewProject]);
+
+    // Reset the application state to its initial, logged-out condition.
+    setProject(initialProjectState);
+    setCodeError(null);
+    setView('welcome');
+    setSidebarOpen(false);
+    setChatOpen(false);
+
+    // Clean up URL if a project was loaded
+    if (canManipulateHistory) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('projectId')) {
+        url.searchParams.delete('projectId');
+        window.history.pushState({ path: url.href }, '', url.href);
+      }
+    }
+    
+    // Provide feedback to the user as requested.
+    alert("Você foi desconectado com sucesso!");
+  }, [setProject, canManipulateHistory]);
 
 
   const handleLoadProject = useCallback((projectId: number, confirmLoad: boolean = true) => {
