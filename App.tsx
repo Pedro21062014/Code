@@ -179,13 +179,51 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Effect 1: One-time initialization on mount to fetch session and prevent infinite loading
   useEffect(() => {
-    const handleAuthChange = async (_event: string, session: Session | null) => {
-        setSession(session);
-        if (session?.user) {
-            const settings = await fetchUserSettings(session.user);
+    let isMounted = true;
+
+    const initializeSession = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (isMounted) {
+                setSession(session);
+                if (session?.user) {
+                    const settings = await fetchUserSettings(session.user);
+                    if (isMounted) setUserSettings(settings);
+                }
+            }
+        } catch (error) {
+            console.error("Initialization error:", error);
+        } finally {
+            if (isMounted) setIsLoadingData(false);
+        }
+    };
+    
+    // Fallback timeout to ensure the loading screen doesn't get stuck
+    const timeoutId = setTimeout(() => {
+        if (isMounted && isLoadingData) {
+            console.warn("App initialization timed out. Proceeding with rendering.");
+            setIsLoadingData(false);
+        }
+    }, 5000);
+
+    initializeSession().finally(() => clearTimeout(timeoutId));
+
+    return () => {
+        isMounted = false;
+        clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // This runs only once on mount
+
+  // Effect 2: Manages the auth state change subscription and post-login actions
+  useEffect(() => {
+    const handleAuthChange = async (_event: string, newSession: Session | null) => {
+        setSession(newSession);
+        if (newSession?.user) {
+            const settings = await fetchUserSettings(newSession.user);
             setUserSettings(settings);
-            // Now that settings are fetched, execute the pending action.
             if (postLoginAction) {
                 postLoginAction();
                 setPostLoginAction(null);
@@ -194,22 +232,12 @@ const App: React.FC = () => {
             setUserSettings(null);
         }
     };
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-
-    const initializeSession = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        if (session?.user) {
-          const settings = await fetchUserSettings(session.user);
-          setUserSettings(settings);
-        }
-        setIsLoadingData(false); // Done loading auth info
-    };
     
-    initializeSession();
-
-    return () => subscription.unsubscribe();
+    return () => {
+        subscription.unsubscribe();
+    };
   }, [fetchUserSettings, postLoginAction]);
 
 
