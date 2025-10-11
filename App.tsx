@@ -738,6 +738,7 @@ const App: React.FC = () => {
           onOpenGithubImport={() => setGithubModalOpen(true)}
           onFolderImport={handleProjectImport}
           onNewProject={handleNewProject}
+          onLogout={() => supabase.auth.signOut()}
         />;
       case 'pricing':
         return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} onNewProject={handleNewProject} />;

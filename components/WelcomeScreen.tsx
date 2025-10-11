@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SparklesIcon, AppLogo, GithubIcon, LinkedInIcon, FolderIcon } from './Icons';
+import { SparklesIcon, AppLogo, GithubIcon, LinkedInIcon, FolderIcon, LogOutIcon } from './Icons';
 import type { Session } from '@supabase/supabase-js';
 import { ProjectFile } from '../types';
 
@@ -12,6 +12,7 @@ interface WelcomeScreenProps {
   session: Session | null;
   onLoginClick: () => void;
   onNewProject: () => void;
+  onLogout: () => void;
 }
 
 const getFileLanguage = (fileName: string): string => {
@@ -64,7 +65,7 @@ const examplePrompts = [
     "uma landing page para um app de delivery...",
 ];
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onShowProjects, onOpenGithubImport, onFolderImport, session, onLoginClick, onNewProject }) => {
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, onShowPricing, onShowProjects, onOpenGithubImport, onFolderImport, session, onLoginClick, onNewProject, onLogout }) => {
   const [prompt, setPrompt] = useState('');
   const [placeholder, setPlaceholder] = useState('');
   
@@ -203,7 +204,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
             <NavLink onClick={(e) => { e.preventDefault(); onShowProjects(); }}>Projetos</NavLink>
             <NavLink onClick={(e) => { e.preventDefault(); onShowPricing(); }}>Preços</NavLink>
             <NavLink href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank">LinkedIn</NavLink>
-            {!session && (
+            {session ? (
+                 <button onClick={onLogout} className="px-3 py-1.5 text-sm bg-var-bg-interactive text-var-fg-muted rounded-md hover:bg-var-bg-default transition-colors font-medium">
+                    Sair
+                </button>
+            ) : (
                  <button onClick={onLoginClick} className="px-3 py-1.5 text-sm bg-var-accent text-var-accent-fg rounded-md hover:opacity-90 transition-opacity font-semibold">
                     Login
                 </button>
@@ -215,9 +220,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onPromptSubmit, on
                     Login
                 </button>
              ) : (
-                <a href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank" rel="noopener noreferrer" className="text-var-fg-muted hover:text-var-fg-default transition-colors">
-                    <LinkedInIcon />
-                </a>
+                <>
+                    <a href="https://www.linkedin.com/in/pedro-berbis-freire-3b71bb37a/" target="_blank" rel="noopener noreferrer" className="text-var-fg-muted hover:text-var-fg-default transition-colors">
+                        <LinkedInIcon />
+                    </a>
+                    <button onClick={onLogout} className="p-1 rounded-md text-var-fg-muted hover:text-var-fg-default transition-colors">
+                        <LogOutIcon />
+                    </button>
+                </>
              )}
           </div>
         </div>
