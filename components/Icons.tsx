@@ -31,6 +31,39 @@ export const GithubIcon = ({ className = "w-5 h-5" }: { className?: string }) =>
     </svg>
 );
 
+export const StripeIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10.155 2.592L6.155 21.408C8.324 21.798 13.987 20.803 16.633 15.602C19.279 10.4 18.283 4.74 17.848 2.592H10.155Z" fill="#635BFF"/>
+        <path d="M12.001 2.592H4.309C3.874 4.74 2.878 10.4 5.524 15.602C8.17 20.803 13.833 21.798 16.002 21.408L12.001 2.592Z" fill="#635BFF" opacity="0.6"/>
+    </svg>
+);
+
+export const GoogleIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25C22.56 11.45 22.49 10.68 22.36 9.92H12V14.45H18.02C17.72 16.21 16.73 17.69 15.15 18.65V21.48H19.01C21.25 19.44 22.56 16.14 22.56 12.25Z" fill="#4285F4"/>
+        <path d="M12 23C14.97 23 17.45 22.02 19.01 20.48L15.15 17.65C14.1 18.39 12.83 18.8 12 18.8C9.62 18.8 7.63 17.29 6.79 15.12H2.82V17.95C4.66 21.05 8.08 23 12 23Z" fill="#34A853"/>
+        <path d="M6.79 15.12C6.58 14.52 6.45 13.88 6.45 13.23C6.45 12.58 6.58 11.94 6.79 11.34V8.51H2.82C1.94 10.02 1.45 11.58 1.45 13.23C1.45 14.88 1.94 16.44 2.82 17.95L6.79 15.12Z" fill="#FBBC05"/>
+        <path d="M12 7.2C13.23 7.2 14.28 7.64 15.09 8.4L18.01 5.51C16.45 4.02 14.47 3 12 3C8.08 3 4.66 4.95 2.82 8.05L6.79 10.88C7.63 8.71 9.62 7.2 12 7.2Z" fill="#EA4335"/>
+    </svg>
+);
+
+export const MapIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
+        <path d="M9 4v16l-6 -4v-16z" />
+        <path d="M15 4v16l6 -4v-16z" />
+        <path d="M9 4l6 2" />
+        <path d="M9 20l6 -2" />
+    </svg>
+);
+
+export const DatabaseIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
+        <ellipse cx="12" cy="6" rx="8" ry="3" />
+        <path d="M4 6v12c0 1.66 3.58 3 8 3s8 -1.34 8 -3v-12" />
+        <path d="M4 12c0 1.66 3.58 3 8 3s8 -1.34 8 -3" />
+    </svg>
+);
+
 
 export const FileIcon = () => (
   <svg {...iconProps} viewBox="0 0 24 24">

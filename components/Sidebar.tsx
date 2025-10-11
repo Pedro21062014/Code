@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppLogo, FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon } from './Icons';
+import { AppLogo, FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon, StripeIcon, MapIcon, DatabaseIcon } from './Icons';
 import { IntegrationProvider, ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -18,6 +18,9 @@ interface SidebarProps {
   onOpenImageStudio: () => void;
   onRenameFile: (oldName: string, newName: string) => void;
   onDeleteFile: (fileName: string) => void;
+  onOpenStripeModal: () => void;
+  onOpenNeonModal: () => void;
+  onOpenOSMModal: () => void;
   activeFile: string | null;
   onClose?: () => void;
   session: Session | null;
@@ -160,6 +163,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onOpenImageStudio,
     onRenameFile,
     onDeleteFile,
+    onOpenStripeModal,
+    onOpenNeonModal,
+    onOpenOSMModal,
     activeFile, 
     onClose,
     session,
@@ -317,7 +323,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <EnvironmentPanel vars={envVars} onSave={onEnvVarChange} />
             )}
             {activeTab === 'integrations' && (
-                <div className="p-2 space-y-4 mt-2">
+                <div className="p-2 space-y-2 mt-2 overflow-y-auto">
                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
                         <div className="flex items-center gap-3 mb-2">
                             <GithubIcon className="w-6 h-6"/>
@@ -342,6 +348,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             className="w-full bg-green-600/80 hover:bg-green-600 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
                         >
                             Gerenciar
+                        </button>
+                    </div>
+                    <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
+                        <div className="flex items-center gap-3 mb-2">
+                            <StripeIcon />
+                            <h3 className="font-semibold text-var-fg-default">Stripe</h3>
+                        </div>
+                        <p className="text-xs text-var-fg-muted mb-3">Integre pagamentos em seu aplicativo.</p>
+                        <button 
+                            onClick={onOpenStripeModal}
+                            className="w-full bg-[#635BFF]/80 hover:bg-[#635BFF] text-white text-sm font-medium py-1.5 rounded-md transition-colors"
+                        >
+                            Gerenciar
+                        </button>
+                    </div>
+                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
+                        <div className="flex items-center gap-3 mb-2">
+                            <DatabaseIcon />
+                            <h3 className="font-semibold text-var-fg-default">Neon</h3>
+                        </div>
+                        <p className="text-xs text-var-fg-muted mb-3">Conecte um banco de dados PostgreSQL serverless.</p>
+                        <button 
+                            onClick={onOpenNeonModal}
+                            className="w-full bg-emerald-500/80 hover:bg-emerald-500 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
+                        >
+                            Gerenciar
+                        </button>
+                    </div>
+                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
+                        <div className="flex items-center gap-3 mb-2">
+                            <MapIcon />
+                            <h3 className="font-semibold text-var-fg-default">OpenStreetMap</h3>
+                        </div>
+                        <p className="text-xs text-var-fg-muted mb-3">Adicione mapas interativos ao seu projeto.</p>
+                        <button 
+                            onClick={onOpenOSMModal}
+                            className="w-full bg-blue-500/80 hover:bg-blue-500 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
+                        >
+                            Informações
                         </button>
                     </div>
                 </div>

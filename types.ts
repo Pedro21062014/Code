@@ -8,6 +8,9 @@ export enum AIProvider {
 export enum IntegrationProvider {
   GitHub = 'GitHub',
   Supabase = 'Supabase',
+  Stripe = 'Stripe',
+  OpenStreetMap = 'OpenStreetMap',
+  Neon = 'Neon',
 }
 
 export interface AIModel {
@@ -38,6 +41,9 @@ export interface UserSettings {
   supabase_project_url?: string;
   supabase_anon_key?: string;
   supabase_service_key?: string;
+  stripe_public_key?: string;
+  stripe_secret_key?: string;
+  neon_connection_string?: string;
 }
 
 export type Theme = 'light' | 'dark';

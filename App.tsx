@@ -12,6 +12,9 @@ import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal';
 import { ImageStudioModal } from './components/ImageStudioModal';
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
+import { StripeModal } from './components/StripeModal';
+import { NeonModal } from './components/NeonModal';
+import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY } from './constants';
@@ -133,6 +136,9 @@ const App: React.FC = () => {
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isImageStudioOpen, setImageStudioOpen] = useState(false);
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
+  const [isStripeModalOpen, setStripeModalOpen] = useState(false);
+  const [isNeonModalOpen, setNeonModalOpen] = useState(false);
+  const [isOSMModalOpen, setOSMModalOpen] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
@@ -303,16 +309,24 @@ const App: React.FC = () => {
     }
   }, [setIsProUser, canManipulateHistory]);
 
-  const handleSaveSettings = useCallback(async (newSettings: Omit<UserSettings, 'id' | 'updated_at'>) => {
+  const handleSaveSettings = useCallback(async (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => {
     if (!session?.user) return;
-    const settingsData = { ...newSettings, id: session.user.id, updated_at: new Date().toISOString() };
+    
+    const settingsData = {
+      ...(userSettings || {}),
+      ...newSettings,
+      id: session.user.id,
+      updated_at: new Date().toISOString(),
+    };
+
     const { data, error } = await supabase.from('profiles').upsert(settingsData).select().single();
+    
     if (error) {
         alert(`Erro ao salvar configurações: ${error.message}`);
     } else {
         setUserSettings(data);
     }
-  }, [session]);
+  }, [session, userSettings]);
 
   useEffect(() => {
     if (pendingPrompt && effectiveGeminiApiKey) {
@@ -719,6 +733,7 @@ const App: React.FC = () => {
                   onOpenSettings={handleOpenSettings} onOpenGithubImport={() => setGithubModalOpen(true)} onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
                   onSaveProject={handleSaveProject} onOpenProjects={() => setView('projects')} onNewProject={handleNewProject} onOpenImageStudio={() => setImageStudioOpen(true)}
                   onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
+                  onOpenStripeModal={() => setStripeModalOpen(true)} onOpenNeonModal={() => setNeonModalOpen(true)} onOpenOSMModal={() => setOSMModalOpen(true)}
                   session={session} onLogin={() => setAuthModalOpen(true)} onLogout={() => supabase.auth.signOut()}
                 />
               </div>
@@ -733,6 +748,7 @@ const App: React.FC = () => {
                             onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }} onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
                             onNewProject={handleNewProject} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
                             onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
+                            onOpenStripeModal={() => { setStripeModalOpen(true); setSidebarOpen(false); }} onOpenNeonModal={() => { setNeonModalOpen(true); setSidebarOpen(false); }} onOpenOSMModal={() => { setOSMModalOpen(true); setSidebarOpen(false); }}
                             session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { supabase.auth.signOut(); setSidebarOpen(false); }}
                         />
                     </div>
@@ -781,6 +797,22 @@ const App: React.FC = () => {
           onClose={() => setSupabaseAdminModalOpen(false)}
           settings={userSettings || { id: session?.user?.id || '' }}
           onSave={handleSaveSettings}
+      />
+      <StripeModal
+        isOpen={isStripeModalOpen && !!session}
+        onClose={() => setStripeModalOpen(false)}
+        settings={userSettings || { id: session?.user?.id || '' }}
+        onSave={handleSaveSettings}
+      />
+      <NeonModal
+        isOpen={isNeonModalOpen && !!session}
+        onClose={() => setNeonModalOpen(false)}
+        settings={userSettings || { id: session?.user?.id || '' }}
+        onSave={handleSaveSettings}
+      />
+       <OpenStreetMapModal
+        isOpen={isOSMModalOpen}
+        onClose={() => setOSMModalOpen(false)}
       />
       <ApiKeyModal
         isOpen={isApiKeyModalOpen}

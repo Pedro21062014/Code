@@ -6,7 +6,7 @@ interface SupabaseAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: UserSettings;
-  onSave: (newSettings: Omit<UserSettings, 'id' | 'updated_at'>) => void;
+  onSave: (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => void;
 }
 
 export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, onClose, settings, onSave }) => {
@@ -29,9 +29,6 @@ export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, 
       supabase_project_url: projectUrl,
       supabase_anon_key: anonKey,
       supabase_service_key: serviceKey,
-      // Preserve existing settings
-      gemini_api_key: settings.gemini_api_key,
-      github_access_token: settings.github_access_token,
     });
     onClose();
   };
