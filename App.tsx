@@ -179,64 +179,27 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Effect 1: One-time initialization on mount to fetch session and prevent infinite loading
+  // FIX: Consolidated session management into a single, reliable onAuthStateChange listener
+  // to prevent race conditions and ensure consistent auth state across the app.
   useEffect(() => {
-    let isMounted = true;
-
-    const initializeSession = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (isMounted) {
-                setSession(session);
-                if (session?.user) {
-                    const settings = await fetchUserSettings(session.user);
-                    if (isMounted) setUserSettings(settings);
-                }
-            }
-        } catch (error) {
-            console.error("Initialization error:", error);
-        } finally {
-            if (isMounted) setIsLoadingData(false);
+    setIsLoadingData(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        const settings = await fetchUserSettings(session.user);
+        setUserSettings(settings);
+        if (postLoginAction) {
+          postLoginAction();
+          setPostLoginAction(null);
         }
-    };
-    
-    // Fallback timeout to ensure the loading screen doesn't get stuck
-    const timeoutId = setTimeout(() => {
-        if (isMounted && isLoadingData) {
-            console.warn("App initialization timed out. Proceeding with rendering.");
-            setIsLoadingData(false);
-        }
-    }, 5000);
-
-    initializeSession().finally(() => clearTimeout(timeoutId));
-
+      } else {
+        setUserSettings(null);
+      }
+      setIsLoadingData(false);
+    });
+  
     return () => {
-        isMounted = false;
-        clearTimeout(timeoutId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // This runs only once on mount
-
-  // Effect 2: Manages the auth state change subscription and post-login actions
-  useEffect(() => {
-    const handleAuthChange = async (_event: string, newSession: Session | null) => {
-        setSession(newSession);
-        if (newSession?.user) {
-            const settings = await fetchUserSettings(newSession.user);
-            setUserSettings(settings);
-            if (postLoginAction) {
-                postLoginAction();
-                setPostLoginAction(null);
-            }
-        } else {
-            setUserSettings(null);
-        }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-    
-    return () => {
-        subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [fetchUserSettings, postLoginAction]);
 
@@ -265,31 +228,24 @@ const App: React.FC = () => {
     }
   }, [project, canManipulateHistory, setProject]);
 
+  // FIX: Simplified logout handler. It now only signs the user out,
+  // and the onAuthStateChange listener is responsible for resetting application state,
+  // fixing bugs where the UI wouldn't update correctly on logout.
   const handleLogout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       alert(`Erro ao tentar sair: ${error.message}`);
       return;
     }
-
-    // Reset the application state to its initial, logged-out condition.
+    // Reset project state and view manually since the listener will only handle auth state.
+    // This provides immediate UI feedback.
     setProject(initialProjectState);
-    setCodeError(null);
     setView('welcome');
-    setSidebarOpen(false);
-    setChatOpen(false);
-
-    // Clean up URL if a project was loaded
     if (canManipulateHistory) {
       const url = new URL(window.location.href);
-      if (url.searchParams.has('projectId')) {
-        url.searchParams.delete('projectId');
-        window.history.pushState({ path: url.href }, '', url.href);
-      }
+      url.searchParams.delete('projectId');
+      window.history.pushState({ path: url.href }, '', url.href);
     }
-    
-    // Provide feedback to the user as requested.
-    alert("Você foi desconectado com sucesso!");
   }, [setProject, canManipulateHistory]);
 
 
