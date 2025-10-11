@@ -7,7 +7,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: UserSettings;
-  onSave: (newSettings: Omit<UserSettings, 'id' | 'updated_at'>) => void;
+  onSave: (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => void;
 }
 
 const testApiKey = async (key: string): Promise<{ success: boolean; message: string }> => {
@@ -54,10 +54,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
     onSave({ 
       gemini_api_key: geminiKey,
       github_access_token: githubToken,
-      // Preserve existing supabase settings
-      supabase_project_url: settings.supabase_project_url,
-      supabase_anon_key: settings.supabase_anon_key,
-      supabase_service_key: settings.supabase_service_key,
     });
     onClose();
   };

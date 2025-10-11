@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
-import { CloseIcon, AppLogo } from './Icons';
+import { CloseIcon, AppLogo, GoogleIcon } from './Icons';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -38,6 +38,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
   
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
+    // On success, Supabase handles the redirect.
+  };
+
   React.useEffect(() => {
     if (isOpen) {
         setEmail('');
@@ -95,7 +108,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </button>
         </form>
 
-         <div className="mt-4 text-center">
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-var-border-default"></span>
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-var-bg-subtle px-2 text-var-fg-muted">OU</span>
+          </div>
+        </div>
+
+        <button 
+          type="button" 
+          onClick={handleGoogleLogin} 
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-var-bg-interactive border border-var-border-default text-var-fg-default font-semibold rounded-md hover:bg-var-bg-default transition-colors disabled:opacity-50"
+        >
+          <GoogleIcon />
+          Continuar com Google
+        </button>
+
+
+         <div className="mt-6 text-center">
             <p className="text-sm text-var-fg-muted">
                 {isLoginView ? "Não tem uma conta?" : "Já tem uma conta?"}{' '}
                 <button onClick={() => { setIsLoginView(!isLoginView); setError(null); setMessage(null); }} className="font-semibold text-var-accent hover:underline">
