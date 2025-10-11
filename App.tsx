@@ -265,6 +265,17 @@ const App: React.FC = () => {
     }
   }, [project, canManipulateHistory, setProject]);
 
+  const handleLogout = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert(`Erro ao sair: ${error.message}`);
+    } else {
+      // onAuthStateChange will handle setting session and userSettings to null.
+      // We explicitly reset the project and view here for an immediate UI update.
+      handleNewProject();
+    }
+  }, [handleNewProject]);
+
 
   const handleLoadProject = useCallback((projectId: number, confirmLoad: boolean = true) => {
     if (confirmLoad && project.files.length > 0 && !window.confirm("Carregar este projeto substituirá seu trabalho local atual. Deseja continuar?")) {
@@ -341,8 +352,7 @@ const App: React.FC = () => {
     if (!session?.user) return;
     
     const settingsData = {
-      ...(userSettings || {}),
-      ...newSettings,
+      ...newSettings, // pass only the new settings
       id: session.user.id,
       updated_at: new Date().toISOString(),
     };
@@ -351,10 +361,13 @@ const App: React.FC = () => {
     
     if (error) {
         alert(`Erro ao salvar configurações: ${error.message}`);
+        console.error("Supabase save settings error:", error);
     } else {
-        setUserSettings(data);
+        // Fetch the full profile again to get a merged view of settings
+        const fullSettings = await fetchUserSettings(session.user);
+        setUserSettings(fullSettings);
     }
-  }, [session, userSettings]);
+  }, [session, fetchUserSettings]);
 
   useEffect(() => {
     if (pendingPrompt && effectiveGeminiApiKey) {
@@ -738,7 +751,7 @@ const App: React.FC = () => {
           onOpenGithubImport={() => setGithubModalOpen(true)}
           onFolderImport={handleProjectImport}
           onNewProject={handleNewProject}
-          onLogout={() => supabase.auth.signOut()}
+          onLogout={handleLogout}
         />;
       case 'pricing':
         return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} onNewProject={handleNewProject} />;
@@ -763,7 +776,7 @@ const App: React.FC = () => {
                   onSaveProject={handleSaveProject} onOpenProjects={() => setView('projects')} onNewProject={handleNewProject} onOpenImageStudio={() => setImageStudioOpen(true)}
                   onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
                   onOpenStripeModal={() => setStripeModalOpen(true)} onOpenNeonModal={() => setNeonModalOpen(true)} onOpenOSMModal={() => setOSMModalOpen(true)}
-                  session={session} onLogin={() => setAuthModalOpen(true)} onLogout={() => supabase.auth.signOut()}
+                  session={session} onLogin={() => setAuthModalOpen(true)} onLogout={handleLogout}
                 />
               </div>
               
@@ -778,7 +791,7 @@ const App: React.FC = () => {
                             onNewProject={handleNewProject} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
                             onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
                             onOpenStripeModal={() => { setStripeModalOpen(true); setSidebarOpen(false); }} onOpenNeonModal={() => { setNeonModalOpen(true); setSidebarOpen(false); }} onOpenOSMModal={() => { setOSMModalOpen(true); setSidebarOpen(false); }}
-                            session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { supabase.auth.signOut(); setSidebarOpen(false); }}
+                            session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { handleLogout(); setSidebarOpen(false); }}
                         />
                     </div>
                 </div>
