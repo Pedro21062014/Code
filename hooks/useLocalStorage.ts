@@ -1,26 +1,29 @@
-
-
 import React, { useState, useEffect } from 'react';
 
 function getValue<T>(key: string, initialValue: T | (() => T)): T {
+  const initial = initialValue instanceof Function ? initialValue() : initialValue;
+
   // SSR and private browsing can cause window.localStorage to be undefined.
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
-    return initialValue instanceof Function ? initialValue() : initialValue;
+    return initial;
   }
   
   try {
     const savedValue = localStorage.getItem(key);
-    if (savedValue !== null && savedValue !== 'undefined') {
-      return JSON.parse(savedValue);
+    if (savedValue) {
+      const parsed = JSON.parse(savedValue);
+      // If the stored value is null, but we have an initial value, prefer the initial value.
+      // This prevents crashes on code that expects an array or object.
+      return parsed === null ? initial : parsed;
     }
   } catch (error) {
     console.error(`Error reading localStorage key "${key}":`, error);
     // If parsing fails, fall back to initial value
-    return initialValue instanceof Function ? initialValue() : initialValue;
+    return initial;
   }
   
   // If no value is found, return the initial value
-  return initialValue instanceof Function ? initialValue() : initialValue;
+  return initial;
 }
 
 // FIX: Import React to provide the 'React' namespace for types like React.Dispatch.
