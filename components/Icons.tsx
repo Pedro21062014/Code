@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 const iconProps = {
@@ -65,21 +66,21 @@ export const DatabaseIcon = ({ className = "w-6 h-6" }: { className?: string }) 
 );
 
 
-export const FileIcon = () => (
-  <svg {...iconProps} viewBox="0 0 24 24">
+export const FileIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg {...iconProps} className={className} viewBox="0 0 24 24">
     <path d="M14 3v4a1 1 0 0 0 1 1h4" />
     <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
   </svg>
 );
 
-export const ShieldIcon = () => (
-  <svg {...iconProps} viewBox="0 0 24 24">
+export const ShieldIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg {...iconProps} className={className} viewBox="0 0 24 24">
     <path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" />
   </svg>
 );
 
-export const CubeIcon = () => (
-  <svg {...iconProps} viewBox="0 0 24 24">
+export const CubeIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg {...iconProps} className={className} viewBox="0 0 24 24">
     <path d="M12 2l-8 4.5v9l8 4.5l8 -4.5v-9l-8 -4.5" />
     <path d="M12 12l8 -4.5" />
     <path d="M12 12v9" />
@@ -97,8 +98,8 @@ export const SupabaseIcon = ({ className = "w-6 h-6" }: { className?: string }) 
 );
 
 
-export const PublishIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+export const PublishIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M12 20h-6a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12v5" />
         <path d="M18 18m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
         <path d="M18 16v2.5" />
@@ -106,46 +107,46 @@ export const PublishIcon = () => (
     </svg>
 );
 
-export const UserIcon = () => (
-  <svg {...iconProps} viewBox="0 0 24 24">
+export const UserIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg {...iconProps} className={className} viewBox="0 0 24 24">
     <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
     <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
   </svg>
 );
 
-export const LogInIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const LogInIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" />
         <path d="M20 12h-13l3 -3" />
         <path d="M17 15l3 -3" />
     </svg>
 );
 
-export const LogOutIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const LogOutIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" />
         <path d="M9 12h12l-3 -3" />
         <path d="M18 15l3 -3" />
     </svg>
 );
 
-export const SettingsIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const SettingsIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1.002 -.608 2.07 .098 2.572 1.065z" />
         <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
     </svg>
 );
 
-export const DownloadIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+export const DownloadIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
         <path d="M7 11l5 5l5 -5" />
         <path d="M12 4l0 12" />
     </svg>
 );
 
-export const KeyIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+export const KeyIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
       <path d="M14 10m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
       <path d="M21 12a9 9 0 1 1 -18 0a9 9 0 0 1 18 0" />
       <path d="M12.5 11.5l-4 4l1.5 1.5l4 -4" />
@@ -160,30 +161,30 @@ export const CloseIcon = ({ className = "w-5 h-5" }: { className?: string }) => 
   </svg>
 );
 
-export const SparklesIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+export const SparklesIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
       <path d="M12 3l1.5 4.5h4.5l-3.5 2.5 1.5 4.5-4-3-4 3 1.5-4.5-3.5-2.5h4.5z" />
       <path d="M3 12l4.5 1.5v4.5l2.5-3.5 4.5 1.5-3-4 3-4 3-4-4.5 1.5-2.5-3.5v4.5z"/>
     </svg>
 );
 
-export const PlusIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const PlusIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M12 5v14" />
         <path d="M5 12h14" />
     </svg>
 );
 
-export const MenuIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const MenuIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
       <path d="M4 6l16 0" />
       <path d="M4 12l16 0" />
       <path d="M4 18l16 0" />
     </svg>
 );
   
-export const ChatIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const ChatIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
       <path d="M21 15a2 2 0 0 1 -2 2h-11l-4 4v-13a2 2 0 0 1 2 -2h11a2 2 0 0 1 2 2v8z" />
     </svg>
 );
@@ -201,8 +202,8 @@ export const MoonIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
     </svg>
 );
 
-export const SaveIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const SaveIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
         <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
         <path d="M14 4l0 4l-6 0l0 -4" />
@@ -227,36 +228,42 @@ export const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     </svg>
 );
 
-export const ProjectsIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const ProjectsIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
     </svg>
 );
 
-export const FolderIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+export const FolderIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
     </svg>
 );
 
-export const TerminalIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+export const TerminalIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M5 7l5 5l-5 5" />
         <path d="M12 19h7" />
     </svg>
 );
 
-export const PaperclipIcon = () => (
-    <svg {...iconProps} className="w-5 h-5" viewBox="0 0 24 24">
+export const PaperclipIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M15.5 6.5a3.5 3.5 0 1 1 -7 0v8.5a5.5 5.5 0 1 0 11 0v-6.5" />
     </svg>
 );
 
-export const ImageIcon = () => (
-    <svg {...iconProps} viewBox="0 0 24 24">
+export const ImageIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M15 8h.01" />
         <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z" />
         <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />
         <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l2 2" />
+    </svg>
+);
+
+export const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
+        <path d="M6 9l6 6l6 -6" />
     </svg>
 );

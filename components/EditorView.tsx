@@ -20,28 +20,31 @@ interface EditorViewProps {
 }
 
 const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
-    <pre className="p-4 text-sm whitespace-pre-wrap break-words text-var-fg-default">
-      <code className="font-mono">{code}</code>
+    <pre className="p-4 text-sm whitespace-pre-wrap break-words text-gray-300 font-mono leading-relaxed">
+      <code>{code}</code>
     </pre>
 );
 
 const EditorHeader: React.FC<{ projectName: string; onRunLocally: () => void; theme: Theme; onThemeChange: (theme: Theme) => void }> = ({ projectName, onRunLocally, theme, onThemeChange }) => (
-    <div className="flex items-center justify-between p-2 border-b border-var-border-default flex-shrink-0">
-        <div className="text-sm text-var-fg-muted font-medium">{projectName}</div>
+    <div className="flex items-center justify-between px-4 py-2 border-b border-[#27272a] bg-[#121214] flex-shrink-0">
         <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project</span>
+            <span className="text-sm text-gray-200 font-medium">{projectName}</span>
+        </div>
+        <div className="flex items-center gap-2">
+            {/* Theme toggler hidden as we are enforcing Dark Mode for Lovable UI consistency, but kept for logic compatibility */}
              <button
                 onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-md text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors"
-                aria-label="Toggle theme"
+                className="hidden p-2 rounded-md text-gray-500 hover:bg-[#27272a] hover:text-white transition-colors"
             >
                 {theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
             <button 
               onClick={onRunLocally}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-var-accent text-var-accent-fg rounded-md hover:opacity-90 transition-opacity font-semibold"
+              className="flex items-center gap-2 px-3 py-1.5 text-xs bg-[#27272a] hover:bg-[#3f3f46] text-gray-200 rounded-md border border-[#3f3f46] transition-all font-medium"
             >
                 <TerminalIcon />
-                <span>Executar Local</span>
+                <span>Run Local</span>
             </button>
         </div>
     </div>
@@ -51,32 +54,34 @@ const Toast: React.FC<{ message: string; onFix: () => void; onClose: () => void 
     useEffect(() => {
         const timer = setTimeout(() => {
           onClose();
-        }, 8000); // Auto-dismiss after 8 seconds
+        }, 8000); 
 
         return () => clearTimeout(timer);
       }, [onClose]);
 
     return (
-        <div className="absolute bottom-4 right-4 z-50 w-full max-w-sm animate-slideInUp">
-            <div className="bg-var-bg-subtle rounded-lg shadow-2xl border border-var-border-default overflow-hidden">
-                <div className="p-4 border-l-4 border-red-500">
+        <div className="absolute bottom-6 right-6 z-50 w-full max-w-sm animate-slideInUp">
+            <div className="bg-[#18181b] rounded-lg shadow-2xl border border-red-500/50 overflow-hidden">
+                <div className="p-4">
                     <div className="flex items-start gap-3">
-                        <svg className="w-6 h-6 flex-shrink-0 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <div className="flex-shrink-0 text-red-500">
+                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </div>
                         <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-var-fg-default">Erro na Visualização</p>
-                            <p className="text-sm text-var-fg-muted mt-1 break-words">{message}</p>
-                            <div className="mt-4 flex gap-2">
+                            <p className="font-semibold text-gray-200 text-sm">Preview Error</p>
+                            <p className="text-xs text-gray-400 mt-1 break-words leading-relaxed">{message}</p>
+                            <div className="mt-3 flex gap-2">
                                 <button
                                 onClick={onFix}
-                                className="px-3 py-1 text-xs font-semibold text-white bg-var-accent rounded hover:opacity-90 transition-all flex items-center gap-1.5"
+                                className="px-3 py-1.5 text-xs font-semibold text-black bg-white rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1.5"
                                 >
-                                <SparklesIcon /> Corrigir com IA
+                                <SparklesIcon /> Auto Fix
+                                </button>
+                                <button onClick={onClose} className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors">
+                                    Dismiss
                                 </button>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-1 rounded-full hover:bg-var-bg-interactive text-var-fg-subtle hover:text-var-fg-default flex-shrink-0">
-                            <CloseIcon className="w-4 h-4" />
-                        </button>
                     </div>
                 </div>
             </div>
@@ -92,55 +97,55 @@ export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, proje
 
   const handleDeleteFile = (e: React.MouseEvent, fileName: string) => {
     e.stopPropagation();
-    if (window.confirm(`Tem certeza de que deseja excluir "${fileName}" do projeto?`)) {
+    if (window.confirm(`Delete "${fileName}"?`)) {
         onFileDelete(fileName);
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-var-bg-subtle">
+    <div className="flex flex-col h-full bg-[#121214]">
       <EditorHeader projectName={projectName} onRunLocally={onRunLocally} theme={theme} onThemeChange={onThemeChange} />
       
-      <div className="flex items-center justify-between border-b border-var-border-default bg-var-bg-muted flex-shrink-0">
-        <div className="flex-grow flex-shrink overflow-x-auto overflow-y-hidden">
-            <div className="flex">
+      {/* File Tabs & Mode Switcher */}
+      <div className="flex items-center justify-between border-b border-[#27272a] bg-[#09090b] flex-shrink-0 h-10">
+        <div className="flex-grow flex-shrink overflow-x-auto overflow-y-hidden custom-scrollbar h-full">
+            <div className="flex h-full">
             {files.map(file => (
                 <button
                 key={file.name}
                 onClick={() => onFileSelect(file.name)}
-                className={`flex items-center px-4 py-2.5 text-sm border-r border-var-border-default relative transition-colors duration-200 ${
-                    activeFile === file.name ? 'text-var-fg-default bg-var-bg-subtle' : 'text-var-fg-muted hover:bg-var-bg-interactive'
+                className={`flex items-center px-4 text-xs border-r border-[#27272a] h-full transition-colors duration-200 group ${
+                    activeFile === file.name ? 'text-white bg-[#121214]' : 'text-gray-500 hover:bg-[#121214] hover:text-gray-300'
                 }`}
                 >
-                <span className="truncate max-w-xs">{file.name}</span>
-                <span onClick={(e) => handleDeleteFile(e, file.name)} className="ml-3 p-1 rounded-full hover:bg-var-bg-interactive">
+                <span className="truncate max-w-[150px]">{file.name}</span>
+                <span onClick={(e) => handleDeleteFile(e, file.name)} className="ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
                     <CloseIcon className="w-3 h-3" />
                 </span>
-                 {activeFile === file.name && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-var-accent"></div>}
                 </button>
             ))}
             </div>
         </div>
 
-        <div className="p-1 bg-var-bg-default rounded-md m-2 flex-shrink-0">
+        <div className="px-2 flex items-center gap-1 bg-[#09090b] h-full border-l border-[#27272a]">
           <button
             onClick={() => setViewMode('code')}
-            className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === 'code' ? 'bg-var-accent text-var-accent-fg' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}
+            className={`px-3 py-1 text-xs rounded-md transition-all ${viewMode === 'code' ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            Código
+            Code
           </button>
           <button
             onClick={() => setViewMode('preview')}
-            className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === 'preview' ? 'bg-var-accent text-var-accent-fg' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}
+            className={`px-3 py-1 text-xs rounded-md transition-all ${viewMode === 'preview' ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            Visualização
+            Preview
           </button>
         </div>
       </div>
 
-      <div className="flex-grow overflow-auto bg-var-bg-subtle relative">
+      <div className="flex-grow overflow-auto bg-[#121214] relative custom-scrollbar">
         {viewMode === 'code' ? (
-          selectedFile ? <CodeDisplay code={selectedFile.content} /> : <div className="p-4 text-var-fg-muted">Selecione um arquivo para ver seu conteúdo.</div>
+          selectedFile ? <CodeDisplay code={selectedFile.content} /> : <div className="flex items-center justify-center h-full text-gray-600 text-sm">Select a file to view content</div>
         ) : (
           <CodePreview files={files} onError={onError} theme={theme} envVars={envVars} />
         )}

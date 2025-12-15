@@ -11,38 +11,38 @@
     <script defer src="https://js.stripe.com/v3/"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
         --font-sans: 'Inter', sans-serif;
 
         /* Light Theme */
-        --bg-default-light: #f8f9fa;
-        --bg-subtle-light: #ffffff;
-        --bg-muted-light: #f1f3f5;
-        --bg-interactive-light: #e9ecef;
-        --fg-default-light: #212529;
-        --fg-muted-light: #495057;
-        --fg-subtle-light: #868e96;
-        --border-default-light: #dee2e6;
-        --border-subtle-light: #e9ecef;
-        --accent-light: #1c7ed6;
+        --bg-default-light: #ffffff;
+        --bg-subtle-light: #f9fafb;
+        --bg-muted-light: #f3f4f6;
+        --bg-interactive-light: #e5e7eb;
+        --fg-default-light: #111827;
+        --fg-muted-light: #4b5563;
+        --fg-subtle-light: #9ca3af;
+        --border-default-light: #e5e7eb;
+        --border-subtle-light: #f3f4f6;
+        --accent-light: #000000;
         --accent-fg-light: #ffffff;
         --shadow-color-light: 220, 13%, 69%;
 
-        /* Dark Theme */
-        --bg-default-dark: #0d1117;
-        --bg-subtle-dark: #161b22;
-        --bg-muted-dark: #010409;
-        --bg-interactive-dark: #21262d;
-        --fg-default-dark: #c9d1d9;
-        --fg-muted-dark: #8b949e;
-        --fg-subtle-dark: #484f58;
-        --border-default-dark: #30363d;
-        --border-subtle-dark: #21262d;
-        --accent-dark: #58a6ff;
-        --accent-fg-dark: #ffffff;
-        --shadow-color-dark: 216, 28%, 7%;
+        /* Dark Theme (Lovable Style) */
+        --bg-default-dark: #09090b; /* Very dark, almost black */
+        --bg-subtle-dark: #121214;  /* Slightly lighter for panels */
+        --bg-muted-dark: #18181b;   /* For secondary elements */
+        --bg-interactive-dark: #27272a; /* For hover states/inputs */
+        --fg-default-dark: #ededed;
+        --fg-muted-dark: #a1a1aa;
+        --fg-subtle-dark: #71717a;
+        --border-default-dark: #27272a;
+        --border-subtle-dark: #18181b;
+        --accent-dark: #ffffff;
+        --accent-fg-dark: #000000;
+        --shadow-color-dark: 0, 0%, 0%;
       }
 
       /* Base styles applying CSS variables */
@@ -78,7 +78,7 @@
         --fg-muted: var(--fg-muted-dark);
         --fg-subtle: var(--fg-subtle-dark);
         --border-default: var(--border-default-dark);
-        --border-subtle-dark: var(--border-subtle-dark);
+        --border-subtle: var(--border-subtle-dark);
         --accent: var(--accent-dark);
         --accent-fg: var(--accent-fg-dark);
         --shadow-color: var(--shadow-color-dark);
@@ -86,36 +86,41 @@
 
       /* Scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: var(--bg-subtle);
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background-color: var(--fg-subtle);
-        border-radius: 4px;
+        background-color: var(--bg-interactive);
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background-color: var(--fg-muted);
+        background-color: var(--fg-subtle);
       }
 
-      /* Keyframes for animations */
+      /* Animations */
       @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
       }
       @keyframes slideInUp {
-        from { transform: translateY(20px); opacity: 0; }
+        from { transform: translateY(10px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
-       @keyframes pulse {
-        0%, 100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
+      
+      /* Lovable-style Gradient Blob Animation */
+      @keyframes gradient-move {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      
+      .lovable-gradient-bg {
+        background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15), rgba(236, 72, 153, 0.15), rgba(168, 85, 247, 0.15), transparent 70%);
+        filter: blur(60px);
+        z-index: 0;
       }
     </style>
   <script type="importmap">

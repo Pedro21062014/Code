@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppLogo, FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon, StripeIcon, MapIcon, DatabaseIcon } from './Icons';
-import { IntegrationProvider, ProjectFile } from '../types';
+import { ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
 interface SidebarProps {
@@ -30,9 +30,9 @@ interface SidebarProps {
 
 const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => {
     return (
-      <div className="group relative flex justify-center">
+      <div className="group relative flex justify-center w-full">
         {children}
-        <span className="absolute left-14 p-2 text-xs w-max max-w-xs bg-var-bg-muted text-var-fg-default rounded-md scale-0 transition-all group-hover:scale-100 origin-left z-30 shadow-lg border border-var-border-default">
+        <span className="absolute left-14 p-2 text-xs w-max max-w-xs bg-black text-white rounded-md scale-0 transition-all group-hover:scale-100 origin-left z-50 shadow-lg border border-gray-800 font-medium">
           {text}
         </span>
       </div>
@@ -52,7 +52,7 @@ const ContextMenu: React.FC<{
         >
             <div
                 style={{ top: y, left: x }}
-                className="absolute bg-var-bg-subtle border border-var-border-default rounded-md shadow-2xl w-40 py-1.5 animate-fadeIn"
+                className="absolute bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl w-48 py-1.5 animate-fadeIn text-sm"
                 onClick={(e) => e.stopPropagation()}
             >
                 {actions.map((action, index) => (
@@ -62,13 +62,13 @@ const ContextMenu: React.FC<{
                             action.onClick();
                             onClose();
                         }}
-                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
                             action.isDestructive
                                 ? 'text-red-400 hover:bg-red-500/10'
-                                : 'text-var-fg-default hover:bg-var-bg-interactive'
+                                : 'text-gray-300 hover:bg-[#27272a] hover:text-white'
                         }`}
                     >
-                        {action.icon}
+                        <span className="opacity-70">{action.icon}</span>
                         <span>{action.label}</span>
                     </button>
                 ))}
@@ -108,39 +108,39 @@ const EnvironmentPanel: React.FC<{ vars: Record<string, string>, onSave: (vars: 
     };
   
     return (
-      <div className="p-2 space-y-2 mt-2 flex flex-col h-full">
-        <div className="flex-grow overflow-y-auto space-y-2 pr-2">
+      <div className="p-3 space-y-3 mt-2 flex flex-col h-full">
+        <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
             {localVars.map(([key, value], index) => (
-            <div key={index} className="flex items-center gap-1">
+            <div key={index} className="flex items-center gap-2 group">
                 <input
                 type="text"
-                placeholder="NOME"
+                placeholder="KEY"
                 value={key}
                 onChange={(e) => handleChange(index, 'key', e.target.value)}
-                className="w-full p-1.5 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle text-xs font-mono focus:outline-none focus:ring-1 focus:ring-var-accent/50"
+                className="w-1/3 p-2 bg-[#18181b] border border-[#27272a] rounded text-gray-300 placeholder-gray-600 text-xs font-mono focus:outline-none focus:border-blue-500 transition-colors"
                 />
                 <input
                 type="password"
-                placeholder="VALOR"
+                placeholder="VALUE"
                 value={value}
                 onChange={(e) => handleChange(index, 'value', e.target.value)}
-                className="w-full p-1.5 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle text-xs font-mono focus:outline-none focus:ring-1 focus:ring-var-accent/50"
+                className="w-full p-2 bg-[#18181b] border border-[#27272a] rounded text-gray-300 placeholder-gray-600 text-xs font-mono focus:outline-none focus:border-blue-500 transition-colors"
                 />
-                <button onClick={() => handleRemove(index)} className="p-1 text-var-fg-subtle hover:text-red-400">
-                    <TrashIcon className="w-4 h-4" />
+                <button onClick={() => handleRemove(index)} className="p-1.5 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <TrashIcon className="w-3.5 h-3.5" />
                 </button>
             </div>
             ))}
         </div>
-        <div className="flex-shrink-0 mt-2 space-y-2">
-            <button onClick={handleAdd} className="w-full text-sm py-1.5 border border-dashed border-var-border-default rounded-md text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                Adicionar Variável
+        <div className="flex-shrink-0 pt-3 border-t border-[#27272a] space-y-2">
+            <button onClick={handleAdd} className="w-full text-xs py-2 border border-dashed border-[#27272a] rounded text-gray-400 hover:bg-[#18181b] hover:text-white transition-colors">
+                + Add Variable
             </button>
             <button 
                 onClick={handleSaveChanges} 
                 disabled={!hasChanges}
-                className="w-full bg-var-accent text-var-accent-fg text-sm font-medium py-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                Salvar Alterações
+                className="w-full bg-white text-black text-xs font-semibold py-2 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Save Changes
             </button>
         </div>
       </div>
@@ -197,200 +197,150 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const contextMenuActions = contextMenu ? [
-    { label: 'Editar', icon: <EditIcon />, onClick: () => setRenamingFile(contextMenu.file.name) },
-    { label: 'Deletar', icon: <TrashIcon className="w-4 h-4" />, isDestructive: true, onClick: () => {
-        if (window.confirm(`Tem certeza que deseja deletar o arquivo "${contextMenu.file.name}"?`)) {
+    { label: 'Rename', icon: <EditIcon />, onClick: () => setRenamingFile(contextMenu.file.name) },
+    { label: 'Delete', icon: <TrashIcon className="w-4 h-4" />, isDestructive: true, onClick: () => {
+        if (window.confirm(`Are you sure you want to delete "${contextMenu.file.name}"?`)) {
             onDeleteFile(contextMenu.file.name);
         }
     }},
   ] : [];
 
+  const NavButton = ({ onClick, active, icon, label }: { onClick: () => void, active?: boolean, icon: React.ReactNode, label: string }) => (
+      <Tooltip text={label}>
+        <button 
+            onClick={onClick} 
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group relative ${active ? 'bg-white text-black shadow-lg shadow-white/10' : 'text-gray-400 hover:bg-[#27272a] hover:text-white'}`}
+        >
+            <div className="w-5 h-5">{icon}</div>
+        </button>
+      </Tooltip>
+  );
+
   return (
-    <div className="bg-var-bg-subtle flex h-full">
-        {/* Main Icon Bar */}
-        <div className="w-16 bg-var-bg-muted p-2 flex flex-col items-center justify-between border-r border-var-border-default">
-            <div>
-                 <Tooltip text="Página Inicial / Novo Projeto">
-                    <button onClick={onNewProject} className="p-1 mb-2 rounded-lg hover:bg-var-bg-interactive flex items-center justify-center w-full">
-                        <AppLogo className="w-8 h-8 text-var-accent" />
-                    </button>
-                </Tooltip>
-                <div className="space-y-2">
-                    <Tooltip text="Explorador de Arquivos">
-                        <button onClick={() => setActiveTab('files')} className={`p-2 rounded-lg transition-colors ${activeTab === 'files' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
-                            <FileIcon />
-                        </button>
-                    </Tooltip>
-                     <Tooltip text="Variáveis de Ambiente">
-                        <button onClick={() => setActiveTab('environment')} className={`p-2 rounded-lg transition-colors ${activeTab === 'environment' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
-                            <ShieldIcon />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Integrações">
-                        <button onClick={() => setActiveTab('integrations')} className={`p-2 rounded-lg transition-colors ${activeTab === 'integrations' ? 'text-var-fg-default bg-var-bg-interactive' : 'text-var-fg-muted hover:bg-var-bg-interactive'}`}>
-                            <CubeIcon />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Salvar Projeto">
-                        <button onClick={onSaveProject} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                            <SaveIcon />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Meus Projetos">
-                        <button onClick={onOpenProjects} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                            <ProjectsIcon />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Gerador de Imagem">
-                        <button onClick={onOpenImageStudio} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                            <ImageIcon />
-                        </button>
-                    </Tooltip>
-                </div>
+    <div className="bg-[#09090b] flex h-full border-r border-[#27272a] select-none w-full">
+        {/* Narrow Sidebar (Icons) */}
+        <div className="w-[60px] flex flex-col items-center py-4 gap-6 border-r border-[#27272a] bg-[#09090b] flex-shrink-0">
+            <div className="mb-2">
+                <button onClick={onNewProject} className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-white shadow-lg hover:opacity-90 transition-opacity">
+                    <AppLogo className="w-6 h-6" />
+                </button>
             </div>
-            <div className="space-y-2">
-                 <Tooltip text="Baixar Projeto (ZIP)">
-                    <button onClick={onDownload} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                        <DownloadIcon />
-                    </button>
-                </Tooltip>
-                {session ? (
-                    <Tooltip text={`Sair (${session.user.email})`}>
-                        <button onClick={onLogout} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                            <LogOutIcon />
-                        </button>
-                    </Tooltip>
-                ) : (
-                    <Tooltip text="Login / Registrar">
-                        <button onClick={onLogin} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                            <LogInIcon />
-                        </button>
-                    </Tooltip>
-                )}
-                <Tooltip text="Configurações">
-                    <button onClick={onOpenSettings} className="p-2 rounded-lg text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default transition-colors">
-                        <SettingsIcon />
-                    </button>
-                </Tooltip>
+            
+            <div className="flex flex-col gap-3 w-full items-center">
+                <NavButton onClick={() => setActiveTab('files')} active={activeTab === 'files'} icon={<FileIcon />} label="Explorer" />
+                <NavButton onClick={() => setActiveTab('integrations')} active={activeTab === 'integrations'} icon={<CubeIcon />} label="Integrations" />
+                <NavButton onClick={() => setActiveTab('environment')} active={activeTab === 'environment'} icon={<ShieldIcon />} label="Env Vars" />
+            </div>
+
+            <div className="mt-auto flex flex-col gap-3 w-full items-center">
+                 <NavButton onClick={onOpenImageStudio} icon={<ImageIcon />} label="Image Studio" />
+                 <NavButton onClick={onSaveProject} icon={<SaveIcon />} label="Save Project" />
+                 <NavButton onClick={onOpenProjects} icon={<ProjectsIcon />} label="My Projects" />
+                 <div className="h-px w-8 bg-[#27272a] my-1"></div>
+                 {session ? (
+                    <NavButton onClick={onLogout} icon={<LogOutIcon />} label="Logout" />
+                 ) : (
+                    <NavButton onClick={onLogin} icon={<LogInIcon />} label="Login" />
+                 )}
+                 <NavButton onClick={onOpenSettings} icon={<SettingsIcon />} label="Settings" />
             </div>
         </div>
 
-        {/* Content Panel */}
-        <div className="w-64 bg-var-bg-subtle flex flex-col">
-            <div className="flex justify-between items-center p-2 flex-shrink-0">
-                <h2 className="text-sm font-bold uppercase text-var-fg-muted tracking-wider">
-                    {activeTab === 'files' ? 'Explorador' : activeTab === 'environment' ? 'Ambiente' : 'Integrações'}
-                </h2>
+        {/* Extended Sidebar (Content) */}
+        <div className="flex-1 bg-[#121214] flex flex-col h-full overflow-hidden">
+            <div className="h-14 flex items-center justify-between px-4 border-b border-[#27272a] flex-shrink-0">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {activeTab === 'files' ? 'Explorer' : activeTab === 'environment' ? 'Environment' : 'Integrations'}
+                </span>
                 {onClose && (
-                    <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive lg:hidden">
+                    <button onClick={onClose} className="p-1 rounded text-gray-500 hover:text-white">
                         <CloseIcon />
                     </button>
                 )}
             </div>
 
             {activeTab === 'files' && (
-                <ul className="mt-2 space-y-1 p-2 overflow-y-auto">
-                    {files.map(file => (
-                    <li key={file.name}>
-                        <button
-                            onClick={() => onFileSelect(file.name)}
-                            onContextMenu={(e) => handleContextMenu(e, file)}
-                            className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center gap-2 transition-colors ${
-                                activeFile === file.name ? 'bg-var-accent/20 text-var-accent' : 'text-var-fg-muted hover:bg-var-bg-interactive hover:text-var-fg-default'
-                            }`}
-                        >
-                        {renamingFile === file.name ? (
-                            <input
-                                ref={renameInputRef}
-                                type="text"
-                                defaultValue={file.name}
-                                className="bg-var-bg-default w-full text-var-fg-default text-sm outline-none ring-1 ring-var-accent"
-                                onBlur={(e) => handleRename(file.name, e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleRename(file.name, e.currentTarget.value);
-                                    if (e.key === 'Escape') setRenamingFile(null);
-                                }}
-                            />
-                        ) : (
-                            <span>{file.name}</span>
+                <div className="flex-1 overflow-y-auto py-2">
+                    <div className="px-2">
+                         <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider mt-2">Project Files</div>
+                        {files.map(file => (
+                        <div key={file.name} className="relative group">
+                            <button
+                                onClick={() => onFileSelect(file.name)}
+                                onContextMenu={(e) => handleContextMenu(e, file)}
+                                className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2.5 transition-all duration-150 border border-transparent ${
+                                    activeFile === file.name 
+                                    ? 'bg-[#27272a] text-white border-[#3f3f46]' 
+                                    : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'
+                                }`}
+                            >
+                                <span className="opacity-60"><FileIcon /></span>
+                                {renamingFile === file.name ? (
+                                    <input
+                                        ref={renameInputRef}
+                                        type="text"
+                                        defaultValue={file.name}
+                                        className="bg-[#09090b] w-full text-white text-sm outline-none ring-1 ring-blue-500 rounded px-1"
+                                        onBlur={(e) => handleRename(file.name, e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleRename(file.name, e.currentTarget.value);
+                                            if (e.key === 'Escape') setRenamingFile(null);
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <span className="truncate">{file.name}</span>
+                                )}
+                            </button>
+                        </div>
+                        ))}
+                         {files.length === 0 && (
+                            <div className="text-xs text-gray-600 px-4 py-8 text-center italic">
+                                No files generated yet.
+                            </div>
                         )}
-                        </button>
-                    </li>
-                    ))}
-                </ul>
-            )}
-             {activeTab === 'environment' && (
-                <EnvironmentPanel vars={envVars} onSave={onEnvVarChange} />
-            )}
-            {activeTab === 'integrations' && (
-                <div className="p-2 space-y-2 mt-2 overflow-y-auto">
-                    <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
-                        <div className="flex items-center gap-3 mb-2">
-                            <GithubIcon className="w-6 h-6"/>
-                            <h3 className="font-semibold text-var-fg-default">GitHub</h3>
-                        </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Importe repositórios para começar rapidamente.</p>
-                        <button 
-                            onClick={onOpenGithubImport}
-                            className="w-full bg-var-bg-subtle hover:bg-var-bg-default border border-var-border-default text-var-fg-default text-sm font-medium py-1.5 rounded-md transition-colors"
-                        >
-                            Conectar
-                        </button>
-                    </div>
-                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
-                        <div className="flex items-center gap-3 mb-2">
-                            <SupabaseIcon />
-                            <h3 className="font-semibold text-var-fg-default">Supabase</h3>
-                        </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Permita que a IA modifique seu banco de dados.</p>
-                        <button 
-                            onClick={onOpenSupabaseAdmin}
-                            className="w-full bg-green-600/80 hover:bg-green-600 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
-                        >
-                            Gerenciar
-                        </button>
-                    </div>
-                    <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
-                        <div className="flex items-center gap-3 mb-2">
-                            <StripeIcon />
-                            <h3 className="font-semibold text-var-fg-default">Stripe</h3>
-                        </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Integre pagamentos em seu aplicativo.</p>
-                        <button 
-                            onClick={onOpenStripeModal}
-                            className="w-full bg-[#635BFF]/80 hover:bg-[#635BFF] text-white text-sm font-medium py-1.5 rounded-md transition-colors"
-                        >
-                            Gerenciar
-                        </button>
-                    </div>
-                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
-                        <div className="flex items-center gap-3 mb-2">
-                            <DatabaseIcon />
-                            <h3 className="font-semibold text-var-fg-default">Neon</h3>
-                        </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Conecte um banco de dados PostgreSQL serverless.</p>
-                        <button 
-                            onClick={onOpenNeonModal}
-                            className="w-full bg-emerald-500/80 hover:bg-emerald-500 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
-                        >
-                            Gerenciar
-                        </button>
-                    </div>
-                     <div className="bg-var-bg-interactive p-3 rounded-lg border border-var-border-default">
-                        <div className="flex items-center gap-3 mb-2">
-                            <MapIcon />
-                            <h3 className="font-semibold text-var-fg-default">OpenStreetMap</h3>
-                        </div>
-                        <p className="text-xs text-var-fg-muted mb-3">Adicione mapas interativos ao seu projeto.</p>
-                        <button 
-                            onClick={onOpenOSMModal}
-                            className="w-full bg-blue-500/80 hover:bg-blue-500 text-white text-sm font-medium py-1.5 rounded-md transition-colors"
-                        >
-                            Informações
-                        </button>
                     </div>
                 </div>
             )}
+             
+             {activeTab === 'environment' && (
+                <EnvironmentPanel vars={envVars} onSave={onEnvVarChange} />
+            )}
+
+            {activeTab === 'integrations' && (
+                <div className="p-3 space-y-3 mt-2 overflow-y-auto custom-scrollbar">
+                    {[
+                        { icon: <GithubIcon />, title: "GitHub", desc: "Import/Export Repos", action: "Connect", onClick: onOpenGithubImport, color: "hover:border-gray-500" },
+                        { icon: <SupabaseIcon />, title: "Supabase", desc: "Database & Auth", action: "Configure", onClick: onOpenSupabaseAdmin, color: "hover:border-green-500/50" },
+                        { icon: <StripeIcon />, title: "Stripe", desc: "Payments", action: "Configure", onClick: onOpenStripeModal, color: "hover:border-indigo-500/50" },
+                        { icon: <DatabaseIcon />, title: "Neon", desc: "Postgres DB", action: "Connect", onClick: onOpenNeonModal, color: "hover:border-emerald-500/50" },
+                        { icon: <MapIcon />, title: "OpenStreetMap", desc: "Maps Integration", action: "Info", onClick: onOpenOSMModal, color: "hover:border-blue-500/50" },
+                    ].map((item, idx) => (
+                        <div key={idx} className={`bg-[#18181b] p-3 rounded-lg border border-[#27272a] transition-colors group ${item.color}`}>
+                            <div className="flex items-center gap-2 mb-1 text-gray-200">
+                                {item.icon}
+                                <h3 className="font-medium text-sm">{item.title}</h3>
+                            </div>
+                            <p className="text-xs text-gray-500 mb-3">{item.desc}</p>
+                            <button 
+                                onClick={item.onClick}
+                                className="w-full bg-[#27272a] hover:bg-[#3f3f46] text-gray-300 hover:text-white text-xs font-medium py-1.5 rounded transition-colors"
+                            >
+                                {item.action}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="p-3 mt-auto border-t border-[#27272a]">
+                <button 
+                    onClick={onDownload} 
+                    className="w-full flex items-center justify-center gap-2 bg-[#18181b] hover:bg-[#27272a] text-gray-300 hover:text-white text-xs py-2 rounded border border-[#27272a] transition-colors"
+                >
+                    <DownloadIcon /> Download ZIP
+                </button>
+            </div>
         </div>
         {contextMenu && <ContextMenu {...contextMenu} actions={contextMenuActions} onClose={() => setContextMenu(null)} />}
     </div>
