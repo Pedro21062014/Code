@@ -1,11 +1,17 @@
 import { AIProvider, AIModel } from './types';
 
 export const AI_MODELS: AIModel[] = [
-  // FIX: Removed 'gemini-2.5-pro' as 'gemini-2.5-flash' is the recommended model for general text tasks.
+  // Gemini Models
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: AIProvider.Gemini },
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3.0 Pro Preview', provider: AIProvider.Gemini },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: AIProvider.Gemini },
+  
+  // OpenAI Models
   { id: 'gpt-4o', name: 'GPT-4o', provider: AIProvider.OpenAI },
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: AIProvider.OpenAI },
   { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: AIProvider.OpenAI },
+  
+  // DeepSeek Models
   { id: 'deepseek-coder', name: 'DeepSeek Coder', provider: AIProvider.DeepSeek },
   { id: 'deepseek-chat', name: 'DeepSeek Chat', provider: AIProvider.DeepSeek },
 ];

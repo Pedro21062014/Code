@@ -17,27 +17,14 @@ import { NeonModal } from './components/NeonModal';
 import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY } from './constants';
+import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS } from './constants';
 import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { MenuIcon, ChatIcon, AppLogo } from './components/Icons';
+import { AppLogo } from './components/Icons';
 import { supabase } from './services/supabase';
 import type { Session, User } from '@supabase/supabase-js';
-
-
-const Header: React.FC<{ onToggleSidebar: () => void; onToggleChat: () => void; projectName: string }> = ({ onToggleSidebar, onToggleChat, projectName }) => (
-  <div className="lg:hidden flex justify-between items-center p-2 bg-var-bg-subtle border-b border-var-border-default flex-shrink-0">
-    <button onClick={onToggleSidebar} className="p-2 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
-      <MenuIcon />
-    </button>
-    <h1 className="text-sm font-semibold text-var-fg-default truncate">{projectName}</h1>
-    <button onClick={onToggleChat} className="p-2 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
-      <ChatIcon />
-    </button>
-  </div>
-);
 
 const InitializingOverlay: React.FC<{ projectName: string; generatingFile: string }> = ({ projectName, generatingFile }) => {
   const [timeLeft, setTimeLeft] = useState(45);
@@ -128,7 +115,6 @@ const App: React.FC = () => {
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>();
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isChatOpen, setChatOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
@@ -211,7 +197,6 @@ const App: React.FC = () => {
         setCodeError(null);
         setView('welcome');
         setSidebarOpen(false);
-        setChatOpen(false);
         if (canManipulateHistory) {
             const url = new URL(window.location.href);
             url.searchParams.delete('projectId');
@@ -695,7 +680,8 @@ const App: React.FC = () => {
   
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) { setSidebarOpen(false); setChatOpen(false); }
+      // Auto-close sidebar on large screens is no longer needed as it's a drawer now
+      // if (window.innerWidth >= 1024) { setSidebarOpen(false); }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -717,7 +703,11 @@ const App: React.FC = () => {
           session={session}
           onLoginClick={() => setAuthModalOpen(true)}
           // FIX: Changed default model from gemini-2.5-pro to the recommended gemini-2.5-flash.
-          onPromptSubmit={(prompt) => handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash', [])} 
+          // FIX: Updated to pass the selected model correctly
+          onPromptSubmit={(prompt, model) => {
+              const selectedModelObj = AI_MODELS.find(m => m.id === model) || AI_MODELS[0];
+              handleSendMessage(prompt, selectedModelObj.provider, model, []);
+          }} 
           onShowPricing={() => setView('pricing')}
           onShowProjects={() => setView('projects')}
           onOpenGithubImport={() => setGithubModalOpen(true)}
@@ -737,39 +727,24 @@ const App: React.FC = () => {
         />;
       case 'editor':
         return (
-          <div className="flex flex-col h-screen bg-var-bg-default">
-            <Header onToggleSidebar={() => setSidebarOpen(true)} onToggleChat={() => setChatOpen(true)} projectName={projectName} />
+          <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
+            {/* Editor Layout: [Chat] [Editor] */}
             <div className="flex flex-1 overflow-hidden relative">
               {isInitializing && <InitializingOverlay projectName={projectName} generatingFile={generatingFile} />}
-              <div className="hidden lg:block w-[320px] flex-shrink-0">
-                <Sidebar
-                  files={files} envVars={envVars} onEnvVarChange={newVars => setProject(p => ({ ...p, envVars: newVars }))} activeFile={activeFile} onFileSelect={name => setProject(p => ({...p, activeFile: name}))} onDownload={handleDownload}
-                  onOpenSettings={handleOpenSettings} onOpenGithubImport={() => setGithubModalOpen(true)} onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
-                  onSaveProject={handleSaveProject} onOpenProjects={() => setView('projects')} onNewProject={handleNewProject} onOpenImageStudio={() => setImageStudioOpen(true)}
-                  onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
-                  onOpenStripeModal={() => setStripeModalOpen(true)} onOpenNeonModal={() => setNeonModalOpen(true)} onOpenOSMModal={() => setOSMModalOpen(true)}
-                  session={session} onLogin={() => setAuthModalOpen(true)} onLogout={handleLogout}
+              
+              {/* Chat Panel: Fixed Left Side */}
+              <div className="w-[400px] flex-shrink-0 border-r border-var-border-default h-full z-10 bg-[#121214]">
+                <ChatPanel 
+                    messages={chatMessages} 
+                    onSendMessage={handleSendMessage} 
+                    isProUser={isProUser} 
+                    onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
+                    projectName={projectName}
                 />
               </div>
-              
-              {isSidebarOpen && (
-                 <div className="absolute top-0 left-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)}>
-                    <div className="w-[320px] h-full bg-var-bg-subtle shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <Sidebar
-                            files={files} envVars={envVars} onEnvVarChange={newVars => setProject(p => ({ ...p, envVars: newVars }))} activeFile={activeFile} onFileSelect={(file) => {setProject(p => ({...p, activeFile: file})); setSidebarOpen(false);}}
-                            onDownload={() => {handleDownload(); setSidebarOpen(false);}} onOpenSettings={() => {handleOpenSettings(); setSidebarOpen(false);}}
-                            onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}} onOpenSupabaseAdmin={() => {setSupabaseAdminModalOpen(true); setSidebarOpen(false);}}
-                            onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }} onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
-                            onNewProject={handleNewProject} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
-                            onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
-                            onOpenStripeModal={() => { setStripeModalOpen(true); setSidebarOpen(false); }} onOpenNeonModal={() => { setNeonModalOpen(true); setSidebarOpen(false); }} onOpenOSMModal={() => { setOSMModalOpen(true); setSidebarOpen(false); }}
-                            session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { handleLogout(); setSidebarOpen(false); }}
-                        />
-                    </div>
-                </div>
-              )}
 
-              <main className="flex-1 min-w-0">
+              {/* Editor/Preview: Main Content (Right) */}
+              <main className="flex-1 min-w-0 h-full relative">
                 <EditorView 
                   files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
                   onFileSelect={name => setProject(p => ({...p, activeFile: name}))} onFileDelete={handleDeleteFile} onRunLocally={handleRunLocally}
@@ -777,17 +752,23 @@ const App: React.FC = () => {
                 />
               </main>
               
-              <div className="hidden lg:block w-full max-w-sm xl:max-w-md flex-shrink-0">
-                <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} />
+              {/* Sidebar / Menu Drawer (Overlay) */}
+              <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                 <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)}></div>
+                 <div className={`absolute top-0 left-0 w-[300px] h-full bg-[#121214] shadow-2xl transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <Sidebar
+                        files={files} envVars={envVars} onEnvVarChange={newVars => setProject(p => ({ ...p, envVars: newVars }))} activeFile={activeFile} onFileSelect={(file) => {setProject(p => ({...p, activeFile: file})); setSidebarOpen(false);}}
+                        onDownload={() => {handleDownload(); setSidebarOpen(false);}} onOpenSettings={() => {handleOpenSettings(); setSidebarOpen(false);}}
+                        onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}} onOpenSupabaseAdmin={() => {setSupabaseAdminModalOpen(true); setSidebarOpen(false);}}
+                        onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }} onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
+                        onNewProject={handleNewProject} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
+                        onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
+                        onOpenStripeModal={() => { setStripeModalOpen(true); setSidebarOpen(false); }} onOpenNeonModal={() => { setNeonModalOpen(true); setSidebarOpen(false); }} onOpenOSMModal={() => { setOSMModalOpen(true); setSidebarOpen(false); }}
+                        session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { handleLogout(); setSidebarOpen(false); }}
+                    />
+                 </div>
               </div>
-              
-              {isChatOpen && (
-                 <div className="absolute top-0 right-0 h-full w-full bg-black/50 z-20 lg:hidden" onClick={() => setChatOpen(false)}>
-                    <div className="absolute right-0 w-full max-w-sm h-full bg-var-bg-subtle shadow-2xl" onClick={e => e.stopPropagation()}>
-                       <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} onClose={() => setChatOpen(false)} />
-                    </div>
-                </div>
-              )}
+
             </div>
           </div>
         );
