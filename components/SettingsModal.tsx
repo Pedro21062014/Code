@@ -15,7 +15,9 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
     try {
         const ai = new GoogleGenAI({ apiKey: key });
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: 'diga "ok"' });
-        if (response.text.trim().toLowerCase() === 'ok') {
+        // FIX: Safely check for response.text
+        const text = response.text || "";
+        if (text.trim().toLowerCase().includes('ok')) {
             return { success: true, message: 'Conexão bem-sucedida!' };
         }
         return { success: false, message: 'A chave é válida, mas a resposta foi inesperada.' };
