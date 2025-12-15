@@ -125,7 +125,9 @@ export const generateProjectName = async (
         contents: namePrompt
     });
 
-    const projectName = response.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+    // FIX: Safely access text with fallback
+    const text = response.text || "";
+    const projectName = text.trim().replace(/[^a-zA-Z0-9]/g, '');
     return projectName || "NovoProjeto";
   } catch (error) {
     console.error("Error generating project name:", error);
@@ -150,7 +152,16 @@ export const generateImagesWithImagen = async (
         aspectRatio: aspectRatio as any,
       },
     });
-    return response.generatedImages.map(img => img.image.imageBytes);
+
+    // FIX: Ensure generatedImages exists and map safely
+    if (!response.generatedImages) {
+        return [];
+    }
+
+    return response.generatedImages
+        .map(img => img.image?.imageBytes)
+        .filter((bytes): bytes is string => !!bytes);
+        
   } catch (error) {
     console.error("Error calling Imagen API:", error);
     throw error;
