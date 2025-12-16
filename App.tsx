@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
@@ -23,8 +23,9 @@ import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { AppLogo } from './components/Icons';
-import { supabase } from './services/supabase';
-import type { Session, User } from '@supabase/supabase-js';
+import { auth, db } from './services/firebase';
+import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, DocumentSnapshot, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
 
 const InitializingOverlay: React.FC<{ projectName: string; generatingFile: string }> = ({ projectName, generatingFile }) => {
   const [timeLeft, setTimeLeft] = useState(45);
@@ -107,7 +108,7 @@ const initialProjectState: ProjectState = {
 };
 
 
-const App: React.FC = () => {
+export const App: React.FC = () => {
   const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
@@ -136,9 +137,13 @@ const App: React.FC = () => {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
-  const [session, setSession] = useState<Session | null>(null);
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [postLoginAction, setPostLoginAction] = useState<(() => void) | null>(null);
+
+  // Circuit breaker: If true, we try to contact Firebase. If false, we default to local immediately.
+  const isFirebaseAvailable = useRef(true);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   const canManipulateHistory = window.location.protocol.startsWith('http');
 
@@ -148,46 +153,121 @@ const App: React.FC = () => {
     document.documentElement.className = theme;
   }, [theme]);
 
+  // --- Fetch Projects from Firestore ---
+  const fetchUserProjects = useCallback(async (userId: string) => {
+    if (!isFirebaseAvailable.current) return;
+
+    try {
+        const q = query(collection(db, "projects"), where("ownerId", "==", userId));
+        const querySnapshot = await getDocs(q);
+        const projects: SavedProject[] = [];
+        querySnapshot.forEach((doc) => {
+            // Ensure ID is number for app compatibility, though Firestore uses strings
+            const data = doc.data();
+            projects.push({
+                ...data,
+                id: parseInt(doc.id) || Number(doc.id) || Date.now(), // Fallback if ID parsing fails
+            } as SavedProject);
+        });
+        
+        // Merge with local projects (preferring Firestore version if ID matches)
+        setSavedProjects(prev => {
+            const remoteIds = new Set(projects.map(p => p.id));
+            const localOnly = prev.filter(p => !remoteIds.has(p.id));
+            return [...projects, ...localOnly].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        });
+
+    } catch (error: any) {
+         console.error("Error fetching projects:", error);
+         if (error.code === 'permission-denied' || error.code === 'not-found') {
+             // Silently fail or switch to offline if needed, but for projects list usually just logging is enough
+         }
+    }
+  }, [setSavedProjects]);
+
   // --- Data Fetching and Auth ---
   const fetchUserSettings = useCallback(async (user: User): Promise<UserSettings | null> => {
+    const localDataKey = `user_settings_${user.uid}`;
+    
+    // 1. Retrieve from local storage immediately for fast UI
+    let localSettings: UserSettings = { id: user.uid };
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
-      return profileData;
-    } catch (error) {
-      console.error("Error fetching user settings:", error);
-      return null;
+        const stored = localStorage.getItem(localDataKey);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            localSettings = { ...localSettings, ...parsed };
+        }
+    } catch (e) {
+        console.warn("Failed to parse local settings", e);
     }
+
+    // Circuit breaker check
+    if (!isFirebaseAvailable.current) {
+        setIsOfflineMode(true);
+        return localSettings;
+    }
+
+    try {
+      const docRef = doc(db, "users", user.uid);
+      
+      // 2. Race Firestore against a timeout. 
+      const docSnap = await Promise.race([
+          getDoc(docRef),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 2000))
+      ]) as DocumentSnapshot;
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const mergedSettings = { id: user.uid, ...data } as UserSettings;
+        
+        // Update local cache
+        localStorage.setItem(localDataKey, JSON.stringify(mergedSettings));
+        setIsOfflineMode(false);
+        return mergedSettings;
+      }
+    } catch (error: any) {
+      // If the database doesn't exist or we can't connect, flip the circuit breaker
+      const isDbMissing = error.code === 'not-found' || (error.message && error.message.includes('not exist'));
+      const isOffline = error.message?.includes('offline') || error.message === 'Firestore timeout';
+
+      if (isDbMissing) {
+          console.log("ℹ️ Database connection failed. Switching to Local Storage Mode.");
+          isFirebaseAvailable.current = false;
+          setIsOfflineMode(true);
+      } else if (isOffline) {
+          setIsOfflineMode(true);
+      } else {
+          console.warn("Firestore sync issue (using local backup):", error);
+      }
+    }
+    
+    return localSettings;
   }, []);
 
-  // FIX: Consolidated session management into a single, reliable onAuthStateChange listener
-  // to prevent race conditions and ensure consistent auth state across the app.
+  // Firebase Auth State Listener
   useEffect(() => {
     setIsLoadingData(true);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        const settings = await fetchUserSettings(session.user);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setSessionUser(user);
+        const settings = await fetchUserSettings(user);
         setUserSettings(settings);
+        // Load projects from Firestore
+        await fetchUserProjects(user.uid);
+        
         if (postLoginAction) {
           postLoginAction();
           setPostLoginAction(null);
         }
       } else {
+        setSessionUser(null);
         setUserSettings(null);
       }
       setIsLoadingData(false);
     });
   
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [fetchUserSettings, postLoginAction]);
+    return () => unsubscribe();
+  }, [fetchUserSettings, postLoginAction, fetchUserProjects]);
 
 
   // --- Project Management & URL Handling ---
@@ -213,23 +293,18 @@ const App: React.FC = () => {
     }
   }, [project, canManipulateHistory, setProject]);
 
-  // FIX: Simplified logout handler. It now only signs the user out,
-  // and the onAuthStateChange listener is responsible for resetting application state,
-  // fixing bugs where the UI wouldn't update correctly on logout.
   const handleLogout = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await signOut(auth);
+      setProject(initialProjectState);
+      setView('welcome');
+      if (canManipulateHistory) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('projectId');
+        window.history.pushState({ path: url.href }, '', url.href);
+      }
+    } catch (error: any) {
       alert(`Erro ao tentar sair: ${error.message}`);
-      return;
-    }
-    // Reset project state and view manually since the listener will only handle auth state.
-    // This provides immediate UI feedback.
-    setProject(initialProjectState);
-    setView('welcome');
-    if (canManipulateHistory) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('projectId');
-      window.history.pushState({ path: url.href }, '', url.href);
     }
   }, [setProject, canManipulateHistory]);
 
@@ -306,25 +381,37 @@ const App: React.FC = () => {
   }, [setIsProUser, canManipulateHistory]);
 
   const handleSaveSettings = useCallback(async (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => {
-    if (!session?.user) return;
+    if (!sessionUser) return;
     
     const settingsData = {
       ...newSettings, // pass only the new settings
-      id: session.user.id,
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase.from('profiles').upsert(settingsData).select().single();
+    // 1. Optimistically update local state
+    setUserSettings(prev => prev ? { ...prev, ...settingsData } : { id: sessionUser.uid, ...settingsData });
     
-    if (error) {
-        alert(`Erro ao salvar configurações: ${error.message}`);
-        console.error("Supabase save settings error:", error);
-    } else {
-        // Fetch the full profile again to get a merged view of settings
-        const fullSettings = await fetchUserSettings(session.user);
-        setUserSettings(fullSettings);
+    // 2. Save to localStorage as backup
+    const currentLocal = localStorage.getItem(`user_settings_${sessionUser.uid}`);
+    const parsedLocal = currentLocal ? JSON.parse(currentLocal) : { id: sessionUser.uid };
+    localStorage.setItem(`user_settings_${sessionUser.uid}`, JSON.stringify({ ...parsedLocal, ...settingsData }));
+
+    // 3. Try to save to Firebase only if available
+    if (isFirebaseAvailable.current) {
+        try {
+            await setDoc(doc(db, "users", sessionUser.uid), settingsData, { merge: true });
+        } catch (error: any) {
+            // Check if DB is missing during save attempt
+            if (error.code === 'not-found' || error.message?.includes('not exist')) {
+                isFirebaseAvailable.current = false;
+                setIsOfflineMode(true);
+                console.warn("Firestore database missing. Settings saved locally only.");
+            } else if (!error.message?.includes('offline')) {
+                console.warn("Firebase save settings error (using local backup):", error.message);
+            }
+        }
     }
-  }, [session, fetchUserSettings]);
+  }, [sessionUser]);
 
   useEffect(() => {
     if (pendingPrompt && effectiveGeminiApiKey) {
@@ -353,6 +440,7 @@ const App: React.FC = () => {
 
     const projectData: SavedProject = {
       id: projectId,
+      ownerId: sessionUser?.uid,
       name: project.projectName,
       files: project.files,
       chat_history: project.chatMessages,
@@ -361,6 +449,7 @@ const App: React.FC = () => {
       updated_at: now,
     };
 
+    // 1. Save to Local State & Storage (Immediate Feedback)
     setSavedProjects(prev => {
       const existingIndex = prev.findIndex(p => p.id === projectId);
       if (existingIndex > -1) {
@@ -373,33 +462,56 @@ const App: React.FC = () => {
 
     setProject(p => ({ ...p, currentProjectId: projectId }));
 
+    // 2. Save to Firestore (Async)
+    if (sessionUser && isFirebaseAvailable.current) {
+        try {
+            await setDoc(doc(db, "projects", String(projectId)), projectData);
+            console.log("Projeto salvo no Firestore.");
+        } catch (error: any) {
+            console.error("Erro ao salvar no Firestore:", error);
+            if (error.code === 'not-found') {
+                isFirebaseAvailable.current = false;
+                setIsOfflineMode(true);
+            }
+        }
+    }
+
     if (canManipulateHistory) {
         const url = new URL(window.location.href);
         url.searchParams.set('projectId', String(projectId));
         window.history.pushState({ path: url.href }, '', url.href);
     }
 
-    alert(`Projeto "${project.projectName}" salvo localmente!`);
-  }, [project, savedProjects, setSavedProjects, setProject, canManipulateHistory]);
+    alert(`Projeto "${project.projectName}" salvo!`);
+  }, [project, savedProjects, setSavedProjects, setProject, canManipulateHistory, sessionUser]);
   
   const handleDeleteProject = useCallback(async (projectId: number) => {
+    // 1. Local Delete
     setSavedProjects(prev => prev.filter(p => p.id !== projectId));
+    
+    // 2. Firestore Delete
+    if (sessionUser && isFirebaseAvailable.current) {
+        try {
+            await deleteDoc(doc(db, "projects", String(projectId)));
+        } catch (error) {
+            console.error("Erro ao excluir do Firestore:", error);
+        }
+    }
+
     if (project.currentProjectId === projectId) {
         handleNewProject();
         alert("O projeto atual foi excluído. Iniciando um novo projeto.");
     }
-  }, [setSavedProjects, project, handleNewProject]);
+  }, [setSavedProjects, project, handleNewProject, sessionUser]);
 
   const handleOpenSettings = useCallback(() => {
-    if (session) {
+    if (sessionUser) {
         setSettingsOpen(true);
     } else {
-        // Set the action to be performed after login, then open the auth modal.
-        // We wrap the action in a function to prevent React from trying to execute it as a state updater.
         setPostLoginAction(() => () => setSettingsOpen(true));
         setAuthModalOpen(true);
     }
-  }, [session]);
+  }, [sessionUser]);
 
   // --- AI and API Interactions ---
   const handleSupabaseAdminAction = useCallback(async (action: { query: string }) => {
@@ -696,14 +808,15 @@ const App: React.FC = () => {
     );
   }
 
+  // Helper to cast user for props
+  const sessionUserForProps: any = sessionUser ? { user: sessionUser } : null;
+
   const mainContent = () => {
     switch (view) {
       case 'welcome':
         return <WelcomeScreen 
-          session={session}
+          session={sessionUserForProps}
           onLoginClick={() => setAuthModalOpen(true)}
-          // FIX: Changed default model from gemini-2.5-pro to the recommended gemini-2.5-flash.
-          // FIX: Updated to pass the selected model correctly
           onPromptSubmit={(prompt, model) => {
               const selectedModelObj = AI_MODELS.find(m => m.id === model) || AI_MODELS[0];
               handleSendMessage(prompt, selectedModelObj.provider, model, []);
@@ -714,6 +827,7 @@ const App: React.FC = () => {
           onFolderImport={handleProjectImport}
           onNewProject={handleNewProject}
           onLogout={handleLogout}
+          onOpenSettings={handleOpenSettings}
         />;
       case 'pricing':
         return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} onNewProject={handleNewProject} />;
@@ -764,7 +878,8 @@ const App: React.FC = () => {
                         onNewProject={handleNewProject} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
                         onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
                         onOpenStripeModal={() => { setStripeModalOpen(true); setSidebarOpen(false); }} onOpenNeonModal={() => { setNeonModalOpen(true); setSidebarOpen(false); }} onOpenOSMModal={() => { setOSMModalOpen(true); setSidebarOpen(false); }}
-                        session={session} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { handleLogout(); setSidebarOpen(false); }}
+                        session={sessionUserForProps} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { handleLogout(); setSidebarOpen(false); }}
+                        isOfflineMode={isOfflineMode}
                     />
                  </div>
               </div>
@@ -782,27 +897,27 @@ const App: React.FC = () => {
       {mainContent()}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
       <SettingsModal
-          isOpen={isSettingsOpen && !!session}
+          isOpen={isSettingsOpen && !!sessionUser}
           onClose={() => setSettingsOpen(false)}
-          settings={userSettings || { id: session?.user?.id || '' }}
+          settings={userSettings || { id: sessionUser?.uid || '' }}
           onSave={handleSaveSettings}
       />
       <SupabaseAdminModal
-          isOpen={isSupabaseAdminModalOpen && !!session}
+          isOpen={isSupabaseAdminModalOpen && !!sessionUser}
           onClose={() => setSupabaseAdminModalOpen(false)}
-          settings={userSettings || { id: session?.user?.id || '' }}
+          settings={userSettings || { id: sessionUser?.uid || '' }}
           onSave={handleSaveSettings}
       />
       <StripeModal
-        isOpen={isStripeModalOpen && !!session}
+        isOpen={isStripeModalOpen && !!sessionUser}
         onClose={() => setStripeModalOpen(false)}
-        settings={userSettings || { id: session?.user?.id || '' }}
+        settings={userSettings || { id: sessionUser?.uid || '' }}
         onSave={handleSaveSettings}
       />
       <NeonModal
-        isOpen={isNeonModalOpen && !!session}
+        isOpen={isNeonModalOpen && !!sessionUser}
         onClose={() => setNeonModalOpen(false)}
-        settings={userSettings || { id: session?.user?.id || '' }}
+        settings={userSettings || { id: sessionUser?.uid || '' }}
         onSave={handleSaveSettings}
       />
        <OpenStreetMapModal

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
+import { auth } from '../services/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { CloseIcon, AppLogo, GoogleIcon } from './Icons';
 
 interface AuthModalProps {
@@ -23,16 +24,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     
     try {
       if (isLoginView) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await signInWithEmailAndPassword(auth, email, password);
         onClose();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setMessage('Verifique seu e-mail para o link de confirmação!');
+        await createUserWithEmailAndPassword(auth, email, password);
+        setMessage('Conta criada com sucesso!');
+        // Firebase automatically signs in after creation
+        setTimeout(onClose, 1000);
       }
     } catch (err: any) {
-      setError(err.error_description || err.message);
+      let errorMessage = err.message;
+      if (err.code === 'auth/email-already-in-use') errorMessage = 'Este e-mail já está em uso.';
+      if (err.code === 'auth/wrong-password') errorMessage = 'Senha incorreta.';
+      if (err.code === 'auth/user-not-found') errorMessage = 'Usuário não encontrado.';
+      if (err.code === 'auth/weak-password') errorMessage = 'A senha é muito fraca.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -41,14 +47,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
+    try {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+        onClose();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+        setLoading(false);
     }
-    // On success, Supabase handles the redirect.
   };
 
   React.useEffect(() => {

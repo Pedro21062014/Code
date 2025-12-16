@@ -32,9 +32,9 @@ export interface ChatMessage {
   isThinking?: boolean;
 }
 
-// UserSettings agora reflete a estrutura da tabela 'profiles' do Supabase
+// UserSettings reflecting Firestore 'users' collection
 export interface UserSettings {
-  id: string; // Corresponde a auth.users.id
+  id: string;
   updated_at?: string;
   gemini_api_key?: string;
   github_access_token?: string;
@@ -48,9 +48,9 @@ export interface UserSettings {
 
 export type Theme = 'light' | 'dark';
 
-// SavedProject agora reflete uma estrutura de armazenamento local
 export interface SavedProject {
-  id: number; // ID exclusivo, pode ser um timestamp
+  id: number;
+  ownerId?: string; // UID do usuário do Firebase
   name: string;
   files: ProjectFile[];
   chat_history: ChatMessage[];

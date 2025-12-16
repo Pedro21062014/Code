@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 const iconProps = {
@@ -265,5 +264,13 @@ export const ImageIcon = ({ className = "w-6 h-6" }: { className?: string }) => 
 export const ChevronDownIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     <svg {...iconProps} className={className} viewBox="0 0 24 24">
         <path d="M6 9l6 6l6 -6" />
+    </svg>
+);
+
+export const ClockIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg {...iconProps} className={className} viewBox="0 0 24 24">
+        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+        <path d="M12 12l3 2" />
+        <path d="M12 7v5" />
     </svg>
 );
