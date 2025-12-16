@@ -25,7 +25,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { AppLogo } from './components/Icons';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, DocumentSnapshot, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, DocumentSnapshot, collection, query, where, getDocs, deleteDoc, QueryDocumentSnapshot } from "firebase/firestore";
 
 const InitializingOverlay: React.FC<{ projectName: string; generatingFile: string }> = ({ projectName, generatingFile }) => {
   const [timeLeft, setTimeLeft] = useState(45);
@@ -161,7 +161,7 @@ export const App: React.FC = () => {
         const q = query(collection(db, "projects"), where("ownerId", "==", userId));
         const querySnapshot = await getDocs(q);
         const projects: SavedProject[] = [];
-        querySnapshot.forEach((doc) => {
+        querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
             // Ensure ID is number for app compatibility, though Firestore uses strings
             const data = doc.data();
             projects.push({
@@ -247,7 +247,7 @@ export const App: React.FC = () => {
   // Firebase Auth State Listener
   useEffect(() => {
     setIsLoadingData(true);
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         setSessionUser(user);
         const settings = await fetchUserSettings(user);
