@@ -1,7 +1,6 @@
 import React from 'react';
-import { AppLogo, TrashIcon } from './Icons';
+import { AppLogo, TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon } from './Icons';
 import { SavedProject } from '../types';
-import { useSession } from '@supabase/auth-helpers-react'; // Fictional hook, illustrates the need for session
 
 interface ProjectsPageProps {
   projects: SavedProject[];
@@ -11,67 +10,140 @@ interface ProjectsPageProps {
   onNewProject: () => void;
 }
 
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+};
+
 export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack, onNewProject }) => {
 
   const handleDelete = (e: React.MouseEvent, projectId: number) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     if (window.confirm('Tem certeza de que deseja excluir este projeto? Esta ação não pode ser desfeita.')) {
       onDeleteProject(projectId);
     }
   };
 
+  const sortedProjects = [...projects].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
   return (
-    <div className="flex flex-col min-h-screen w-screen bg-var-bg-default text-var-fg-default overflow-y-auto font-sans">
-      <header className="fixed top-0 left-0 right-0 z-10 p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <button onClick={onNewProject} className="flex items-center gap-2">
-            <AppLogo className="w-6 h-6 text-var-accent" />
-            <span className="text-var-fg-default font-semibold text-lg">codegen<span className="font-light">studio</span></span>
-          </button>
-          <button onClick={onBack} className="text-sm text-var-fg-muted hover:text-var-fg-default transition-colors">
-            &larr; Voltar
+    <div className="flex flex-col min-h-screen w-full bg-[#09090b] text-white overflow-hidden relative font-sans">
+      
+      {/* Background Gradient Mesh (Idêntico à WelcomeScreen) */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] opacity-40 animate-pulse" style={{ animationDuration: '8s' }}></div>
+         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] opacity-40 animate-pulse" style={{ animationDuration: '10s' }}></div>
+         <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
+      </div>
+
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-20 p-6">
+        <div className="container mx-auto max-w-6xl flex justify-between items-center">
+          <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity cursor-pointer" onClick={onBack}>
+             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <AppLogo className="w-5 h-5 text-white" />
+             </div>
+             <span className="font-semibold tracking-tight text-lg">codegen<span className="font-light opacity-70">studio</span></span>
+          </div>
+          <button 
+            onClick={onBack} 
+            className="px-4 py-2 rounded-full bg-[#18181b] border border-[#27272a] text-sm text-gray-400 hover:text-white hover:border-gray-600 transition-all flex items-center gap-2"
+          >
+            <span className="text-lg leading-none">&larr;</span> Voltar ao Início
           </button>
         </div>
       </header>
-      <main className="flex-1 flex flex-col items-center px-4 pt-24 pb-12">
-        <h1 className="text-5xl md:text-6xl font-bold text-var-fg-default tracking-tight">Meus Projetos</h1>
-        <p className="mt-4 text-lg text-var-fg-muted max-w-2xl">Carregue um projeto salvo para continuar trabalhando ou exclua projetos antigos.</p>
 
-        <div className="mt-12 w-full max-w-4xl">
-          {projects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).map(project => (
-                <div 
-                  key={project.id} 
-                  onClick={() => onLoadProject(project.id)}
-                  className="group relative flex flex-col justify-between bg-var-bg-subtle p-6 rounded-lg border border-var-border-default hover:border-var-accent transition-all cursor-pointer shadow-lg hover:shadow-var-accent/10"
-                >
-                  <div>
-                    <h2 className="text-lg font-semibold text-var-fg-default truncate group-hover:text-var-accent">{project.name}</h2>
-                    <p className="text-sm text-var-fg-muted mt-1">
-                      Atualizado em: {new Date(project.updated_at).toLocaleString()}
+      <main className="flex-1 flex flex-col items-center px-4 pt-32 pb-12 relative z-10 overflow-y-auto custom-scrollbar">
+        <div className="w-full max-w-6xl animate-slideInUp">
+            
+            <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+                <div>
+                    <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white mb-3">
+                        Meus Projetos
+                    </h1>
+                    <p className="text-lg text-gray-400 max-w-2xl">
+                        Gerencie seus projetos, continue de onde parou ou comece algo novo.
                     </p>
-                  </div>
-                  <button 
-                    onClick={(e) => handleDelete(e, project.id)}
-                    className="absolute top-4 right-4 p-1.5 rounded-full text-var-fg-subtle bg-var-bg-interactive opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 transition-all"
-                    aria-label="Excluir projeto"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
                 </div>
-              ))}
+                <button 
+                    onClick={onNewProject}
+                    className="flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black font-medium hover:opacity-90 transition-opacity shadow-lg shadow-white/10"
+                >
+                    <PlusIcon className="w-5 h-5" />
+                    Novo Projeto
+                </button>
             </div>
-          ) : (
-            <div className="text-center py-16 border-2 border-dashed border-var-border-default rounded-lg">
-              <h2 className="text-xl font-semibold text-var-fg-muted">
-                Nenhum projeto salvo encontrado.
-              </h2>
-              <p className="text-var-fg-subtle mt-2">
-                Use o ícone de salvar na barra lateral do editor para salvar seu trabalho.
-              </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* Create New Card (atalho na grid) */}
+                <div 
+                    onClick={onNewProject}
+                    className="group relative h-48 rounded-2xl bg-[#121214] border border-[#27272a] border-dashed hover:border-gray-500 transition-all cursor-pointer flex flex-col items-center justify-center gap-4 hover:bg-[#18181b]"
+                >
+                    <div className="w-12 h-12 rounded-full bg-[#27272a] group-hover:bg-[#3f3f46] flex items-center justify-center transition-colors">
+                        <PlusIcon className="w-6 h-6 text-gray-400 group-hover:text-white" />
+                    </div>
+                    <span className="text-gray-400 font-medium group-hover:text-white">Criar novo projeto</span>
+                </div>
+
+                {sortedProjects.map((project, index) => (
+                    <div 
+                        key={project.id} 
+                        onClick={() => onLoadProject(project.id)}
+                        className="group relative h-48 rounded-2xl bg-[#18181b] border border-[#27272a] overflow-hidden hover:border-gray-500 hover:shadow-2xl hover:shadow-purple-900/10 transition-all cursor-pointer animate-fadeIn"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                        {/* Gradient Overlay on Hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        
+                        <div className="absolute top-5 left-5 right-5 flex justify-between items-start">
+                             {/* Icon based on content (randomized visual for now, or consistent Folder) */}
+                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-inner ${
+                                 index % 3 === 0 ? 'bg-blue-900/30 text-blue-400' : 
+                                 index % 3 === 1 ? 'bg-purple-900/30 text-purple-400' : 
+                                 'bg-pink-900/30 text-pink-400'
+                             }`}>
+                                {index % 2 === 0 ? <SparklesIcon className="w-5 h-5" /> : <FolderIcon className="w-5 h-5" />}
+                             </div>
+
+                             <button 
+                                onClick={(e) => handleDelete(e, project.id)}
+                                className="p-2 rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                title="Excluir projeto"
+                            >
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="absolute bottom-5 left-5 right-5">
+                            <h2 className="text-xl font-medium text-white truncate group-hover:text-purple-200 transition-colors">
+                                {project.name}
+                            </h2>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 font-medium">
+                                <span className="flex items-center gap-1.5 bg-[#27272a] px-2 py-1 rounded-md border border-[#3f3f46]">
+                                    <ClockIcon className="w-3 h-3" />
+                                    {formatDate(project.updated_at)}
+                                </span>
+                                <span>{project.files.length} arquivos</span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
-          )}
+
+            {projects.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
+                    <div className="w-16 h-16 rounded-full bg-[#18181b] border border-[#27272a] flex items-center justify-center mb-4">
+                        <FolderIcon className="w-8 h-8 text-gray-600" />
+                    </div>
+                    <h3 className="text-xl font-medium text-white mb-2">Ainda não há projetos</h3>
+                    <p className="text-gray-500 max-w-md">
+                        Seus projetos salvos aparecerão aqui. Comece criando algo incrível com a ajuda da IA.
+                    </p>
+                </div>
+            )}
         </div>
       </main>
     </div>

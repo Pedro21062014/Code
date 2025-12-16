@@ -26,6 +26,7 @@ interface SidebarProps {
   session: Session | null;
   onLogin: () => void;
   onLogout: () => void;
+  isOfflineMode?: boolean;
 }
 
 const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => {
@@ -170,7 +171,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onClose,
     session,
     onLogin,
-    onLogout
+    onLogout,
+    isOfflineMode
 }) => {
   const [activeTab, setActiveTab] = React.useState('files');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: ProjectFile } | null>(null);
@@ -220,10 +222,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className="bg-[#09090b] flex h-full border-r border-[#27272a] select-none w-full">
         {/* Narrow Sidebar (Icons) */}
         <div className="w-[60px] flex flex-col items-center py-4 gap-6 border-r border-[#27272a] bg-[#09090b] flex-shrink-0">
-            <div className="mb-2">
+            <div className="mb-2 relative">
                 <button onClick={onNewProject} className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-white shadow-lg hover:opacity-90 transition-opacity">
                     <AppLogo className="w-6 h-6" />
                 </button>
+                {/* Offline Indicator */}
+                {isOfflineMode && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-[#09090b] shadow-sm" title="Modo Offline (LocalStorage)"></div>
+                )}
             </div>
             
             <div className="flex flex-col gap-3 w-full items-center">
@@ -258,6 +264,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                 )}
             </div>
+
+            {isOfflineMode && (
+                <div className="bg-amber-900/20 text-amber-500 text-[10px] px-4 py-1.5 text-center font-medium border-b border-amber-900/30">
+                    Modo Offline Ativo (Local)
+                </div>
+            )}
 
             {activeTab === 'files' && (
                 <div className="flex-1 overflow-y-auto py-2">

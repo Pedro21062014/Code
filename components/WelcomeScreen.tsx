@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PaperclipIcon, ChatIcon, PlusIcon, ChevronDownIcon } from './Icons';
-import type { Session } from '@supabase/supabase-js';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon } from './Icons';
+import { User } from 'firebase/auth';
 import { ProjectFile } from '../types';
 import { AI_MODELS } from '../constants';
+import { UserMenu } from './UserMenu';
 
 interface WelcomeScreenProps {
   onPromptSubmit: (prompt: string, model: string) => void;
@@ -10,10 +11,11 @@ interface WelcomeScreenProps {
   onShowProjects: () => void;
   onOpenGithubImport: () => void;
   onFolderImport: (files: ProjectFile[]) => void;
-  session: Session | null;
+  session: { user: User } | null;
   onLoginClick: () => void;
   onNewProject: () => void;
   onLogout: () => void;
+  onOpenSettings?: () => void;
 }
 
 const getFileLanguage = (fileName: string): string => {
@@ -34,7 +36,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onOpenGithubImport, 
     onFolderImport, 
     session, 
-    onShowProjects 
+    onShowProjects,
+    onLoginClick,
+    onLogout,
+    onOpenSettings = () => {}
 }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
@@ -77,7 +82,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       if (folderInputRef.current) folderInputRef.current.value = "";
   };
 
-  const userName = session?.user?.user_metadata?.name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'dev';
+  const userName = session?.user?.email?.split('@')[0] || 'dev';
   const selectedModelName = AI_MODELS.find(m => m.id === selectedModel)?.name || 'Model';
 
   return (
@@ -88,6 +93,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] opacity-40 animate-pulse" style={{ animationDuration: '8s' }}></div>
          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] opacity-40 animate-pulse" style={{ animationDuration: '10s' }}></div>
          <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
+      </div>
+
+      <div className="absolute top-6 right-6 z-50">
+          <UserMenu 
+              user={session?.user || null} 
+              onLogin={onLoginClick} 
+              onLogout={onLogout} 
+              onOpenSettings={onOpenSettings}
+          />
       </div>
 
       <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 w-full max-w-5xl mx-auto">

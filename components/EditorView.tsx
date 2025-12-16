@@ -17,6 +17,7 @@ interface EditorViewProps {
   onClearError: () => void;
   onError: (errorMessage: string) => void;
   envVars: Record<string, string>;
+  headerRightContent?: React.ReactNode;
 }
 
 const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
@@ -25,13 +26,19 @@ const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
     </pre>
 );
 
-const EditorHeader: React.FC<{ projectName: string; onRunLocally: () => void; theme: Theme; onThemeChange: (theme: Theme) => void }> = ({ projectName, onRunLocally, theme, onThemeChange }) => (
-    <div className="flex items-center justify-between px-4 py-2 border-b border-[#27272a] bg-[#121214] flex-shrink-0">
+const EditorHeader: React.FC<{ 
+    projectName: string; 
+    onRunLocally: () => void; 
+    theme: Theme; 
+    onThemeChange: (theme: Theme) => void;
+    rightContent?: React.ReactNode;
+}> = ({ projectName, onRunLocally, theme, onThemeChange, rightContent }) => (
+    <div className="flex items-center justify-between px-4 py-2 border-b border-[#27272a] bg-[#121214] flex-shrink-0 h-14">
         <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project</span>
             <span className="text-sm text-gray-200 font-medium">{projectName}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
             {/* Theme toggler hidden as we are enforcing Dark Mode for Lovable UI consistency, but kept for logic compatibility */}
              <button
                 onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
@@ -46,6 +53,7 @@ const EditorHeader: React.FC<{ projectName: string; onRunLocally: () => void; th
                 <TerminalIcon />
                 <span>Run Local</span>
             </button>
+            {rightContent}
         </div>
     </div>
 );
@@ -90,7 +98,7 @@ const Toast: React.FC<{ message: string; onFix: () => void; onClose: () => void 
 };
 
 
-export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, onRunLocally, codeError, onFixCode, onClearError, onError, envVars }) => {
+export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, onRunLocally, codeError, onFixCode, onClearError, onError, envVars, headerRightContent }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
 
   const selectedFile = files.find(f => f.name === activeFile);
@@ -104,7 +112,7 @@ export const EditorView: React.FC<EditorViewProps> = ({ files, activeFile, proje
 
   return (
     <div className="flex flex-col h-full bg-[#121214]">
-      <EditorHeader projectName={projectName} onRunLocally={onRunLocally} theme={theme} onThemeChange={onThemeChange} />
+      <EditorHeader projectName={projectName} onRunLocally={onRunLocally} theme={theme} onThemeChange={onThemeChange} rightContent={headerRightContent} />
       
       {/* File Tabs & Mode Switcher */}
       <div className="flex items-center justify-between border-b border-[#27272a] bg-[#09090b] flex-shrink-0 h-10">
