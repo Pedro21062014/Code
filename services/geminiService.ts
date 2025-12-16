@@ -9,9 +9,15 @@ ${file.content}
 \`\`\`
 `).join('\n');
 
-  const envContent = Object.keys(envVars).length > 0
-    ? `The following environment variables are available to the project via 'process.env.VARIABLE_NAME':\n${JSON.stringify(envVars, null, 2)}`
-    : "No environment variables are currently set.";
+  // Safely stringify envVars
+  let envString = "No environment variables are currently set.";
+  if (Object.keys(envVars).length > 0) {
+      try {
+          envString = `The following environment variables are available to the project via 'process.env.VARIABLE_NAME':\n${JSON.stringify(envVars, null, 2)}`;
+      } catch (e) {
+          envString = "Error serializing environment variables.";
+      }
+  }
 
   return `You are an expert senior full-stack engineer specializing in creating complete, functional, and aesthetically pleasing web applications.
 - Your primary goal is to generate all necessary code files based on the user's prompt. You are proficient in a wide range of web technologies including HTML, CSS, JavaScript, TypeScript, React, Vue, Svelte, Node.js, and more.
@@ -48,7 +54,7 @@ ${file.content}
 Current project files:
 ${fileContent.length > 0 ? fileContent : "Nenhum arquivo existe ainda."}
 
-${envContent}
+${envString}
 `;
 };
 
@@ -102,9 +108,10 @@ export const generateCodeStreamWithGemini = async (
   } catch (error) {
     console.error("Error calling Gemini API:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    // IMPORTANT: Do NOT include existingFiles in the error JSON. 
+    // It can contain circular references or be too large, causing JSON.stringify to fail.
     const errorJson = JSON.stringify({
-        message: `Ocorreu um erro ao chamar a API do Gemini: ${errorMessage}. Por favor, verifique sua chave de API e a conexão com a internet.`,
-        files: existingFiles
+        message: `Ocorreu um erro ao chamar a API do Gemini: ${errorMessage}. Por favor, verifique sua chave de API e a conexão com a internet.`
     });
     // We don't call onChunk here because the final error is handled in App.tsx
     // onChunk(errorJson);
