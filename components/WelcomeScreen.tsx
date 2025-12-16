@@ -1,7 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon } from './Icons';
-import { User } from 'firebase/auth';
-import { ProjectFile } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon } from './Icons';
+import { ProjectFile, SavedProject } from '../types';
 import { AI_MODELS } from '../constants';
 import { UserMenu } from './UserMenu';
 
@@ -11,11 +10,13 @@ interface WelcomeScreenProps {
   onShowProjects: () => void;
   onOpenGithubImport: () => void;
   onFolderImport: (files: ProjectFile[]) => void;
-  session: { user: User } | null;
+  session: { user: any } | null;
   onLoginClick: () => void;
   onNewProject: () => void;
   onLogout: () => void;
   onOpenSettings?: () => void;
+  recentProjects?: SavedProject[];
+  onLoadProject?: (id: number) => void;
 }
 
 const getFileLanguage = (fileName: string): string => {
@@ -31,6 +32,29 @@ const getFileLanguage = (fileName: string): string => {
     }
 }
 
+const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return `há ${Math.floor(interval)} anos`;
+    
+    interval = seconds / 2592000;
+    if (interval > 1) return `há ${Math.floor(interval)} meses`;
+    
+    interval = seconds / 86400;
+    if (interval > 1) return `há ${Math.floor(interval)} dias`;
+    
+    interval = seconds / 3600;
+    if (interval > 1) return `há ${Math.floor(interval)} horas`;
+    
+    interval = seconds / 60;
+    if (interval > 1) return `há ${Math.floor(interval)} minutos`;
+    
+    return "agora mesmo";
+};
+
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ 
     onPromptSubmit, 
     onOpenGithubImport, 
@@ -39,11 +63,30 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onShowProjects,
     onLoginClick,
     onLogout,
-    onOpenSettings = () => {}
+    onOpenSettings = () => {},
+    recentProjects = [],
+    onLoadProject = (_: number) => {}
 }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get top 2 most recent projects
+  const displayProjects = [...recentProjects]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, 2);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            setIsModelDropdownOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -80,6 +123,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       const projectFiles = results.filter((f): f is ProjectFile => f !== null);
       if (projectFiles.length > 0) onFolderImport(projectFiles);
       if (folderInputRef.current) folderInputRef.current.value = "";
+  };
+
+  const getModelIcon = (modelId: string) => {
+    if (modelId.includes('gemini')) return <GeminiIcon className="w-3.5 h-3.5" />;
+    if (modelId.includes('gpt')) return <OpenAIIcon className="w-3.5 h-3.5" />;
+    if (modelId.includes('deepseek')) return <DeepSeekIcon className="w-3.5 h-3.5" />;
+    return <SparklesIcon className="w-3.5 h-3.5" />;
   };
 
   const userName = session?.user?.email?.split('@')[0] || 'dev';
@@ -149,24 +199,40 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {/* Model Selector */}
-                        <div className="relative flex items-center">
-                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] text-xs font-medium text-gray-400 border border-[#27272a] hover:border-gray-600 transition-colors pointer-events-none">
-                                <SparklesIcon className="w-3.5 h-3.5" />
+                        {/* Model Selector Dropdown */}
+                        <div className="relative" ref={dropdownRef}>
+                             <button 
+                                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs font-medium text-gray-300 transition-colors border border-[#27272a] hover:border-gray-600"
+                            >
+                                {getModelIcon(selectedModel)}
                                 <span className="truncate max-w-[100px]">{selectedModelName}</span>
                                 <ChevronDownIcon className="w-3 h-3 text-gray-500" />
-                            </div>
-                            <select
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value)}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            >
-                                {AI_MODELS.map(m => (
-                                    <option key={m.id} value={m.id} className="text-black bg-white">
-                                        {m.name}
-                                    </option>
-                                ))}
-                            </select>
+                            </button>
+
+                            {isModelDropdownOpen && (
+                                <div className="absolute bottom-full mb-2 right-0 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn">
+                                    <div className="p-1">
+                                        {AI_MODELS.map(model => (
+                                            <button
+                                                key={model.id}
+                                                onClick={() => {
+                                                    setSelectedModel(model.id);
+                                                    setIsModelDropdownOpen(false);
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                                    selectedModel === model.id 
+                                                        ? 'bg-[#27272a] text-white' 
+                                                        : 'text-gray-400 hover:bg-[#27272a] hover:text-gray-200'
+                                                }`}
+                                            >
+                                                {getModelIcon(model.id)}
+                                                {model.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] text-xs font-medium text-gray-400 border border-[#27272a]">
@@ -191,43 +257,53 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="w-full max-w-5xl mt-16 animate-slideInUp" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center justify-between mb-4">
                 <div className="flex gap-4">
-                    <button className="px-4 py-1.5 rounded-full bg-[#18181b] border border-[#27272a] text-sm text-white font-medium">Recently viewed</button>
-                    <button onClick={onShowProjects} className="px-4 py-1.5 rounded-full hover:bg-[#18181b] text-sm text-gray-400 hover:text-white transition-colors">My projects</button>
-                    <button className="px-4 py-1.5 rounded-full hover:bg-[#18181b] text-sm text-gray-400 hover:text-white transition-colors">Templates</button>
+                    <button className="px-4 py-1.5 rounded-full bg-[#18181b] border border-[#27272a] text-sm text-white font-medium">
+                        {displayProjects.length > 0 ? "Vistos Recentemente" : "Começar Agora"}
+                    </button>
+                    <button onClick={onShowProjects} className="px-4 py-1.5 rounded-full hover:bg-[#18181b] text-sm text-gray-400 hover:text-white transition-colors">Meus Projetos</button>
                 </div>
-                <button onClick={onShowProjects} className="text-sm text-gray-400 hover:text-white flex items-center gap-1 transition-colors">
-                    Browse all <span className="text-lg">→</span>
-                </button>
+                {displayProjects.length > 0 && (
+                    <button onClick={onShowProjects} className="text-sm text-gray-400 hover:text-white flex items-center gap-1 transition-colors">
+                        Ver todos <span className="text-lg">→</span>
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Example Card 1 */}
-                <div className="group relative h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-600 transition-all cursor-pointer">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50"></div>
-                    <div className="absolute top-4 left-4">
-                         <div className="w-8 h-8 rounded bg-blue-900/30 flex items-center justify-center text-blue-400">
-                            <SparklesIcon />
-                         </div>
-                    </div>
-                    <div className="absolute bottom-4 left-4">
-                        <h3 className="text-white font-medium">Novo App React</h3>
-                        <p className="text-xs text-gray-500">Editado há 2 horas</p>
-                    </div>
-                </div>
-
-                 {/* Example Card 2 */}
-                <div className="group relative h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-600 transition-all cursor-pointer">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-50"></div>
-                     <div className="absolute top-4 left-4">
-                         <div className="w-8 h-8 rounded bg-purple-900/30 flex items-center justify-center text-purple-400">
-                            <FolderIcon />
-                         </div>
-                    </div>
-                    <div className="absolute bottom-4 left-4">
-                        <h3 className="text-white font-medium">Dashboard Financeiro</h3>
-                        <p className="text-xs text-gray-500">Editado ontem</p>
-                    </div>
-                </div>
+                {displayProjects.length > 0 ? (
+                    displayProjects.map((project, index) => (
+                        <div 
+                            key={project.id}
+                            onClick={() => onLoadProject(project.id)}
+                            className="group relative h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-600 transition-all cursor-pointer"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                            <div className="absolute top-4 left-4">
+                                <div className={`w-8 h-8 rounded bg-[#27272a] flex items-center justify-center ${index % 2 === 0 ? 'text-blue-400' : 'text-purple-400'}`}>
+                                    {index % 2 === 0 ? <SparklesIcon className="w-5 h-5" /> : <FolderIcon className="w-5 h-5" />}
+                                </div>
+                            </div>
+                            <div className="absolute bottom-4 left-4 right-4">
+                                <h3 className="text-white font-medium truncate">{project.name}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <ClockIcon className="w-3 h-3 text-gray-500" />
+                                    <p className="text-xs text-gray-500">{getTimeAgo(project.updated_at)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <>
+                        <div className="group relative h-40 rounded-xl bg-[#121214] border border-[#27272a] border-dashed flex flex-col items-center justify-center gap-3 text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors cursor-pointer" onClick={() => folderInputRef.current?.click()}>
+                            <FolderIcon className="w-8 h-8 opacity-50" />
+                            <span className="text-sm">Abrir pasta local</span>
+                        </div>
+                        <div className="group relative h-40 rounded-xl bg-[#121214] border border-[#27272a] border-dashed flex flex-col items-center justify-center gap-3 text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors cursor-pointer" onClick={onOpenGithubImport}>
+                            <GithubIcon className="w-8 h-8 opacity-50" />
+                            <span className="text-sm">Clonar do GitHub</span>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
 

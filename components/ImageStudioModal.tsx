@@ -69,14 +69,14 @@ export const ImageStudioModal: React.FC<ImageStudioModalProps> = ({ isOpen, onCl
       onClick={onClose}
     >
       <div 
-        className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-4xl p-6 border border-var-border-default animate-slideInUp flex flex-col max-h-[90vh]"
+        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-4xl p-6 border border-[#27272a] animate-slideInUp flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 className="text-xl font-semibold text-var-fg-default flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <ImageIcon /> Gerador de Imagem AI
           </h2>
-          <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
             <CloseIcon />
           </button>
         </div>
@@ -85,31 +85,31 @@ export const ImageStudioModal: React.FC<ImageStudioModalProps> = ({ isOpen, onCl
             {/* Controls */}
             <div className="w-1/3 flex flex-col gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-var-fg-muted mb-1">Prompt</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Prompt</label>
                     <textarea 
                         value={prompt}
                         onChange={e => setPrompt(e.target.value)}
                         placeholder="Ex: Um robô fofo segurando um skate vermelho, estilo de arte digital."
-                        className="w-full p-2 h-32 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50 resize-none"
+                        className="w-full p-2 h-32 bg-[#27272a] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-var-fg-muted mb-1">Nº de Imagens</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Nº de Imagens</label>
                     <input 
                         type="number"
                         min="1"
                         max="4"
                         value={numberOfImages}
                         onChange={e => setNumberOfImages(parseInt(e.target.value))}
-                        className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default"
+                        className="w-full p-2 bg-[#27272a] border border-[#3f3f46] rounded-md text-white"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-var-fg-muted mb-1">Proporção</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Proporção</label>
                     <select
                         value={aspectRatio}
                         onChange={e => setAspectRatio(e.target.value)}
-                         className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default"
+                         className="w-full p-2 bg-[#27272a] border border-[#3f3f46] rounded-md text-white"
                     >
                         {aspectRatios.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
@@ -117,7 +117,7 @@ export const ImageStudioModal: React.FC<ImageStudioModalProps> = ({ isOpen, onCl
                 <button
                     onClick={handleGenerate}
                     disabled={isLoading}
-                    className="w-full mt-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-var-accent-fg bg-var-accent hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait"
+                    className="w-full mt-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-black bg-white hover:bg-gray-200 transition-opacity disabled:opacity-50 disabled:cursor-wait"
                 >
                     <SparklesIcon /> {isLoading ? 'Gerando...' : 'Gerar Imagens'}
                 </button>
@@ -125,14 +125,14 @@ export const ImageStudioModal: React.FC<ImageStudioModalProps> = ({ isOpen, onCl
             </div>
 
             {/* Image Display */}
-            <div className="w-2/3 bg-var-bg-muted rounded-lg p-4 overflow-y-auto">
+            <div className="w-2/3 bg-[#121214] rounded-lg p-4 overflow-y-auto">
                 {isLoading && (
-                    <div className="flex items-center justify-center h-full text-var-fg-muted">
+                    <div className="flex items-center justify-center h-full text-gray-400">
                         <svg className="animate-spin h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     </div>
                 )}
                 {!isLoading && generatedImages.length === 0 && (
-                     <div className="flex flex-col items-center justify-center h-full text-var-fg-muted">
+                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                         <ImageIcon />
                         <p className="mt-2">Suas imagens geradas aparecerão aqui.</p>
                     </div>
@@ -149,7 +149,7 @@ export const ImageStudioModal: React.FC<ImageStudioModalProps> = ({ isOpen, onCl
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <button
                                         onClick={() => handleSave(imgData)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-var-accent text-var-accent-fg rounded-lg font-semibold hover:opacity-90"
+                                        className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg font-semibold hover:bg-gray-200"
                                     >
                                         <SaveIcon /> Salvar no Projeto
                                     </button>

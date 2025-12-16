@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SettingsIcon, LogOutIcon, LogInIcon } from './Icons';
-import { User } from 'firebase/auth';
 
 interface UserMenuProps {
-  user: User | null;
+  user: any | null;
   onLogin: () => void;
   onLogout: () => void;
   onOpenSettings: () => void;

@@ -16,7 +16,24 @@ const getSystemPrompt = (files: any[], envVars = {}) => {
 - For React projects, use functional components, TypeScript (.tsx), and hooks.
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
-- If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. You have the ability to execute SQL queries on the user's Supabase database.
+
+- **IMPORTANT: ARCHITECTURE FOR FULL-STACK APPS**:
+  - You are generating a Client-Side Single Page Application (SPA) that runs in a browser preview.
+  - **DO NOT** generate a separate Node.js/Express backend (e.g., \`server.js\`) because it cannot run in the browser preview environment.
+  - Instead, use **Supabase** as your Backend-as-a-Service (BaaS) for database, authentication, and realtime features.
+  - If the user asks for a database, login, persistence, or "fullstack" features:
+    1.  **Services File**: Create a file named \`services/supabase.ts\`. This file must initialize the Supabase client using environment variables:
+        \`\`\`typescript
+        import { createClient } from '@supabase/supabase-js';
+        const supabaseUrl = process.env.SUPABASE_URL || '';
+        const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+        export const supabase = createClient(supabaseUrl, supabaseKey);
+        \`\`\`
+    2.  **Environment Variables**: In your JSON response, you MUST include \`SUPABASE_URL\` and \`SUPABASE_ANON_KEY\` in the \`environmentVariables\` object.
+    3.  **Database Setup**: In the \`supabaseAdminAction\` field of your JSON response, provide the exact SQL query to create the necessary tables.
+    4.  **User Instructions**: In the \`message\` field, explicitly tell the user to connect their Supabase account in the "Integrations" menu to make the app work.
+    5.  **Frontend Logic**: Write React components that import \`supabase\` from \`../services/supabase\` and interact with the database directly.
+
 - SPECIAL COMMAND: If the user's prompt includes the word "ia" (Portuguese for "AI"), you must integrate a client-side Gemini AI feature into the project. To do this:
   - 1. Create a new file 'services/gemini.ts'. This file should initialize the GoogleGenAI client and export a function to call the Gemini model.
   - 2. The API key for this service MUST be read from an environment variable named 'GEMINI_API_KEY' (e.g., 'process.env.GEMINI_API_KEY').

@@ -24,8 +24,8 @@ import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { AppLogo } from './components/Icons';
 import { auth, db } from './services/firebase';
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, DocumentSnapshot, collection, query, where, getDocs, deleteDoc, QueryDocumentSnapshot } from "firebase/firestore";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
 
 const InitializingOverlay: React.FC<{ projectName: string; generatingFile: string }> = ({ projectName, generatingFile }) => {
   const [timeLeft, setTimeLeft] = useState(45);
@@ -113,7 +113,9 @@ export const App: React.FC = () => {
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
-  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>();
+  
+  // Start with a default view to avoid blocking rendering
+  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -137,7 +139,8 @@ export const App: React.FC = () => {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
-  const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [sessionUser, setSessionUser] = useState<any | null>(null);
+  // We don't block on loading anymore, but we track it for background sync
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [postLoginAction, setPostLoginAction] = useState<(() => void) | null>(null);
 
@@ -161,7 +164,7 @@ export const App: React.FC = () => {
         const q = query(collection(db, "projects"), where("ownerId", "==", userId));
         const querySnapshot = await getDocs(q);
         const projects: SavedProject[] = [];
-        querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
+        querySnapshot.forEach((doc: any) => {
             // Ensure ID is number for app compatibility, though Firestore uses strings
             const data = doc.data();
             projects.push({
@@ -186,7 +189,7 @@ export const App: React.FC = () => {
   }, [setSavedProjects]);
 
   // --- Data Fetching and Auth ---
-  const fetchUserSettings = useCallback(async (user: User): Promise<UserSettings | null> => {
+  const fetchUserSettings = useCallback(async (user: any): Promise<UserSettings | null> => {
     const localDataKey = `user_settings_${user.uid}`;
     
     // 1. Retrieve from local storage immediately for fast UI
@@ -214,7 +217,7 @@ export const App: React.FC = () => {
       const docSnap = await Promise.race([
           getDoc(docRef),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 2000))
-      ]) as DocumentSnapshot;
+      ]) as any;
 
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -247,7 +250,7 @@ export const App: React.FC = () => {
   // Firebase Auth State Listener
   useEffect(() => {
     setIsLoadingData(true);
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
         setSessionUser(user);
         const settings = await fetchUserSettings(user);
@@ -346,8 +349,7 @@ export const App: React.FC = () => {
 
   // Effect to handle initial view logic, including URL parsing
   useEffect(() => {
-    if (view) return; // Already determined
-
+    // Determine view if not set, or if we have URL params to process
     const urlParams = new URLSearchParams(window.location.search);
     const projectIdStr = urlParams.get('projectId');
     
@@ -361,12 +363,11 @@ export const App: React.FC = () => {
       }
     }
     
-    // Fallback to default logic if no valid project ID in URL
-    if (files.length > 0) {
-      setView('editor');
-    } else {
-      setView('welcome');
+    // Set default view if undefined
+    if (!view) {
+        setView(files.length > 0 ? 'editor' : 'welcome');
     }
+
   }, [view, savedProjects, files.length, handleLoadProject, canManipulateHistory]);
 
 
@@ -799,20 +800,14 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (isLoadingData || !view) {
-    return (
-        <div className={`${theme} flex flex-col items-center justify-center h-screen bg-var-bg-default text-var-fg-default`}>
-            <AppLogo className="w-12 h-12 text-var-accent animate-pulse" style={{ animationDuration: '2s' }} />
-            <p className="mt-4 text-lg">Carregando...</p>
-        </div>
-    );
-  }
-
   // Helper to cast user for props
   const sessionUserForProps: any = sessionUser ? { user: sessionUser } : null;
 
   const mainContent = () => {
-    switch (view) {
+    // Determine the current view directly from state or fallback
+    const currentView = view;
+
+    switch (currentView) {
       case 'welcome':
         return <WelcomeScreen 
           session={sessionUserForProps}
@@ -828,6 +823,8 @@ export const App: React.FC = () => {
           onNewProject={handleNewProject}
           onLogout={handleLogout}
           onOpenSettings={handleOpenSettings}
+          recentProjects={savedProjects}
+          onLoadProject={(id) => handleLoadProject(id, false)} // Load without confirmation from welcome screen
         />;
       case 'pricing':
         return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} onNewProject={handleNewProject} />;
@@ -888,7 +885,7 @@ export const App: React.FC = () => {
           </div>
         );
       default:
-        return <div>Unknown view</div>;
+        return <div className="p-10 text-center text-white">Carregando view...</div>;
     }
   };
 
