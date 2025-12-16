@@ -66,23 +66,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       onClick={onClose}
     >
       <div 
-        className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-md p-6 border border-var-border-default animate-slideInUp"
+        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-md p-6 border border-[#27272a] animate-slideInUp"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-var-fg-default">Configurações</h2>
-          <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
+          <h2 className="text-xl font-semibold text-white">Configurações</h2>
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
             <CloseIcon />
           </button>
         </div>
         
-        <div className="space-y-4 text-var-fg-default">
-            <div className="p-4 bg-var-bg-interactive rounded-lg border border-var-border-default">
+        <div className="space-y-4 text-white">
+            <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
                 <div className="flex items-center gap-3 mb-2">
                     <KeyIcon />
-                    <h3 className="font-semibold text-var-fg-default">Chave de API do Gemini</h3>
+                    <h3 className="font-semibold text-white">Chave de API do Gemini</h3>
                 </div>
-                <p className="text-xs text-var-fg-muted mb-3">
+                <p className="text-xs text-gray-400 mb-3">
                     Sua chave de API do Google Gemini é necessária. Ela é armazenada com segurança no seu perfil.
                 </p>
                 <div className="flex items-center gap-2">
@@ -94,29 +94,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             setGeminiTestStatus({ status: 'idle', message: '' });
                         }}
                         placeholder="Cole sua chave de API aqui"
-                        className="w-full p-2 bg-var-bg-subtle border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50"
+                        className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     />
                      <button
                         onClick={handleGeminiTest}
                         disabled={geminiTestStatus.status === 'testing' || !geminiKey}
-                        className="px-3 py-2 text-xs font-medium text-var-fg-default bg-var-bg-interactive border border-var-border-default rounded-md hover:bg-var-bg-default disabled:opacity-50 disabled:cursor-wait"
+                        className="px-3 py-2 text-xs font-medium text-white bg-[#18181b] border border-[#3f3f46] rounded-md hover:bg-[#3f3f46] disabled:opacity-50 disabled:cursor-wait"
                      >
                          {geminiTestStatus.status === 'testing' ? '...' : 'Testar'}
                     </button>
                 </div>
                  {geminiTestStatus.message && (
-                    <p className={`text-xs mt-2 ${geminiTestStatus.status === 'success' ? 'text-green-400' : geminiTestStatus.status === 'error' ? 'text-red-400' : 'text-var-fg-muted'}`}>
+                    <p className={`text-xs mt-2 ${geminiTestStatus.status === 'success' ? 'text-green-400' : geminiTestStatus.status === 'error' ? 'text-red-400' : 'text-gray-400'}`}>
                         {geminiTestStatus.message}
                     </p>
                 )}
             </div>
 
-            <div className="p-4 bg-var-bg-interactive rounded-lg border border-var-border-default">
+            <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
                 <div className="flex items-center gap-3 mb-2">
                     <GithubIcon />
-                    <h3 className="font-semibold text-var-fg-default">Token de Acesso do GitHub</h3>
+                    <h3 className="font-semibold text-white">Token de Acesso do GitHub</h3>
                 </div>
-                <p className="text-xs text-var-fg-muted mb-3">
+                <p className="text-xs text-gray-400 mb-3">
                     Forneça um token para importar repositórios privados e aumentar os limites da API.
                 </p>
                 <div className="flex items-center gap-2">
@@ -125,11 +125,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         value={githubToken}
                         onChange={(e) => setGithubToken(e.target.value)}
                         placeholder="Cole seu token aqui (ex: ghp_...)"
-                        className="w-full p-2 bg-var-bg-subtle border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50"
+                        className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     />
                 </div>
-                 <p className="text-xs text-var-fg-muted mt-2">
-                   O token precisa ter escopo de <code className="bg-var-bg-default px-1 py-0.5 rounded-sm text-xs font-mono">repo</code>.
+                 <p className="text-xs text-gray-400 mt-2">
+                   O token precisa ter escopo de <code className="bg-[#18181b] px-1 py-0.5 rounded-sm text-xs font-mono">repo</code>.
                 </p>
             </div>
         </div>
@@ -137,7 +137,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-md text-sm font-medium text-var-accent-fg bg-var-accent hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-var-bg-subtle focus:ring-var-accent"
+            className="px-4 py-2 rounded-md text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors focus:outline-none"
           >
             Salvar e Fechar
           </button>

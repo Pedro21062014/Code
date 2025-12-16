@@ -33,19 +33,19 @@ export const NeonModal: React.FC<NeonModalProps> = ({ isOpen, onClose, settings,
       onClick={onClose}
     >
       <div 
-        className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-lg p-6 border border-var-border-default animate-slideInUp"
+        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-lg p-6 border border-[#27272a] animate-slideInUp"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-var-fg-default flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <DatabaseIcon /> Gerenciar Integração Neon
           </h2>
-          <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
             <CloseIcon />
           </button>
         </div>
         
-        <p className="text-var-fg-muted text-sm mb-4">
+        <p className="text-gray-400 text-sm mb-4">
           Forneça a string de conexão do seu banco de dados Neon (Postgres) para permitir que a IA gere código de backend que interaja com ele. Você pode encontrá-la no painel do seu projeto Neon.
         </p>
 
@@ -60,7 +60,7 @@ export const NeonModal: React.FC<NeonModalProps> = ({ isOpen, onClose, settings,
               value={connectionString}
               onChange={(e) => setConnectionString(e.target.value)}
               placeholder="postgresql://user:password@host:port/dbname"
-              className="w-full p-2 bg-var-bg-subtle border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-red-500/50 font-mono text-xs"
+              className="w-full p-2 bg-[#121214] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 font-mono text-xs"
             />
           </div>
         </div>

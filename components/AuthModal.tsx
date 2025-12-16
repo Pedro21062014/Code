@@ -73,29 +73,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center animate-fadeIn" onClick={onClose}>
-      <div className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-sm p-8 border border-var-border-default animate-slideInUp relative" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-sm p-8 border border-[#27272a] animate-slideInUp relative" onClick={e => e.stopPropagation()}>
         <div className="flex justify-center flex-col items-center mb-6">
-            <AppLogo className="w-10 h-10 text-var-accent mb-2" />
-            <h2 className="text-2xl font-bold text-var-fg-default">{isLoginView ? 'Bem-vindo de volta' : 'Crie sua conta'}</h2>
-            <p className="text-sm text-var-fg-muted">
+            <AppLogo className="w-10 h-10 text-white mb-2" />
+            <h2 className="text-2xl font-bold text-white">{isLoginView ? 'Bem-vindo de volta' : 'Crie sua conta'}</h2>
+            <p className="text-sm text-gray-400">
                 {isLoginView ? 'Faça login para continuar.' : 'Comece a construir seus projetos.'}
             </p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
             <div>
-                <label htmlFor="email" className="block text-sm font-medium text-var-fg-muted mb-1">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">Email</label>
                 <input
                     id="email"
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50"
+                    className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>
             <div>
-                 <label htmlFor="password"className="block text-sm font-medium text-var-fg-muted mb-1">Senha</label>
+                 <label htmlFor="password"className="block text-sm font-medium text-gray-400 mb-1">Senha</label>
                 <input
                     id="password"
                     type="password"
@@ -103,24 +103,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     onChange={e => setPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-var-accent/50"
+                    className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 />
             </div>
             
             {error && <p className="text-sm text-red-400">{error}</p>}
             {message && <p className="text-sm text-green-400">{message}</p>}
 
-            <button type="submit" disabled={loading} className="w-full py-2.5 px-4 bg-var-accent text-var-accent-fg font-semibold rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait">
+            <button type="submit" disabled={loading} className="w-full py-2.5 px-4 bg-white text-black font-semibold rounded-md hover:bg-gray-200 transition-opacity disabled:opacity-50 disabled:cursor-wait">
                 {loading ? 'Processando...' : (isLoginView ? 'Login' : 'Registrar')}
             </button>
         </form>
 
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-var-border-default"></span>
+            <span className="w-full border-t border-[#27272a]"></span>
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-var-bg-subtle px-2 text-var-fg-muted">OU</span>
+            <span className="bg-[#18181b] px-2 text-gray-500">OU</span>
           </div>
         </div>
 
@@ -128,7 +128,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           type="button" 
           onClick={handleGoogleLogin} 
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-var-bg-interactive border border-var-border-default text-var-fg-default font-semibold rounded-md hover:bg-var-bg-default transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-[#27272a] border border-[#27272a] text-white font-semibold rounded-md hover:bg-[#3f3f46] transition-colors disabled:opacity-50"
         >
           <GoogleIcon />
           Continuar com Google
@@ -136,15 +136,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
 
          <div className="mt-6 text-center">
-            <p className="text-sm text-var-fg-muted">
+            <p className="text-sm text-gray-400">
                 {isLoginView ? "Não tem uma conta?" : "Já tem uma conta?"}{' '}
-                <button onClick={() => { setIsLoginView(!isLoginView); setError(null); setMessage(null); }} className="font-semibold text-var-accent hover:underline">
+                <button onClick={() => { setIsLoginView(!isLoginView); setError(null); setMessage(null); }} className="font-semibold text-white hover:underline">
                      {isLoginView ? "Registre-se" : "Faça Login"}
                 </button>
             </p>
         </div>
 
-        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
           <CloseIcon />
         </button>
       </div>

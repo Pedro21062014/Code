@@ -39,41 +39,41 @@ export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, 
       onClick={onClose}
     >
       <div 
-        className="bg-var-bg-subtle rounded-lg shadow-xl w-full max-w-lg p-6 border border-var-border-default animate-slideInUp"
+        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-lg p-6 border border-[#27272a] animate-slideInUp"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-var-fg-default flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <SupabaseIcon /> Gerenciar Integração Supabase
           </h2>
-          <button onClick={onClose} className="p-1 rounded-md text-var-fg-muted hover:bg-var-bg-interactive">
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
             <CloseIcon />
           </button>
         </div>
         
-        <p className="text-var-fg-muted text-sm mb-4">
+        <p className="text-gray-400 text-sm mb-4">
           Forneça as credenciais do seu projeto Supabase para permitir que a IA interaja com seu banco de dados. Você pode encontrá-las em seu Painel Supabase em Configurações do Projeto &gt; API.
         </p>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-var-fg-default mb-1">URL do Projeto</label>
+            <label className="block text-sm font-medium text-white mb-1">URL do Projeto</label>
             <input
               type="text"
               value={projectUrl}
               onChange={(e) => setProjectUrl(e.target.value)}
               placeholder="https://seu-projeto-ref.supabase.co"
-              className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-green-500/50"
+              className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-var-fg-default mb-1">Chave Anon (Pública)</label>
+            <label className="block text-sm font-medium text-white mb-1">Chave Anon (Pública)</label>
             <input
               type="password"
               value={anonKey}
               onChange={(e) => setAnonKey(e.target.value)}
               placeholder="Sua chave pública anon"
-              className="w-full p-2 bg-var-bg-interactive border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-green-500/50"
+              className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50"
             />
           </div>
            <div className="p-3 bg-red-900/50 border border-red-700/50 rounded-lg">
@@ -86,7 +86,7 @@ export const SupabaseAdminModal: React.FC<SupabaseAdminModalProps> = ({ isOpen, 
               value={serviceKey}
               onChange={(e) => setServiceKey(e.target.value)}
               placeholder="Sua chave secreta service_role"
-              className="w-full p-2 bg-var-bg-subtle border border-var-border-default rounded-md text-var-fg-default placeholder-var-fg-subtle focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              className="w-full p-2 bg-[#121214] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
             />
           </div>
         </div>
