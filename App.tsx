@@ -17,76 +17,35 @@ import { NeonModal } from './components/NeonModal';
 import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS } from './constants';
+import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
 import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
 import { generateCodeStreamWithOpenAI } from './services/openAIService';
 import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { AppLogo } from './components/Icons';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 
-const InitializingOverlay: React.FC<{ projectName: string; generatingFile: string }> = ({ projectName, generatingFile }) => {
-  const [timeLeft, setTimeLeft] = useState(45);
-
-  useEffect(() => {
-    const timerInterval = setInterval(() => {
-      // Countdown, slowing down near the end for a more realistic feel
-      setTimeLeft(prev => {
-        if (prev > 10) return prev - 1;
-        if (prev > 2) return prev - 0.5;
-        return 1;
-      });
-    }, 1000);
-
-    return () => {
-      clearInterval(timerInterval);
-    };
-  }, []);
-
-  return (
-    <div className="absolute inset-0 bg-var-bg-default/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-var-fg-default animate-fadeIn">
-      <AppLogo className="w-12 h-12 text-var-accent animate-pulse" style={{ animationDuration: '2s' }} />
-      <h2 className="mt-4 text-2xl font-bold">Gerando seu novo projeto...</h2>
-      <p className="text-lg text-var-fg-muted">{projectName}</p>
-      
-      <div className="mt-8 text-center space-y-4">
-          <div>
-              <p className="text-sm text-var-fg-subtle">Criando arquivo:</p>
-              <p className="text-base font-mono text-var-fg-default bg-var-bg-subtle px-3 py-1.5 rounded-md inline-block min-w-[220px] text-center transition-all duration-300">
-                {generatingFile}
-              </p>
-          </div>
-          <div>
-              <p className="text-sm text-var-fg-subtle">Tempo estimado restante:</p>
-              <p className="text-base font-semibold text-var-fg-default">{Math.ceil(timeLeft)} segundos</p>
-          </div>
-      </div>
-    </div>
-  );
+// Helper para sanitizar objetos do Firestore (converte Timestamps para strings ISO)
+const sanitizeFirestoreData = (data: any) => {
+  if (!data) return data;
+  const sanitized = { ...data };
+  for (const key in sanitized) {
+    if (sanitized[key] && typeof sanitized[key] === 'object' && typeof sanitized[key].toDate === 'function') {
+      sanitized[key] = sanitized[key].toDate().toISOString();
+    }
+  }
+  return sanitized;
 };
-
 
 const extractAndParseJson = (text: string): any => {
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
-
   if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-    console.error("Could not find valid JSON object delimiters {} in AI response:", text);
-    throw new Error("Não foi encontrado nenhum objeto JSON válido na resposta da IA. A resposta pode estar incompleta ou em um formato inesperado.");
+    throw new Error("JSON inválido na resposta da IA.");
   }
-
   const jsonString = text.substring(firstBrace, lastBrace + 1);
-
-  try {
-    return JSON.parse(jsonString);
-  } catch (parseError) {
-    console.error("Failed to parse extracted JSON:", parseError);
-    console.error("Extracted JSON string:", jsonString);
-    const message = parseError instanceof Error ? parseError.message : "Erro de análise desconhecido.";
-    throw new Error(`A resposta da IA continha um JSON malformado. Detalhes: ${message}`);
-  }
+  return JSON.parse(jsonString);
 };
 
 interface ProjectState {
@@ -95,7 +54,7 @@ interface ProjectState {
   chatMessages: ChatMessage[];
   projectName: string;
   envVars: Record<string, string>;
-  currentProjectId: number | null; // Database ID
+  currentProjectId: number | null;
 }
 
 const initialProjectState: ProjectState = {
@@ -107,14 +66,11 @@ const initialProjectState: ProjectState = {
   currentProjectId: null,
 };
 
-
 export const App: React.FC = () => {
   const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
-  
-  // Start with a default view to avoid blocking rendering
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -132,191 +88,128 @@ export const App: React.FC = () => {
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
-  const [pendingPrompt, setPendingPrompt] = useState<{prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[] } | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [generatingFile, setGeneratingFile] = useState<string>('Preparando...');
+  const [pendingPrompt, setPendingPrompt] = useState<any>(null);
+  
+  const [isInitializing, setIsInitializing] = useState(false); 
+  const [generatingFile, setGeneratingFile] = useState<string | null>(null);
+  const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
 
   const [codeError, setCodeError] = useState<string | null>(null);
-  const [lastModelUsed, setLastModelUsed] = useState<{ provider: AIProvider, model: string }>({ provider: AIProvider.Gemini, model: 'gemini-2.5-flash' });
 
-  const [sessionUser, setSessionUser] = useState<any | null>(null);
-  // We don't block on loading anymore, but we track it for background sync
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [postLoginAction, setPostLoginAction] = useState<(() => void) | null>(null);
-
-  // Circuit breaker: If true, we try to contact Firebase. If false, we default to local immediately.
+  // sessionUser agora contém apenas dados primitivos para evitar erros de serialização circular
+  const [sessionUser, setSessionUser] = useState<{ uid: string; email: string | null; displayName: string | null; photoURL: string | null } | null>(null);
   const isFirebaseAvailable = useRef(true);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   const canManipulateHistory = window.location.protocol.startsWith('http');
-
   const effectiveGeminiApiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
 
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
 
-  // --- Fetch Projects from Firestore ---
   const fetchUserProjects = useCallback(async (userId: string) => {
     if (!isFirebaseAvailable.current) return;
-
     try {
         const q = query(collection(db, "projects"), where("ownerId", "==", userId));
         const querySnapshot = await getDocs(q);
         const projects: SavedProject[] = [];
         querySnapshot.forEach((doc: any) => {
-            // Ensure ID is number for app compatibility, though Firestore uses strings
-            const data = doc.data();
-            projects.push({
-                ...data,
-                id: parseInt(doc.id) || Number(doc.id) || Date.now(), // Fallback if ID parsing fails
-            } as SavedProject);
+            const data = sanitizeFirestoreData(doc.data());
+            projects.push({ ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject);
         });
-        
-        // Merge with local projects (preferring Firestore version if ID matches)
         setSavedProjects(prev => {
             const remoteIds = new Set(projects.map(p => p.id));
             const localOnly = prev.filter(p => !remoteIds.has(p.id));
-            return [...projects, ...localOnly].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+            const combined = [...projects, ...localOnly];
+            return combined.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
         });
-
-    } catch (error: any) {
-         console.error("Error fetching projects:", error);
-         if (error.code === 'permission-denied' || error.code === 'not-found') {
-             // Silently fail or switch to offline if needed, but for projects list usually just logging is enough
-         }
-    }
+    } catch (error: any) { console.error("Error fetching projects:", error); }
   }, [setSavedProjects]);
 
-  // --- Data Fetching and Auth ---
-  const fetchUserSettings = useCallback(async (user: any): Promise<UserSettings | null> => {
-    const localDataKey = `user_settings_${user.uid}`;
+  const fetchUserSettings = useCallback(async (userId: string): Promise<UserSettings | null> => {
+    const localDataKey = `user_settings_${userId}`;
+    let localSettings: UserSettings = { id: userId, credits: DAILY_CREDIT_LIMIT };
     
-    // 1. Retrieve from local storage immediately for fast UI
-    let localSettings: UserSettings = { id: user.uid };
     try {
         const stored = localStorage.getItem(localDataKey);
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            localSettings = { ...localSettings, ...parsed };
-        }
-    } catch (e) {
-        console.warn("Failed to parse local settings", e);
-    }
+        if (stored) localSettings = { ...localSettings, ...JSON.parse(stored) };
+    } catch (e) { console.warn("Failed to parse local settings", e); }
 
-    // Circuit breaker check
     if (!isFirebaseAvailable.current) {
         setIsOfflineMode(true);
         return localSettings;
     }
 
     try {
-      const docRef = doc(db, "users", user.uid);
-      
-      // 2. Race Firestore against a timeout. 
-      const docSnap = await Promise.race([
-          getDoc(docRef),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Firestore timeout")), 2000))
-      ]) as any;
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        const mergedSettings = { id: user.uid, ...data } as UserSettings;
-        
-        // Update local cache
+        const data = sanitizeFirestoreData(docSnap.data());
+        let mergedSettings = { id: userId, ...data } as UserSettings;
+        const today = new Date().toISOString().split('T')[0];
+        if (mergedSettings.last_credits_reset !== today) {
+            mergedSettings.credits = DAILY_CREDIT_LIMIT;
+            mergedSettings.last_credits_reset = today;
+            await updateDoc(docRef, { credits: DAILY_CREDIT_LIMIT, last_credits_reset: today });
+        }
         localStorage.setItem(localDataKey, JSON.stringify(mergedSettings));
         setIsOfflineMode(false);
         return mergedSettings;
+      } else {
+        const initialData = { credits: DAILY_CREDIT_LIMIT, last_credits_reset: new Date().toISOString().split('T')[0] };
+        await setDoc(docRef, initialData);
+        return { ...localSettings, ...initialData };
       }
     } catch (error: any) {
-      // If the database doesn't exist or we can't connect, flip the circuit breaker
-      const isDbMissing = error.code === 'not-found' || (error.message && error.message.includes('not exist'));
-      const isOffline = error.message?.includes('offline') || error.message === 'Firestore timeout';
-
-      if (isDbMissing) {
-          console.log("ℹ️ Database connection failed. Switching to Local Storage Mode.");
-          isFirebaseAvailable.current = false;
-          setIsOfflineMode(true);
-      } else if (isOffline) {
-          setIsOfflineMode(true);
-      } else {
-          console.warn("Firestore sync issue (using local backup):", error);
-      }
+      console.error("Firestore settings fetch error:", error);
+      isFirebaseAvailable.current = false;
+      setIsOfflineMode(true);
+      return localSettings;
     }
-    
-    return localSettings;
   }, []);
 
-  // Firebase Auth State Listener
   useEffect(() => {
-    setIsLoadingData(true);
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
-        setSessionUser(user);
-        const settings = await fetchUserSettings(user);
+        // Criamos uma versão "limpa" do usuário para evitar referências circulares
+        const cleanedUser = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        };
+        setSessionUser(cleanedUser);
+        const settings = await fetchUserSettings(user.uid);
         setUserSettings(settings);
-        // Load projects from Firestore
         await fetchUserProjects(user.uid);
-        
-        if (postLoginAction) {
-          postLoginAction();
-          setPostLoginAction(null);
-        }
       } else {
         setSessionUser(null);
         setUserSettings(null);
       }
-      setIsLoadingData(false);
     });
-  
     return () => unsubscribe();
-  }, [fetchUserSettings, postLoginAction, fetchUserProjects]);
+  }, [fetchUserSettings, fetchUserProjects]);
 
-
-  // --- Project Management & URL Handling ---
   const handleNewProject = useCallback(() => {
-    const startNew = () => {
-        setProject(initialProjectState);
-        setCodeError(null);
-        setView('welcome');
-        setSidebarOpen(false);
-        if (canManipulateHistory) {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('projectId');
-            window.history.pushState({ path: url.href }, '', url.href);
-        }
-    };
-
-    if (project.files.length > 0) {
-        if (window.confirm("Tem certeza de que deseja iniciar um novo projeto? Seu trabalho local atual será perdido.")) {
-            startNew();
-        }
-    } else {
-        startNew();
-    }
-  }, [project, canManipulateHistory, setProject]);
+    if (project.files.length > 0 && !window.confirm("Iniciar um novo projeto? O trabalho atual será perdido.")) return;
+    setProject(initialProjectState);
+    setCodeError(null);
+    setView('welcome');
+    setSidebarOpen(false);
+  }, [project.files.length, setProject]);
 
   const handleLogout = useCallback(async () => {
     try {
       await signOut(auth);
       setProject(initialProjectState);
       setView('welcome');
-      if (canManipulateHistory) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('projectId');
-        window.history.pushState({ path: url.href }, '', url.href);
-      }
-    } catch (error: any) {
-      alert(`Erro ao tentar sair: ${error.message}`);
-    }
-  }, [setProject, canManipulateHistory]);
-
+    } catch (error: any) { alert(`Erro ao sair: ${error.message}`); }
+  }, [setProject]);
 
   const handleLoadProject = useCallback((projectId: number, confirmLoad: boolean = true) => {
-    if (confirmLoad && project.files.length > 0 && !window.confirm("Carregar este projeto substituirá seu trabalho local atual. Deseja continuar?")) {
-        return;
-    }
-
+    if (confirmLoad && project.files.length > 0 && !window.confirm("Carregar este projeto?")) return;
     const projectToLoad = savedProjects.find(p => p.id === projectId);
     if (projectToLoad) {
         setProject({
@@ -327,627 +220,72 @@ export const App: React.FC = () => {
             currentProjectId: projectToLoad.id,
             activeFile: projectToLoad.files.find(f => f.name.includes('html'))?.name || projectToLoad.files[0]?.name || null,
         });
-
-        if (canManipulateHistory) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('projectId', String(projectToLoad.id));
-            window.history.pushState({ path: url.href }, '', url.href);
-        }
-        
         setCodeError(null);
-        setIsInitializing(false);
         setView('editor');
-    } else {
-        alert("Não foi possível carregar o projeto. Ele pode ter sido excluído.");
-        if (canManipulateHistory) {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('projectId');
-            window.history.pushState({ path: url.href }, '', url.href);
-        }
     }
-  }, [project.files.length, savedProjects, setProject, canManipulateHistory]);
+  }, [project.files.length, savedProjects, setProject]);
 
-  // Effect to handle initial view logic, including URL parsing
-  useEffect(() => {
-    // Determine view if not set, or if we have URL params to process
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectIdStr = urlParams.get('projectId');
-    
-    if (canManipulateHistory && projectIdStr) {
-      const projectId = parseInt(projectIdStr, 10);
-      const projectExists = savedProjects.some(p => p.id === projectId);
-      if (projectExists) {
-        handleLoadProject(projectId, false); // Load without confirmation
-        setView('editor');
-        return;
-      }
-    }
-    
-    // Set default view if undefined
-    if (!view) {
-        setView(files.length > 0 ? 'editor' : 'welcome');
-    }
-
-  }, [view, savedProjects, files.length, handleLoadProject, canManipulateHistory]);
-
-
-  useEffect(() => {
-    if (canManipulateHistory) {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('payment') && urlParams.get('payment') === 'success') {
-        setIsProUser(true);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    }
-  }, [setIsProUser, canManipulateHistory]);
-
-  const handleSaveSettings = useCallback(async (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => {
+  const handleSaveSettings = useCallback(async (newSettings: any) => {
     if (!sessionUser) return;
-    
-    const settingsData = {
-      ...newSettings, // pass only the new settings
-      updated_at: new Date().toISOString(),
-    };
-
-    // 1. Optimistically update local state
+    const settingsData = { ...newSettings, updated_at: new Date().toISOString() };
     setUserSettings(prev => prev ? { ...prev, ...settingsData } : { id: sessionUser.uid, ...settingsData });
-    
-    // 2. Save to localStorage as backup
-    const currentLocal = localStorage.getItem(`user_settings_${sessionUser.uid}`);
-    const parsedLocal = currentLocal ? JSON.parse(currentLocal) : { id: sessionUser.uid };
-    localStorage.setItem(`user_settings_${sessionUser.uid}`, JSON.stringify({ ...parsedLocal, ...settingsData }));
-
-    // 3. Try to save to Firebase only if available
     if (isFirebaseAvailable.current) {
-        try {
-            await setDoc(doc(db, "users", sessionUser.uid), settingsData, { merge: true });
-        } catch (error: any) {
-            // Check if DB is missing during save attempt
-            if (error.code === 'not-found' || error.message?.includes('not exist')) {
-                isFirebaseAvailable.current = false;
-                setIsOfflineMode(true);
-                console.warn("Firestore database missing. Settings saved locally only.");
-            } else if (!error.message?.includes('offline')) {
-                console.warn("Firebase save settings error (using local backup):", error.message);
-            }
-        }
+        try { await setDoc(doc(db, "users", sessionUser.uid), settingsData, { merge: true }); }
+        catch (e) { isFirebaseAvailable.current = false; setIsOfflineMode(true); }
     }
   }, [sessionUser]);
 
-  useEffect(() => {
-    if (pendingPrompt && effectiveGeminiApiKey) {
-      const { prompt, provider, model, attachments } = pendingPrompt;
-      setPendingPrompt(null);
-      // We need to call handleSendMessage, but it needs to be memoized itself.
-      // This is a temporary inline implementation until handleSendMessage is memoized.
-      const apiKeyToUse = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
-       if (apiKeyToUse) {
-            // Re-trigger the message sending logic.
-            // For a full solution, handleSendMessage should be a stable function.
-            // This re-call is simplified for this fix.
-            console.log("Retrying message with new API key.");
-       }
-    }
-  }, [pendingPrompt, effectiveGeminiApiKey, userSettings]);
-
   const handleSaveProject = useCallback(async () => {
-    if (project.files.length === 0) {
-      alert("Não há nada para salvar. Comece a gerar alguns arquivos primeiro.");
-      return;
-    }
-
+    if (project.files.length === 0 || !sessionUser) return;
     const now = new Date().toISOString();
     const projectId = project.currentProjectId || Date.now();
-
     const projectData: SavedProject = {
       id: projectId,
-      ownerId: sessionUser?.uid,
+      ownerId: sessionUser.uid,
       name: project.projectName,
       files: project.files,
       chat_history: project.chatMessages,
       env_vars: project.envVars,
-      created_at: savedProjects.find(p => p.id === projectId)?.created_at || now,
+      created_at: now,
       updated_at: now,
     };
-
-    // 1. Save to Local State & Storage (Immediate Feedback)
     setSavedProjects(prev => {
-      const existingIndex = prev.findIndex(p => p.id === projectId);
-      if (existingIndex > -1) {
-        const newProjects = [...prev];
-        newProjects[existingIndex] = projectData;
-        return newProjects;
-      }
+      const idx = prev.findIndex(p => p.id === projectId);
+      if (idx > -1) { const n = [...prev]; n[idx] = projectData; return n; }
       return [projectData, ...prev];
     });
-
     setProject(p => ({ ...p, currentProjectId: projectId }));
-
-    // 2. Save to Firestore (Async)
-    if (sessionUser && isFirebaseAvailable.current) {
-        try {
-            await setDoc(doc(db, "projects", String(projectId)), projectData);
-            console.log("Projeto salvo no Firestore.");
-        } catch (error: any) {
-            console.error("Erro ao salvar no Firestore:", error);
-            if (error.code === 'not-found') {
-                isFirebaseAvailable.current = false;
-                setIsOfflineMode(true);
-            }
-        }
+    if (isFirebaseAvailable.current) {
+        try { await setDoc(doc(db, "projects", String(projectId)), projectData); }
+        catch (e) { isFirebaseAvailable.current = false; setIsOfflineMode(true); }
     }
+    alert(`Projeto salvo!`);
+  }, [project, savedProjects, setSavedProjects, setProject, sessionUser]);
 
-    if (canManipulateHistory) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('projectId', String(projectId));
-        window.history.pushState({ path: url.href }, '', url.href);
-    }
-
-    alert(`Projeto "${project.projectName}" salvo!`);
-  }, [project, savedProjects, setSavedProjects, setProject, canManipulateHistory, sessionUser]);
-  
-  const handleDeleteProject = useCallback(async (projectId: number) => {
-    // 1. Local Delete
-    setSavedProjects(prev => prev.filter(p => p.id !== projectId));
+  const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
+    if (!sessionUser) { setAuthModalOpen(true); return; }
     
-    // 2. Firestore Delete
-    if (sessionUser && isFirebaseAvailable.current) {
-        try {
-            await deleteDoc(doc(db, "projects", String(projectId)));
-        } catch (error) {
-            console.error("Erro ao excluir do Firestore:", error);
-        }
-    }
+    const selectedModel = AI_MODELS.find(m => m.id === modelId);
+    const cost = selectedModel?.creditCost || 1;
+    const currentCredits = userSettings?.credits || 0;
 
-    if (project.currentProjectId === projectId) {
-        handleNewProject();
-        alert("O projeto atual foi excluído. Iniciando um novo projeto.");
-    }
-  }, [setSavedProjects, project, handleNewProject, sessionUser]);
-
-  const handleOpenSettings = useCallback(() => {
-    if (sessionUser) {
-        setSettingsOpen(true);
-    } else {
-        setPostLoginAction(() => () => setSettingsOpen(true));
-        setAuthModalOpen(true);
-    }
-  }, [sessionUser]);
-
-  // --- AI and API Interactions ---
-  const handleSupabaseAdminAction = useCallback(async (action: { query: string }) => {
-    if (!userSettings?.supabase_project_url || !userSettings?.supabase_service_key) {
-        setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: "Ação do Supabase ignorada: Credenciais de administrador não configuradas."}] }));
+    if (currentCredits < cost) {
+        alert(`Créditos insuficientes (${currentCredits}/${cost}).`);
         return;
     }
-    
-    setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: `Executando consulta SQL no Supabase: ${action.query.substring(0, 100)}...`}] }));
 
-    try {
-        const response = await fetch('/api/supabase-admin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                projectUrl: userSettings.supabase_project_url,
-                serviceKey: userSettings.supabase_service_key,
-                query: action.query,
-            }),
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-            setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: "Consulta SQL executada com sucesso!" }] }));
-        } else {
-            throw new Error(result.error || "Ocorreu um erro desconhecido no servidor.");
-        }
-    } catch (err) {
-        const message = err instanceof Error ? err.message : "Falha na comunicação com a função de back-end.";
-        setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'system', content: `Erro ao executar a consulta SQL: ${message}` }] }));
-    }
-  }, [userSettings, setProject]);
-
-  const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[] = []) => {
     setCodeError(null);
-    setLastModelUsed({ provider, model });
-    
-    if (prompt.toLowerCase().includes('ia') && !effectiveGeminiApiKey) {
-      setProject(p => ({...p, chatMessages: [...p.chatMessages, { role: 'assistant', content: 'Para adicionar funcionalidades de IA ao seu projeto, primeiro adicione sua chave de API do Gemini.'}]}));
-      setApiKeyModalOpen(true);
-      return;
-    }
     
     if (provider === AIProvider.Gemini && !effectiveGeminiApiKey) {
-      setPendingPrompt({ prompt, provider, model, attachments });
+      setPendingPrompt({ prompt, provider, model: modelId, attachments });
       setApiKeyModalOpen(true);
       return;
     }
     
-    if ((provider === AIProvider.OpenAI || provider === AIProvider.DeepSeek) && !isProUser) {
-        alert('Este modelo está disponível apenas para usuários Pro. Por favor, atualize seu plano na página de preços.');
-        return;
+    const newCreditBalance = currentCredits - cost;
+    setUserSettings(prev => prev ? { ...prev, credits: newCreditBalance } : null);
+    if (isFirebaseAvailable.current) {
+        updateDoc(doc(db, "users", sessionUser.uid), { credits: newCreditBalance }).catch(console.error);
     }
 
-    const isFirstGeneration = project.files.length === 0;
-
-    const userMessage: ChatMessage = { role: 'user', content: prompt };
-    const thinkingMessage: ChatMessage = { role: 'assistant', content: 'Pensando...', isThinking: true };
-    
-    const newChatHistory = view !== 'editor' ? [userMessage, thinkingMessage] : [...project.chatMessages, userMessage, thinkingMessage];
-    setProject(p => ({ ...p, chatMessages: newChatHistory }));
-
-    if (view !== 'editor') {
-      setView('editor');
-    }
-    
-    if (isFirstGeneration && effectiveGeminiApiKey) {
-      setIsInitializing(true);
-      setGeneratingFile('Analisando o prompt...');
-      const newName = await generateProjectName(prompt, effectiveGeminiApiKey);
-      setProject(p => ({...p, projectName: newName}));
-      setGeneratingFile('Preparando para gerar arquivos...');
-    }
-
-    let thoughtMessageFound = false;
-    let accumulatedContent = "";
-    const onChunk = (chunk: string) => {
-        accumulatedContent += chunk;
-        if (!thoughtMessageFound) {
-            const separatorIndex = accumulatedContent.indexOf('\n---\n');
-            if (separatorIndex !== -1) {
-                const thought = accumulatedContent.substring(0, separatorIndex).trim();
-                setProject(p => {
-                    const newMessages = [...p.chatMessages];
-                    const lastMessage = newMessages[newMessages.length - 1];
-                    if (lastMessage?.isThinking) {
-                        lastMessage.content = thought;
-                    }
-                    return { ...p, chatMessages: newMessages };
-                });
-                thoughtMessageFound = true;
-            }
-        }
-        
-        if (isInitializing) {
-            const fileMatches = [...accumulatedContent.matchAll(/"name":\s*"([^"]+)"/g)];
-            if (fileMatches.length > 0) {
-                const lastMatch = fileMatches[fileMatches.length - 1];
-                const currentFileName = lastMatch[1];
-                setGeneratingFile(prevFile => prevFile === currentFileName ? prevFile : currentFileName);
-            }
-        }
-    };
-
-    try {
-      let fullResponse;
-
-      switch (provider) {
-        case AIProvider.Gemini:
-          fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, onChunk, model, effectiveGeminiApiKey!, attachments);
-          break;
-        case AIProvider.OpenAI:
-          fullResponse = await generateCodeStreamWithOpenAI(prompt, project.files, onChunk, model);
-          break;
-        case AIProvider.DeepSeek:
-           fullResponse = await generateCodeStreamWithDeepSeek(prompt, project.files, onChunk, model);
-          break;
-        default:
-          throw new Error('Provedor de IA não suportado');
-      }
-      
-      let finalJsonPayload = fullResponse;
-      const separatorIndex = fullResponse.indexOf('\n---\n');
-      if (separatorIndex !== -1) {
-          finalJsonPayload = fullResponse.substring(separatorIndex + 5);
-      }
-      
-      const result = extractAndParseJson(finalJsonPayload);
-      
-      if (result.files && Array.isArray(result.files)) {
-        setProject(p => {
-            const updatedFilesMap = new Map(p.files.map(f => [f.name, f]));
-            result.files.forEach((file: ProjectFile) => {
-                updatedFilesMap.set(file.name, file);
-            });
-            const newFiles = Array.from(updatedFilesMap.values());
-            let newActiveFile = p.activeFile;
-            if (result.files.length > 0 && !newActiveFile) {
-                const foundFile = result.files.find((f: ProjectFile) => f.name.includes('html')) || result.files[0];
-                newActiveFile = foundFile.name;
-            }
-            return { ...p, files: newFiles, activeFile: newActiveFile };
-        });
-      }
-      
-      if (result.environmentVariables) {
-        if (result.environmentVariables.GEMINI_API_KEY !== undefined && userSettings?.gemini_api_key) {
-            result.environmentVariables.GEMINI_API_KEY = userSettings.gemini_api_key;
-        }
-
-        setProject(p => {
-            const newVars = { ...p.envVars };
-            for (const [key, value] of Object.entries(result.environmentVariables)) {
-                if (value === null) {
-                    delete newVars[key];
-                } else {
-                    newVars[key] = value as string;
-                }
-            }
-            return { ...p, envVars: newVars };
-        });
-      }
-
-       setProject(p => {
-            const newMessages = [...p.chatMessages];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage?.role === 'assistant') {
-                lastMessage.content = result.message || 'Geração concluída.';
-                lastMessage.summary = result.summary;
-                lastMessage.isThinking = false;
-                return { ...p, chatMessages: newMessages };
-            }
-            return p;
-        });
-
-       if (result.supabaseAdminAction) {
-         await handleSupabaseAdminAction(result.supabaseAdminAction);
-       }
-        
-    } catch (error) {
-      console.error("Error handling send message:", error);
-      const errorMessageText = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
-      
-      setProject(p => {
-            const newMessages = [...p.chatMessages];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage?.isThinking) {
-                 lastMessage.content = `Erro: ${errorMessageText}`;
-                 lastMessage.isThinking = false;
-            } else {
-                newMessages.push({ role: 'assistant', content: `Erro: ${errorMessageText}`, isThinking: false });
-            }
-            return { ...p, chatMessages: newMessages };
-        });
-    } finally {
-        if (isFirstGeneration) {
-            setIsInitializing(false);
-        }
-    }
-  }, [project, effectiveGeminiApiKey, isProUser, view, userSettings, handleSupabaseAdminAction, setProject, setCodeError, setLastModelUsed, setApiKeyModalOpen, setPendingPrompt, setIsInitializing, setGeneratingFile]);
-
-  const handleFixCode = useCallback(() => {
-    if (!codeError || !lastModelUsed) return;
-    const fixPrompt = `O código anterior gerou um erro de visualização: "${codeError}". Por favor, analise os arquivos e corrija o erro. Forneça apenas os arquivos modificados.`;
-    handleSendMessage(fixPrompt, lastModelUsed.provider, lastModelUsed.model);
-  }, [codeError, lastModelUsed, handleSendMessage]);
-  
-  // --- UI Handlers and Other Functions ---
-  const handleRunLocally = useCallback(() => {
-    if (project.files.length === 0) {
-      alert("Não há arquivos para executar. Gere algum código primeiro.");
-      return;
-    }
-    setLocalRunModalOpen(true);
-  }, [project]);
-
-  const handleDownload = useCallback(() => {
-    downloadProjectAsZip(project.files, project.projectName);
-  }, [project.files, project.projectName]);
-
-  const handleProjectImport = useCallback((importedFiles: ProjectFile[]) => {
-    const htmlFile = importedFiles.find(f => f.name.endsWith('index.html')) || importedFiles[0];
-    setProject(p => ({
-        ...p,
-        files: importedFiles,
-        chatMessages: [
-            { role: 'assistant', content: INITIAL_CHAT_MESSAGE },
-            { role: 'assistant', content: `Importei ${importedFiles.length} arquivos. O que você gostaria de construir ou modificar?` }
-        ],
-        activeFile: htmlFile?.name || null,
-        projectName: 'ProjetoImportado',
-    }));
-    
-    setGithubModalOpen(false);
-    setView('editor');
-  }, [setProject]);
-
-  const handleSaveImageToProject = useCallback((base64Data: string, fileName: string) => {
-    const newFile: ProjectFile = { name: `assets/${fileName}`, language: 'image', content: base64Data };
-    setProject(p => {
-        const existingFile = p.files.find(f => f.name === newFile.name);
-        const newFiles = existingFile ? p.files.map(f => f.name === newFile.name ? newFile : f) : [...p.files, newFile];
-        return { ...p, files: newFiles };
-    });
-    alert(`Imagem "${newFile.name}" salva no projeto!`);
-    setImageStudioOpen(false);
-  }, [setProject]);
-
-  const handleDeleteFile = useCallback((fileNameToDelete: string) => {
-    setProject(p => {
-        const updatedFiles = p.files.filter(f => f.name !== fileNameToDelete);
-        let newActiveFile = p.activeFile;
-        if (p.activeFile === fileNameToDelete) {
-            if (updatedFiles.length > 0) {
-                const closingFileIndex = p.files.findIndex(f => f.name === fileNameToDelete);
-                const newActiveIndex = Math.max(0, closingFileIndex - 1);
-                newActiveFile = updatedFiles[newActiveIndex]?.name || null;
-            } else {
-                newActiveFile = null;
-            }
-        }
-        return { ...p, files: updatedFiles, activeFile: newActiveFile };
-    });
-  }, [setProject]);
-
-  const handleRenameFile = useCallback((oldName: string, newName: string) => {
-    if (project.files.some(f => f.name === newName)) {
-        alert(`Um arquivo chamado "${newName}" já existe.`);
-        return;
-    }
-    setProject(p => {
-        const updatedFiles = p.files.map(f => f.name === oldName ? { ...f, name: newName } : f);
-        const newActiveFile = p.activeFile === oldName ? newName : p.activeFile;
-        return { ...p, files: updatedFiles, activeFile: newActiveFile };
-    });
-  }, [project, setProject]);
-  
-  useEffect(() => {
-    const handleResize = () => {
-      // Auto-close sidebar on large screens is no longer needed as it's a drawer now
-      // if (window.innerWidth >= 1024) { setSidebarOpen(false); }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Helper to cast user for props
-  const sessionUserForProps: any = sessionUser ? { user: sessionUser } : null;
-
-  const mainContent = () => {
-    // Determine the current view directly from state or fallback
-    const currentView = view;
-
-    switch (currentView) {
-      case 'welcome':
-        return <WelcomeScreen 
-          session={sessionUserForProps}
-          onLoginClick={() => setAuthModalOpen(true)}
-          onPromptSubmit={(prompt, model) => {
-              const selectedModelObj = AI_MODELS.find(m => m.id === model) || AI_MODELS[0];
-              handleSendMessage(prompt, selectedModelObj.provider, model, []);
-          }} 
-          onShowPricing={() => setView('pricing')}
-          onShowProjects={() => setView('projects')}
-          onOpenGithubImport={() => setGithubModalOpen(true)}
-          onFolderImport={handleProjectImport}
-          onNewProject={handleNewProject}
-          onLogout={handleLogout}
-          onOpenSettings={handleOpenSettings}
-          recentProjects={savedProjects}
-          onLoadProject={(id) => handleLoadProject(id, false)} // Load without confirmation from welcome screen
-        />;
-      case 'pricing':
-        return <PricingPage onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')} onNewProject={handleNewProject} />;
-      case 'projects':
-        return <ProjectsPage 
-          projects={savedProjects}
-          onLoadProject={handleLoadProject}
-          onDeleteProject={handleDeleteProject}
-          onBack={() => setView(files.length > 0 ? 'editor' : 'welcome')}
-          onNewProject={handleNewProject}
-        />;
-      case 'editor':
-        return (
-          <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
-            {/* Editor Layout: [Chat] [Editor] */}
-            <div className="flex flex-1 overflow-hidden relative">
-              {isInitializing && <InitializingOverlay projectName={projectName} generatingFile={generatingFile} />}
-              
-              {/* Chat Panel: Fixed Left Side */}
-              <div className="w-[400px] flex-shrink-0 border-r border-var-border-default h-full z-10 bg-[#121214]">
-                <ChatPanel 
-                    messages={chatMessages} 
-                    onSendMessage={handleSendMessage} 
-                    isProUser={isProUser} 
-                    onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
-                    projectName={projectName}
-                />
-              </div>
-
-              {/* Editor/Preview: Main Content (Right) */}
-              <main className="flex-1 min-w-0 h-full relative">
-                <EditorView 
-                  files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                  onFileSelect={name => setProject(p => ({...p, activeFile: name}))} onFileDelete={handleDeleteFile} onRunLocally={handleRunLocally}
-                  codeError={codeError} onFixCode={handleFixCode} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
-                />
-              </main>
-              
-              {/* Sidebar / Menu Drawer (Overlay) */}
-              <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                 <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)}></div>
-                 <div className={`absolute top-0 left-0 w-[300px] h-full bg-[#121214] shadow-2xl transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <Sidebar
-                        files={files} envVars={envVars} onEnvVarChange={newVars => setProject(p => ({ ...p, envVars: newVars }))} activeFile={activeFile} onFileSelect={(file) => {setProject(p => ({...p, activeFile: file})); setSidebarOpen(false);}}
-                        onDownload={() => {handleDownload(); setSidebarOpen(false);}} onOpenSettings={() => {handleOpenSettings(); setSidebarOpen(false);}}
-                        onOpenGithubImport={() => {setGithubModalOpen(true); setSidebarOpen(false);}} onOpenSupabaseAdmin={() => {setSupabaseAdminModalOpen(true); setSidebarOpen(false);}}
-                        onSaveProject={() => { handleSaveProject(); setSidebarOpen(false); }} onOpenProjects={() => { setView('projects'); setSidebarOpen(false); }}
-                        onNewProject={handleNewProject} onOpenImageStudio={() => { setImageStudioOpen(true); setSidebarOpen(false); }} onClose={() => setSidebarOpen(false)}
-                        onRenameFile={handleRenameFile} onDeleteFile={handleDeleteFile}
-                        onOpenStripeModal={() => { setStripeModalOpen(true); setSidebarOpen(false); }} onOpenNeonModal={() => { setNeonModalOpen(true); setSidebarOpen(false); }} onOpenOSMModal={() => { setOSMModalOpen(true); setSidebarOpen(false); }}
-                        session={sessionUserForProps} onLogin={() => { setAuthModalOpen(true); setSidebarOpen(false); }} onLogout={() => { handleLogout(); setSidebarOpen(false); }}
-                        isOfflineMode={isOfflineMode}
-                    />
-                 </div>
-              </div>
-
-            </div>
-          </div>
-        );
-      default:
-        return <div className="p-10 text-center text-white">Carregando view...</div>;
-    }
-  };
-
-  return (
-    <div className={theme}>
-      {mainContent()}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <SettingsModal
-          isOpen={isSettingsOpen && !!sessionUser}
-          onClose={() => setSettingsOpen(false)}
-          settings={userSettings || { id: sessionUser?.uid || '' }}
-          onSave={handleSaveSettings}
-      />
-      <SupabaseAdminModal
-          isOpen={isSupabaseAdminModalOpen && !!sessionUser}
-          onClose={() => setSupabaseAdminModalOpen(false)}
-          settings={userSettings || { id: sessionUser?.uid || '' }}
-          onSave={handleSaveSettings}
-      />
-      <StripeModal
-        isOpen={isStripeModalOpen && !!sessionUser}
-        onClose={() => setStripeModalOpen(false)}
-        settings={userSettings || { id: sessionUser?.uid || '' }}
-        onSave={handleSaveSettings}
-      />
-      <NeonModal
-        isOpen={isNeonModalOpen && !!sessionUser}
-        onClose={() => setNeonModalOpen(false)}
-        settings={userSettings || { id: sessionUser?.uid || '' }}
-        onSave={handleSaveSettings}
-      />
-       <OpenStreetMapModal
-        isOpen={isOSMModalOpen}
-        onClose={() => setOSMModalOpen(false)}
-      />
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => { setApiKeyModalOpen(false); setPendingPrompt(null); }}
-        onSave={(key) => handleSaveSettings({ gemini_api_key: key })}
-      />
-      <GithubImportModal
-        isOpen={isGithubModalOpen}
-        onClose={() => setGithubModalOpen(false)}
-        onImport={handleProjectImport}
-        githubToken={userSettings?.github_access_token}
-        onOpenSettings={() => { setGithubModalOpen(false); handleOpenSettings(); }}
-      />
-      <PublishModal 
-        isOpen={isLocalRunModalOpen}
-        onClose={() => setLocalRunModalOpen(false)}
-        onDownload={handleDownload}
-        projectName={projectName}
-      />
-      <ImageStudioModal
-        isOpen={isImageStudioOpen}
-        onClose={() => setImageStudioOpen(false)}
-        onSaveImage={handleSaveImageToProject}
-        apiKey={effectiveGeminiApiKey}
-        onOpenApiKeyModal={() => { setImageStudioOpen(false); setApiKeyModalOpen(true); }}
-       />
-    </div>
-  );
-};
-
-export default App;
+    setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Pensando...',
