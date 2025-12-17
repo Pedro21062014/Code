@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { ProjectFile } from '../types';
 
@@ -20,13 +21,15 @@ ${file.content}
 
   return `You are an expert senior full-stack engineer. Generate complete, functional web applications.
 - **GOAL**: Respond with a valid JSON object containing "message", "files" (array with "name", "language", "content"), and optionally "summary", "environmentVariables", "supabaseAdminAction".
-- **LATENCY**: Be concise. Only generate necessary files. No placeholders.
 - **ARCHITECTURE**: 
   - Single Page Application (Client-side only).
-  - Use **Supabase** for database/auth/backend. 
-  - Create 'services/supabase.ts' and include SUPABASE_URL/SUPABASE_ANON_KEY in 'environmentVariables'.
-  - If AI features requested, use Gemini via 'services/gemini.ts' with 'GEMINI_API_KEY'.
-- **STYLING**: Use Tailwind CSS (via CDN in index.html) for speed and aesthetics.
+  - Use **React** with functional components and hooks.
+  - For navigation, use **react-router-dom**. **IMPORTANT**: Use \`HashRouter\` instead of \`BrowserRouter\` to ensure navigation works correctly within the blob-based preview environment.
+  - Use **Supabase** for database/auth/backend if needed.
+  - Create 'services/supabase.ts' for Supabase client.
+- **STYLING**: Use Tailwind CSS (via CDN in index.html).
+- **LIBRARIES**: You can use \`lucide-react\` for icons.
+- **LATENCY**: Be concise. Only generate necessary files. No placeholders.
 - **IMPORTANT**: Begin with a short one-line "thought" in Portuguese. Then add '---' on a new line. Then the JSON.
 
 Current files:
@@ -67,8 +70,8 @@ export const generateCodeStreamWithGemini = async (
         contents: { parts: userParts },
         config: {
             systemInstruction,
-            temperature: 0.2, // Lower temperature for more stable/faster code generation
-            thinkingConfig: { thinkingBudget: 0 } // Disable thinking for latency
+            temperature: 0.2,
+            thinkingConfig: { thinkingBudget: 0 }
         },
     });
 
