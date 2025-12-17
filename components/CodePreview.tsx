@@ -1,63 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ProjectFile, Theme } from '../types';
-
-declare global {
-  interface Window {
-    Babel: any;
-  }
-}
-
-const LOADING_HTML = `
-<!DOCTYPE html>
-<html lang="pt-BR" class="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; margin: 0; background: #09090b; }
-    .loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: #71717a; }
-  </style>
-</head>
-<body>
-  <div class="loader">
-    <svg class="animate-spin h-8 w-8 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-    <p class="text-sm font-medium">Renderizando aplicação React...</p>
-  </div>
-</body>
-</html>
-`;
-
-const BASE_IMPORT_MAP = {
-  imports: {
-    "react": "https://esm.sh/react@^19.1.0",
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react-dom": "https://esm.sh/react-dom@^19.1.1",
-    "react-dom/client": "https://esm.sh/react-dom@^19.1.1/client",
-    "react-router-dom": "https://esm.sh/react-router-dom@^6.22.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.344.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.44.4",
-  }
-};
-
-const resolvePath = (base: string, relative: string): string => {
-  const stack = base.split('/');
-  stack.pop(); 
-  const parts = relative.split('/');
-  for (const part of parts) {
-    if (part === '.') continue;
-    if (part === '..') stack.pop();
-    else stack.push(part);
-  }
-  return stack.join('/');
-};
+import { WebContainer } from '@webcontainer/api';
 
 interface CodePreviewProps {
   files: ProjectFile[];
@@ -67,155 +11,167 @@ interface CodePreviewProps {
   onUrlChange?: (url: string) => void;
 }
 
+/**
+ * Converte a lista plana de arquivos em uma estrutura de árvore para o WebContainer.
+ */
+function mapFilesToTree(files: ProjectFile[]): any {
+  const tree: any = {};
+  files.forEach((file) => {
+    const parts = file.name.split('/');
+    let current = tree;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (i === parts.length - 1) {
+        current[part] = {
+          file: {
+            contents: file.content,
+          },
+        };
+      } else {
+        if (!current[part]) {
+          current[part] = {
+            directory: {},
+          };
+        }
+        current = current[part].directory;
+      }
+    }
+  });
+  return tree;
+}
+
 export const CodePreview: React.FC<CodePreviewProps> = ({ files, onError, theme, envVars, onUrlChange }) => {
-  const [iframeSrc, setIframeSrc] = useState<string | undefined>(undefined);
+  const [url, setUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'booting' | 'installing' | 'starting' | 'ready' | 'error'>('idle');
+  const [logs, setLogs] = useState<string[]>([]);
+  const webcontainerInstance = useRef<WebContainer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    const handleIframeMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'URL_CHANGE') {
-        onUrlChange?.(event.data.url);
-      }
-    };
-    window.addEventListener('message', handleIframeMessage);
-    return () => window.removeEventListener('message', handleIframeMessage);
-  }, [onUrlChange]);
+  const addLog = (msg: string) => setLogs((prev) => [...prev.slice(-100), msg]);
 
   useEffect(() => {
-    let urlsToRevoke: string[] = [];
+    let mounted = true;
 
-    const generatePreview = async () => {
-      if (files.length === 0) return { src: undefined, urlsToRevoke: [] };
-      if (!window.Babel) {
-        onError("Babel.js não carregado.");
-        return { src: undefined, urlsToRevoke: [] };
-      }
-
-      const allFilesMap = new Map(files.map(f => [f.name, f]));
-      const jsFiles = files.filter(f => /\.(tsx|ts|jsx|js)$/.test(f.name));
-      const cssFiles = files.filter(f => f.name.endsWith('.css'));
-      const htmlFiles = files.filter(f => f.name.toLowerCase().endsWith('.html'));
-      const entryHtmlFile = htmlFiles.find(f => f.name.toLowerCase() === 'index.html') || htmlFiles[0];
-
-      if (!entryHtmlFile) {
-        const message = `<html><body style="background:#09090b;color:#71717a;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">Nenhum index.html encontrado</body></html>`;
-        const blob = new Blob([message], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        return { src: url, urlsToRevoke: [url] };
-      }
-
-      const createdUrls: string[] = [];
-      const importMap = JSON.parse(JSON.stringify(BASE_IMPORT_MAP));
-
+    async function initWebContainer() {
+      if (status !== 'idle') return;
+      
       try {
-        // Build internal import map for all project JS/TS files
-        for (const file of jsFiles) {
-          let content = file.content;
-          
-          // Basic resolution of relative imports
-          const importRegex = /(from\s*|import\s*\()(['"])([^'"]+)(['"])/g;
-          content = content.replace(importRegex, (match, prefix, openQuote, path, closeQuote) => {
-            if (path.startsWith('http') || Object.keys(importMap.imports).some(p => path === p || path.startsWith(p + '/'))) {
-              return match;
-            }
-            let absolutePath = path.startsWith('.') ? resolvePath(file.name, path) : path;
-            if (absolutePath.startsWith('/')) absolutePath = absolutePath.substring(1);
-            
-            const exts = ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts'];
-            for (const ext of exts) {
-              if (allFilesMap.has(absolutePath + ext)) {
-                return `${prefix}${openQuote}/${absolutePath + ext}${closeQuote}`;
-              }
-            }
-            return match;
-          });
-
-          const transformed = window.Babel.transform(content, {
-            presets: ['react', ['typescript', { allExtensions: true, isTSX: true }]],
-            filename: file.name,
-          }).code;
-
-          const blob = new Blob([transformed], { type: 'application/javascript' });
-          const url = URL.createObjectURL(blob);
-          createdUrls.push(url);
-          importMap.imports[`/${file.name}`] = url;
-          // Also map without leading slash for consistency
-          importMap.imports[file.name] = url;
-        }
-
-        let entryHtml = entryHtmlFile.content;
+        setStatus('booting');
+        addLog('Iniciando WebContainer...');
         
-        // Navigation Tracker & Environment Injection
-        const injectedScript = `
-          <script>
-            window.process = { env: ${JSON.stringify(envVars)} };
-            (function() {
-              const notify = () => {
-                window.parent.postMessage({ type: 'URL_CHANGE', url: window.location.hash || window.location.pathname }, '*');
-              };
-              const originalPushState = history.pushState;
-              const originalReplaceState = history.replaceState;
-              history.pushState = function() {
-                originalPushState.apply(this, arguments);
-                notify();
-              };
-              history.replaceState = function() {
-                originalReplaceState.apply(this, arguments);
-                notify();
-              };
-              window.addEventListener('popstate', notify);
-              window.addEventListener('hashchange', notify);
-              // Initial notification
-              setTimeout(notify, 500);
-            })();
-            document.documentElement.classList.add('${theme}');
-          </script>
-          <script type="importmap">${JSON.stringify(importMap)}</script>
-        `;
+        const instance = await WebContainer.boot();
+        webcontainerInstance.current = instance;
 
-        entryHtml = entryHtml.replace('</head>', `${injectedScript}</head>`);
+        if (!mounted) return;
 
-        // Resolve scripts in HTML
-        entryHtml = entryHtml.replace(/<script\s+type="module"\s+src=["']([^"']+)["']>/g, (match, src) => {
-          const path = src.startsWith('/') ? src.substring(1) : src;
-          const blobUrl = importMap.imports[`/${path}`] || importMap.imports[path];
-          return blobUrl ? `<script type="module" src="${blobUrl}">` : match;
+        addLog('Montando arquivos...');
+        const tree = mapFilesToTree(files);
+        await instance.mount(tree);
+
+        addLog('Executando npm install...');
+        setStatus('installing');
+        const installProcess = await instance.spawn('npm', ['install']);
+        
+        installProcess.output.pipeTo(new WritableStream({
+          write(data) { addLog(data); }
+        }));
+
+        const installCode = await installProcess.exit;
+        if (installCode !== 0) throw new Error('Falha no npm install');
+
+        addLog('Iniciando servidor de desenvolvimento...');
+        setStatus('starting');
+        
+        const devProcess = await instance.spawn('npm', ['run', 'dev', '--', '--host']);
+        devProcess.output.pipeTo(new WritableStream({
+          write(data) { addLog(data); }
+        }));
+
+        instance.on('server-ready', (port, serverUrl) => {
+          if (mounted) {
+            setUrl(serverUrl);
+            setStatus('ready');
+            onUrlChange?.(serverUrl);
+            addLog(`Servidor pronto em ${serverUrl}`);
+          }
         });
 
-        const finalBlob = new Blob([entryHtml], { type: 'text/html' });
-        const finalUrl = URL.createObjectURL(finalBlob);
-        createdUrls.push(finalUrl);
-
-        return { src: finalUrl, urlsToRevoke: createdUrls };
       } catch (err: any) {
-        onError(err.message);
-        return { src: undefined, urlsToRevoke: createdUrls };
+        if (mounted) {
+          setStatus('error');
+          addLog(`Erro: ${err.message}`);
+          onError(err.message);
+        }
       }
+    }
+
+    initWebContainer();
+
+    return () => {
+      mounted = false;
+      // WebContainer.boot() só pode ser chamado uma vez, 
+      // então normalmente mantemos a instância viva.
     };
+  }, []);
 
-    const loadingBlob = new Blob([LOADING_HTML], { type: 'text/html' });
-    const loadingUrl = URL.createObjectURL(loadingBlob);
-    setIframeSrc(loadingUrl);
+  // Sincronizar mudanças de arquivos após o boot inicial
+  useEffect(() => {
+    if (status === 'ready' && webcontainerInstance.current) {
+      const tree = mapFilesToTree(files);
+      webcontainerInstance.current.mount(tree).catch(e => console.error("Erro ao remontar arquivos:", e));
+    }
+  }, [files, status]);
 
-    generatePreview().then(res => {
-      URL.revokeObjectURL(loadingUrl);
-      if (res.src) {
-        setIframeSrc(res.src);
-        urlsToRevoke = res.urlsToRevoke;
-      }
-    });
-
-    return () => urlsToRevoke.forEach(url => URL.revokeObjectURL(url));
-  }, [files, theme, envVars, onError]);
+  if (status === 'error') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-[#09090b] text-red-400 p-8 text-center">
+        <svg className="w-12 h-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 className="text-lg font-bold mb-2">Falha no Preview</h3>
+        <p className="text-sm opacity-70 mb-4 max-w-md">O WebContainer encontrou um erro ao iniciar seu projeto.</p>
+        <div className="w-full max-w-xl bg-black/40 rounded p-4 text-left font-mono text-[10px] overflow-auto max-h-48 whitespace-pre-wrap border border-red-900/30">
+          {logs.join('\n')}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-full bg-[#09090b]">
-      <iframe
-        ref={iframeRef}
-        src={iframeSrc}
-        className="w-full h-full border-0"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-      />
+    <div className="relative w-full h-full bg-[#09090b]">
+      {status !== 'ready' && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#09090b] text-gray-400">
+          <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+          <p className="text-sm font-medium animate-pulse">
+            {status === 'booting' && 'Iniciando WebContainer...'}
+            {status === 'installing' && 'Instalando dependências...'}
+            {status === 'starting' && 'Iniciando Vite...'}
+          </p>
+          <div className="mt-8 w-full max-w-2xl px-8">
+             <div className="bg-black/40 rounded-lg border border-[#27272a] p-4 font-mono text-[10px] overflow-hidden">
+                <div className="flex items-center gap-2 mb-2 text-gray-500 border-b border-[#27272a] pb-1">
+                    <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
+                    <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                    <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
+                    <span className="ml-2 uppercase text-[8px] tracking-widest">Build Terminal</span>
+                </div>
+                <div className="max-h-32 overflow-y-auto">
+                    {logs.map((log, i) => <div key={i} className="mb-0.5">{log}</div>)}
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {url && (
+        <iframe
+          ref={iframeRef}
+          src={url}
+          className="w-full h-full border-0"
+          title="WebContainer Preview"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+        />
+      )}
     </div>
   );
 };
