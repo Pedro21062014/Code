@@ -162,7 +162,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
-        // Sanitizar objeto de usuário para evitar circularidade
         setSessionUser({
           uid: user.uid,
           email: user.email,
@@ -242,6 +241,23 @@ export const App: React.FC = () => {
       const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
       const result = extractAndParseJson(payload);
       
+      // VERIFICAÇÃO DE SUPABASE
+      if (result.supabaseAdminAction && (!userSettings?.supabase_project_url || !userSettings?.supabase_service_key)) {
+          setProject(p => {
+              const msgs = [...p.chatMessages];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === 'assistant') {
+                  last.content = "Este projeto requer uma integração com o Supabase para funcionar corretamente (banco de dados/auth). Por favor, configure as credenciais para que eu possa criar as tabelas necessárias.";
+                  last.isThinking = false;
+              }
+              return { ...p, chatMessages: msgs };
+          });
+          setSupabaseAdminModalOpen(true);
+          setIsInitializing(false);
+          setGeneratingFile(null);
+          return;
+      }
+
       if (result.files) {
         setProject(p => {
             const map = new Map(p.files.map(f => [f.name, f]));
@@ -287,6 +303,15 @@ export const App: React.FC = () => {
         setView('editor');
     }
   }, [savedProjects, setProject]);
+
+  const handleSaveSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
+    if (!sessionUser) return;
+    const updated = { ...userSettings, ...newSettings };
+    setUserSettings(updated as UserSettings);
+    if (isFirebaseAvailable.current) {
+        await updateDoc(doc(db, "users", sessionUser.uid), newSettings);
+    }
+  }, [sessionUser, userSettings]);
 
   return (
     <div className={theme}>
@@ -351,9 +376,9 @@ export const App: React.FC = () => {
           </div>
       )}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <SettingsModal isOpen={isSettingsOpen && !!sessionUser} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={(s) => setUserSettings(prev => prev ? {...prev, ...s} : null)} />
-      <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen && !!sessionUser} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={(s) => setUserSettings(prev => prev ? {...prev, ...s} : null)} />
-      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => setUserSettings(prev => prev ? {...prev, gemini_api_key: k} : null)} />
+      <SettingsModal isOpen={isSettingsOpen && !!sessionUser} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
+      <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen && !!sessionUser} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
+      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => handleSaveSettings({ gemini_api_key: k })} />
       <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => setProject(p => ({...p, files: f}))} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
       <PublishModal isOpen={isLocalRunModalOpen} onClose={() => setLocalRunModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} />
       <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={(d, n) => setProject(p => ({...p, files: [...p.files, { name: n, language: 'image', content: d }] }))} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => setApiKeyModalOpen(true)} />
