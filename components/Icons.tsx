@@ -23,18 +23,14 @@ export const AppLogo = ({ className = "w-8 h-8 text-white", ...props }: IconProp
     </svg>
 );
 
-// Ícone oficial do Gemini com gradiente e duas estrelas
+// Ícone oficial do Gemini atualizado (Estrela de 4 pontas com gradiente)
 export const GeminiIcon = ({ className = "w-5 h-5" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M19.0743 3.44658C18.9182 3.03398 18.3323 3.03398 18.1762 3.44658L17.1523 6.15177C16.963 6.65176 16.5656 7.04918 16.0656 7.23842L13.3604 8.26233C12.9478 8.41846 12.9478 9.00441 13.3604 9.16054L16.0656 10.1844C16.5656 10.3737 16.963 10.7711 17.1523 11.2711L18.1762 13.9763C18.3323 14.3889 18.9182 14.3889 19.0743 13.9763L20.0982 11.2711C20.2875 10.7711 20.6849 10.3737 21.1849 10.1844L23.8901 9.16054C24.3027 9.00441 24.3027 8.41846 23.8901 8.26233L21.1849 7.23842C20.6849 7.04918 20.2875 6.65176 20.0982 6.15177L19.0743 3.44658Z" fill="url(#paint0_linear_gemini)"/>
-        <path d="M9.81432 2.05063C9.53036 1.30034 8.46467 1.30033 8.18072 2.05063L6.31853 6.97126C5.97441 7.88055 5.25892 8.59604 4.34963 8.94016L-0.571002 10.8023C-1.3213 11.0863 -1.3213 12.152 -0.571002 12.436L4.34963 14.2981C5.25892 14.6423 5.97441 15.3577 6.31853 16.267L8.18072 21.1877C8.46467 21.938 9.53036 21.938 9.81432 21.1877L11.6765 16.267C12.0206 15.3577 12.7361 14.6423 13.6454 14.2981L18.566 12.436C19.3163 12.152 19.3163 11.0863 18.566 10.8023L13.6454 8.94016C12.7361 8.59604 12.0206 7.88055 11.6765 6.97126L9.81432 2.05063Z" fill="url(#paint1_linear_gemini)"/>
+        <path d="M12 1.5L14.85 9.15L22.5 12L14.85 14.85L12 22.5L9.15 14.85L1.5 12L9.15 9.15L12 1.5Z" fill="url(#gemini_grad)" />
         <defs>
-            <linearGradient id="paint0_linear_gemini" x1="18.6252" y1="3.24996" x2="18.6252" y2="14.1729" gradientUnits="userSpaceOnUse">
+            <linearGradient id="gemini_grad" x1="1.5" y1="1.5" x2="22.5" y2="22.5" gradientUnits="userSpaceOnUse">
                 <stop stopColor="#4E79E3"/>
-                <stop offset="1" stopColor="#D66C8C"/>
-            </linearGradient>
-            <linearGradient id="paint1_linear_gemini" x1="8.99752" y1="1.71078" x2="8.99752" y2="21.5275" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#4E79E3"/>
+                <stop offset="0.5" stopColor="#9C77C0"/>
                 <stop offset="1" stopColor="#D66C8C"/>
             </linearGradient>
         </defs>
