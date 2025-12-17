@@ -1,4 +1,3 @@
-
 export enum AIProvider {
   Gemini = 'Gemini',
   OpenAI = 'OpenAI',
@@ -17,6 +16,7 @@ export interface AIModel {
   id: string;
   name: string;
   provider: AIProvider;
+  creditCost: number;
 }
 
 export interface ProjectFile {
@@ -44,6 +44,8 @@ export interface UserSettings {
   stripe_public_key?: string;
   stripe_secret_key?: string;
   neon_connection_string?: string;
+  credits?: number;
+  last_credits_reset?: string;
 }
 
 export type Theme = 'light' | 'dark';

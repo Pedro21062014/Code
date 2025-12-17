@@ -40,6 +40,7 @@ const BASE_IMPORT_MAP = {
     "react": "https://esm.sh/react@^19.1.0",
     "react/": "https://esm.sh/react@^19.1.0/",
     "react-dom": "https://esm.sh/react-dom@^19.1.1",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.1/client",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.44.4",
   }
@@ -100,7 +101,6 @@ export const CodePreview: React.FC<{ files: ProjectFile[]; onError: (errorMessag
         return { src: url, urlsToRevoke: [url] };
       }
       
-      // FIX: Changed 'createdUrls' to a let as it is reassigned later.
       let createdUrls: string[] = [];
       const importMap = JSON.parse(JSON.stringify(BASE_IMPORT_MAP));
 

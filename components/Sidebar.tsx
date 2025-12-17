@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppLogo, FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon, StripeIcon, MapIcon, DatabaseIcon } from './Icons';
+import { AppLogo, FileIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon, StripeIcon, MapIcon, DatabaseIcon, LoaderIcon, CheckCircleIcon } from './Icons';
 import { ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -27,6 +27,9 @@ interface SidebarProps {
   onLogin: () => void;
   onLogout: () => void;
   isOfflineMode?: boolean;
+  generatingFile: string | null;
+  isGenerating: boolean;
+  generatedFileNames: Set<string>;
 }
 
 const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => {
@@ -172,7 +175,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     session,
     onLogin,
     onLogout,
-    isOfflineMode
+    isOfflineMode,
+    generatingFile,
+    isGenerating,
+    generatedFileNames
 }) => {
   const [activeTab, setActiveTab] = React.useState('files');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: ProjectFile } | null>(null);
@@ -217,6 +223,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </Tooltip>
   );
+
+  // Combine real files with ghost files during generation
+  const displayFiles = [...files];
+  if (isGenerating) {
+    generatedFileNames.forEach(name => {
+        if (!displayFiles.some(f => f.name === name)) {
+            displayFiles.push({ name, language: 'plaintext', content: '' });
+        }
+    });
+  }
 
   return (
     <div className="bg-[#09090b] flex h-full border-r border-[#27272a] select-none w-full">
@@ -275,38 +291,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex-1 overflow-y-auto py-2">
                     <div className="px-2">
                          <div className="text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider mt-2">Project Files</div>
-                        {files.map(file => (
-                        <div key={file.name} className="relative group">
-                            <button
-                                onClick={() => onFileSelect(file.name)}
-                                onContextMenu={(e) => handleContextMenu(e, file)}
-                                className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2.5 transition-all duration-150 border border-transparent ${
-                                    activeFile === file.name 
-                                    ? 'bg-[#27272a] text-white border-[#3f3f46]' 
-                                    : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'
-                                }`}
-                            >
-                                <span className="opacity-60"><FileIcon /></span>
-                                {renamingFile === file.name ? (
-                                    <input
-                                        ref={renameInputRef}
-                                        type="text"
-                                        defaultValue={file.name}
-                                        className="bg-[#09090b] w-full text-white text-sm outline-none ring-1 ring-blue-500 rounded px-1"
-                                        onBlur={(e) => handleRename(file.name, e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleRename(file.name, e.currentTarget.value);
-                                            if (e.key === 'Escape') setRenamingFile(null);
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                ) : (
-                                    <span className="truncate">{file.name}</span>
-                                )}
-                            </button>
-                        </div>
-                        ))}
-                         {files.length === 0 && (
+                        {displayFiles.map(file => {
+                            const isBeingGenerated = isGenerating && file.name === generatingFile;
+                            const isCompleted = !isBeingGenerated && (isGenerating ? generatedFileNames.has(file.name) : true);
+
+                            return (
+                                <div key={file.name} className="relative group">
+                                    <button
+                                        onClick={() => !isGenerating && onFileSelect(file.name)}
+                                        onContextMenu={(e) => handleContextMenu(e, file)}
+                                        className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center gap-2.5 transition-all duration-150 border border-transparent ${
+                                            activeFile === file.name 
+                                            ? 'bg-[#27272a] text-white border-[#3f3f46]' 
+                                            : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'
+                                        }`}
+                                    >
+                                        <span className="opacity-60"><FileIcon /></span>
+                                        {renamingFile === file.name ? (
+                                            <input
+                                                ref={renameInputRef}
+                                                type="text"
+                                                defaultValue={file.name}
+                                                className="bg-[#09090b] w-full text-white text-sm outline-none ring-1 ring-blue-500 rounded px-1"
+                                                onBlur={(e) => handleRename(file.name, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleRename(file.name, e.currentTarget.value);
+                                                    if (e.key === 'Escape') setRenamingFile(null);
+                                                }}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        ) : (
+                                            <div className="flex items-center justify-between w-full">
+                                                <span className="truncate">{file.name}</span>
+                                                {isBeingGenerated && <LoaderIcon className="w-3.5 h-3.5 animate-spin text-blue-400" />}
+                                                {isCompleted && isGenerating && <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />}
+                                            </div>
+                                        )}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                         {files.length === 0 && !isGenerating && (
                             <div className="text-xs text-gray-600 px-4 py-8 text-center italic">
                                 No files generated yet.
                             </div>

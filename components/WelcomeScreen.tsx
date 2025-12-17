@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon } from './Icons';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon } from './Icons';
 import { ProjectFile, SavedProject } from '../types';
 import { AI_MODELS } from '../constants';
 import { UserMenu } from './UserMenu';
 
 interface WelcomeScreenProps {
-  onPromptSubmit: (prompt: string, model: string) => void;
+  onPromptSubmit: (prompt: string, model: string, attachments: { data: string; mimeType: string }[]) => void;
   onShowPricing: () => void;
   onShowProjects: () => void;
   onOpenGithubImport: () => void;
@@ -17,6 +17,7 @@ interface WelcomeScreenProps {
   onOpenSettings?: () => void;
   recentProjects?: SavedProject[];
   onLoadProject?: (id: number) => void;
+  credits: number;
 }
 
 const getFileLanguage = (fileName: string): string => {
@@ -65,15 +66,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onLogout,
     onOpenSettings = () => {},
     recentProjects = [],
-    onLoadProject = (_: number) => {}
+    onLoadProject = (_: number) => {},
+    credits
 }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Get top 2 most recent projects
   const displayProjects = [...recentProjects]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, 2);
@@ -88,12 +91,46 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+        setAttachedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFile = (fileToRemove: File) => {
+    setAttachedFiles(prev => prev.filter(file => file !== fileToRemove));
+  };
+
+  const handlePromptSubmitInternal = async () => {
+    if (!prompt.trim() && attachedFiles.length === 0) return;
+
+    try {
+        const filePromises = attachedFiles.map(file => {
+            return new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64Data = (event.target?.result as string).split(',')[1];
+                    resolve({ data: base64Data, mimeType: file.type });
+                };
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(file);
+            });
+        });
+
+        const attachments = await Promise.all(filePromises);
+        onPromptSubmit(prompt.trim(), selectedModel, attachments);
+        setPrompt('');
+        setAttachedFiles([]);
+    } catch (error) {
+        console.error("Error processing file attachments:", error);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (prompt.trim()) {
-        onPromptSubmit(prompt.trim(), selectedModel);
-      }
+      handlePromptSubmitInternal();
     }
   };
 
@@ -133,7 +170,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   const userName = session?.user?.email?.split('@')[0] || 'dev';
-  const selectedModelName = AI_MODELS.find(m => m.id === selectedModel)?.name || 'Model';
+  const selectedModelObj = AI_MODELS.find(m => m.id === selectedModel);
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#09090b] text-white overflow-hidden relative font-sans">
@@ -145,7 +182,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
          <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-      <div className="absolute top-6 right-6 z-50">
+      <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-900/30 text-blue-400 text-xs font-bold border border-blue-800/50 shadow-lg shadow-blue-900/20">
+              <SparklesIcon className="w-3 h-3" />
+              <span>{credits} créditos restantes</span>
+          </div>
           <UserMenu 
               user={session?.user || null} 
               onLogin={onLoginClick} 
@@ -171,29 +212,49 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Peça a Codegen para criar um blog sobre..."
-                    className="w-full h-[140px] p-6 bg-transparent text-lg text-white placeholder-gray-500 resize-none focus:outline-none rounded-3xl"
+                    className="w-full h-[140px] p-6 bg-transparent text-lg text-white placeholder-gray-500 resize-none focus:outline-none rounded-t-3xl"
                     autoFocus
                 />
+
+                {/* Attachments UI inside input area */}
+                {attachedFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 px-6 mb-2">
+                    {attachedFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-[#27272a] rounded-lg border border-[#3f3f46] text-[10px] text-gray-300">
+                        <span className="truncate max-w-[120px]">{file.name}</span>
+                        <button onClick={() => removeFile(file)} className="hover:text-white transition-colors">
+                          <CloseIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 
                 {/* Input Footer */}
                 <div className="flex items-center justify-between px-4 pb-4">
                     <div className="flex items-center gap-2">
-                        <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs font-medium text-gray-300 transition-colors border border-transparent hover:border-gray-600">
-                             <PlusIcon />
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs font-medium text-gray-300 transition-colors border border-transparent hover:border-gray-600"
+                        >
+                             <PlusIcon className="w-4 h-4" />
+                             <span className="hidden sm:inline">Anexar</span>
                         </button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" accept="image/*,text/*" />
+
                         <button 
                             onClick={onOpenGithubImport}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs font-medium text-gray-300 transition-colors border border-transparent hover:border-gray-600"
                         >
                             <GithubIcon className="w-4 h-4" />
-                            <span>Anexar Repo</span>
+                            <span className="hidden sm:inline">Anexar Repo</span>
                         </button>
                          <button 
                             onClick={() => folderInputRef.current?.click()}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs font-medium text-gray-300 transition-colors border border-transparent hover:border-gray-600"
                         >
                             <FolderIcon className="w-4 h-4" />
-                            <span>Pasta</span>
+                            <span className="hidden sm:inline">Pasta</span>
                         </button>
                         <input type="file" ref={folderInputRef} onChange={handleFolderSelect} multiple style={{ display: 'none' }} {...{ webkitdirectory: "true", directory: "true" }} />
                     </div>
@@ -206,13 +267,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs font-medium text-gray-300 transition-colors border border-[#27272a] hover:border-gray-600"
                             >
                                 {getModelIcon(selectedModel)}
-                                <span className="truncate max-w-[100px]">{selectedModelName}</span>
+                                <span className="truncate max-w-[100px]">{selectedModelObj?.name}</span>
+                                <span className="text-[10px] text-gray-500 font-bold px-1 rounded bg-black/20">-{selectedModelObj?.creditCost}</span>
                                 <ChevronDownIcon className="w-3 h-3 text-gray-500" />
                             </button>
 
                             {isModelDropdownOpen && (
-                                <div className="absolute bottom-full mb-2 right-0 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn">
-                                    <div className="p-1">
+                                <div className="absolute bottom-full mb-2 right-0 w-64 bg-[#18181b] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn">
+                                    <div className="p-1 max-h-80 overflow-y-auto custom-scrollbar">
                                         {AI_MODELS.map(model => (
                                             <button
                                                 key={model.id}
@@ -220,14 +282,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                     setSelectedModel(model.id);
                                                     setIsModelDropdownOpen(false);
                                                 }}
-                                                className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                                className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                                                     selectedModel === model.id 
                                                         ? 'bg-[#27272a] text-white' 
                                                         : 'text-gray-400 hover:bg-[#27272a] hover:text-gray-200'
                                                 }`}
                                             >
-                                                {getModelIcon(model.id)}
-                                                {model.name}
+                                                <div className="flex items-center gap-3">
+                                                    {getModelIcon(model.id)}
+                                                    {model.name}
+                                                </div>
+                                                <span className="text-[10px] bg-black/40 px-1.5 rounded text-gray-500">{model.creditCost}c</span>
                                             </button>
                                         ))}
                                     </div>
@@ -240,9 +305,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             <span>Chat</span>
                         </div>
                          <button 
-                            onClick={() => prompt.trim() && onPromptSubmit(prompt.trim(), selectedModel)}
-                            disabled={!prompt.trim()}
-                            className={`p-2 rounded-full transition-all duration-300 ${prompt.trim() ? 'bg-white text-black hover:opacity-90' : 'bg-[#3f3f46] text-gray-500 cursor-not-allowed'}`}
+                            onClick={handlePromptSubmitInternal}
+                            disabled={!prompt.trim() && attachedFiles.length === 0}
+                            className={`p-2 rounded-full transition-all duration-300 ${prompt.trim() || attachedFiles.length > 0 ? 'bg-white text-black hover:opacity-90' : 'bg-[#3f3f46] text-gray-500 cursor-not-allowed'}`}
                         >
                              <div className="w-5 h-5 flex items-center justify-center">
                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>

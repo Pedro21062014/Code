@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, CloseIcon, AppLogo, PaperclipIcon, ChevronDownIcon, MenuIcon } from './Icons';
+import { SparklesIcon, CloseIcon, AppLogo, PaperclipIcon, ChevronDownIcon, MenuIcon, LoaderIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -10,35 +10,29 @@ interface ChatPanelProps {
   onClose?: () => void;
   onToggleSidebar?: () => void;
   projectName?: string;
+  credits: number;
+  generatingFile: string | null;
+  isGenerating: boolean;
 }
 
-const HighlightedMessage: React.FC<{ text: string }> = ({ text }) => {
-  const parts = text.split(/(ia)/gi);
-  return (
-    <span className="whitespace-pre-wrap">
-      {parts.map((part, i) =>
-        part.toLowerCase() === 'ia' ? (
-          <span key={i} className="text-blue-400 font-bold">
-            {part}
-          </span>
-        ) : (
-          part
-        )
-      )}
-    </span>
-  );
-};
-
-const ThinkingIndicator = () => (
-    <div className="flex items-center space-x-1.5 p-1">
-        <div className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></div>
-        <div className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-        <div className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => (
+    <div className="flex flex-col gap-2 p-1">
+        <div className="flex items-center space-x-1.5">
+            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+        </div>
+        {generatingFile && (
+            <div className="flex items-center gap-2 text-[11px] text-blue-400 font-medium animate-pulse bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 w-fit">
+                <LoaderIcon className="w-3 h-3 animate-spin" />
+                <span>Criando: {generatingFile}</span>
+            </div>
+        )}
     </div>
 );
 
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onToggleSidebar, projectName }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onToggleSidebar, projectName, credits, generatingFile, isGenerating }) => {
   const [input, setInput] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AIProvider.Gemini);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -64,7 +58,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, generatingFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -79,7 +73,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!input.trim() && attachedFiles.length === 0) || !selectedModel) return;
+    if ((!input.trim() && attachedFiles.length === 0) || !selectedModel || isGenerating) return;
 
     try {
         const filePromises = attachedFiles.map(file => {
@@ -103,6 +97,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
         console.error("Error processing file attachments:", error);
     }
   };
+
+  const currentCost = AI_MODELS.find(m => m.id === selectedModel)?.creditCost || 0;
   
   return (
     <div className="bg-[#121214] w-full flex flex-col h-full border-r border-[#27272a] text-sm">
@@ -115,7 +111,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
             )}
             <div className="flex flex-col">
                 <h2 className="text-gray-200 font-medium text-sm">{projectName || 'Project'}</h2>
-                <span className="text-[10px] text-gray-500">AI Assistant</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500">Assistente IA</span>
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 text-[10px] font-bold border border-blue-800/50">
+                        {credits} créditos
+                    </span>
+                </div>
             </div>
         </div>
         {onClose && (
@@ -125,7 +126,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
         )}
       </div>
 
-      <div className="flex-grow p-4 overflow-y-auto space-y-6">
+      <div className="flex-grow p-4 overflow-y-auto space-y-6 custom-scrollbar">
           {messages.map((msg, index) => (
             msg.role === 'system' ? (
                 <div key={index} className="flex justify-center">
@@ -134,20 +135,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
             ) : (
                 <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'assistant' ? 'bg-gradient-to-br from-blue-600 to-purple-600' : 'bg-[#27272a] border border-[#3f3f46]'}`}>
-                        {msg.role === 'assistant' ? <AppLogo className="w-5 h-5 text-white" /> : <div className="text-xs text-gray-400">You</div>}
+                        {msg.role === 'assistant' ? <AppLogo className="w-5 h-5 text-white" /> : <div className="text-xs text-gray-400">Você</div>}
                     </div>
                     
                     <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                          <div className={`px-4 py-2.5 rounded-2xl ${
                              msg.role === 'user' 
                              ? 'bg-[#27272a] text-gray-100 rounded-tr-sm' 
-                             : 'text-gray-300 rounded-tl-sm'
+                             : 'bg-[#18181b] text-gray-300 rounded-tl-sm border border-[#27272a]'
                          }`}>
                              {msg.isThinking ? (
-                                <ThinkingIndicator />
+                                <ThinkingIndicator generatingFile={generatingFile} />
                             ) : (
                                 <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
                                     <p className="whitespace-pre-wrap">{msg.content}</p>
+                                    {msg.summary && (
+                                        <div className="mt-4 p-3 bg-black/20 rounded-lg border border-white/5 text-[11px] text-gray-400 italic">
+                                            {msg.summary}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                          </div>
@@ -162,33 +168,42 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
         <form onSubmit={handleSubmit} className="relative bg-[#18181b] border border-[#27272a] rounded-xl focus-within:ring-1 focus-within:ring-gray-500 focus-within:border-gray-500 transition-all">
            
            {/* Model Selection */}
-           <div className="flex items-center gap-2 p-2 border-b border-[#27272a]">
-                <div className="relative">
-                    <select
-                        value={selectedProvider}
-                        onChange={e => setSelectedProvider(e.target.value as AIProvider)}
-                        className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-xs text-gray-300 font-medium py-1 pl-2 pr-7 rounded cursor-pointer focus:outline-none transition-colors"
-                    >
-                        {availableProviders.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                        <ChevronDownIcon className="w-3 h-3" />
+           <div className="flex items-center justify-between p-2 border-b border-[#27272a]">
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <select
+                            value={selectedProvider}
+                            onChange={e => setSelectedProvider(e.target.value as AIProvider)}
+                            disabled={isGenerating}
+                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-xs text-gray-300 font-medium py-1 pl-2 pr-7 rounded cursor-pointer focus:outline-none transition-colors disabled:opacity-50"
+                        >
+                            {availableProviders.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
+                    
+                    <div className="h-4 w-px bg-[#27272a]"></div>
+                    
+                    <div className="relative">
+                        <select 
+                            value={selectedModel}
+                            onChange={e => setSelectedModel(e.target.value)}
+                            disabled={isGenerating}
+                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-xs text-gray-300 font-medium py-1 pl-2 pr-7 rounded cursor-pointer focus:outline-none transition-colors truncate max-w-[120px] disabled:opacity-50"
+                        >
+                            {providerModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
                     </div>
                 </div>
-                
-                <div className="h-4 w-px bg-[#27272a]"></div>
-                
-                <div className="relative flex-grow">
-                     <select 
-                        value={selectedModel}
-                        onChange={e => setSelectedModel(e.target.value)}
-                        className="appearance-none w-full bg-[#27272a] hover:bg-[#3f3f46] text-xs text-gray-300 font-medium py-1 pl-2 pr-7 rounded cursor-pointer focus:outline-none transition-colors truncate"
-                    >
-                        {providerModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                        <ChevronDownIcon className="w-3 h-3" />
-                    </div>
+
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#27272a] border border-[#3f3f46]">
+                    <span className="text-[10px] text-gray-500 font-medium uppercase">Custo:</span>
+                    <span className="text-[10px] text-gray-200 font-bold">{currentCost}</span>
                 </div>
            </div>
 
@@ -207,14 +222,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
+            disabled={isGenerating}
             onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSubmit(e);
                 }
             }}
-            placeholder="Ask anything..."
-            className="w-full p-3 bg-transparent text-gray-200 placeholder-gray-600 focus:outline-none resize-none text-sm min-h-[80px]"
+            placeholder={isGenerating ? "Gerando projeto..." : "O que vamos construir hoje?"}
+            className="w-full p-3 bg-transparent text-gray-200 placeholder-gray-600 focus:outline-none resize-none text-sm min-h-[80px] disabled:opacity-50"
             rows={1}
           />
           
@@ -222,17 +238,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
              <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" accept="image/*,text/*" />
              <button
                 type="button"
+                disabled={isGenerating}
                 onClick={() => fileInputRef.current?.click()}
-                className="p-1.5 text-gray-500 hover:text-white hover:bg-[#27272a] rounded-md transition-colors"
+                className="p-1.5 text-gray-500 hover:text-white hover:bg-[#27272a] rounded-md transition-colors disabled:opacity-50"
             >
                 <PaperclipIcon />
             </button>
             <button 
                 type="submit" 
-                disabled={(!input.trim() && attachedFiles.length === 0) || !selectedModel}
-                className="bg-white text-black p-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                disabled={isGenerating || ((!input.trim() && attachedFiles.length === 0) || !selectedModel) || (credits < currentCost)}
+                className="bg-white text-black p-1.5 rounded-lg hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity flex items-center gap-2"
             >
-                <SparklesIcon className="w-4 h-4" />
+                {isGenerating ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
             </button>
           </div>
         </form>
