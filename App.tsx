@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -8,6 +9,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { PricingPage } from './components/PricingPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { GithubImportModal } from './components/GithubImportModal';
+import { GithubSyncModal } from './components/GithubSyncModal';
 import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal';
 import { ImageStudioModal } from './components/ImageStudioModal';
@@ -74,6 +76,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
+  const [isGithubSyncModalOpen, setGithubSyncModalOpen] = useState(false);
   const [isLocalRunModalOpen, setLocalRunModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isImageStudioOpen, setImageStudioOpen] = useState(false);
@@ -352,6 +355,7 @@ export const App: React.FC = () => {
                   files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
                   onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))} 
                   onRunLocally={() => setLocalRunModalOpen(true)}
+                  onSyncGithub={() => setGithubSyncModalOpen(true)}
                   codeError={codeError} onFixCode={() => {}} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
                 />
               </main>
@@ -379,7 +383,8 @@ export const App: React.FC = () => {
       <SettingsModal isOpen={isSettingsOpen && !!sessionUser} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen && !!sessionUser} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
       <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => handleSaveSettings({ gemini_api_key: k })} />
-      <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => setProject(p => ({...p, files: f}))} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
+      <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => { setProject(p => ({...p, files: f, activeFile: f.find(x => x.name.includes('html'))?.name || f[0]?.name || null})); setGithubModalOpen(false); setView('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
+      <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} projectName={projectName} />
       <PublishModal isOpen={isLocalRunModalOpen} onClose={() => setLocalRunModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} />
       <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={(d, n) => setProject(p => ({...p, files: [...p.files, { name: n, language: 'image', content: d }] }))} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => setApiKeyModalOpen(true)} />
     </div>
