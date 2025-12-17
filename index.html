@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -7,16 +8,12 @@
     <title>Codegen Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script defer src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script defer src="https://js.stripe.com/v3/"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
         --font-sans: 'Inter', sans-serif;
-
-        /* Light Theme */
         --bg-default-light: #ffffff;
         --bg-subtle-light: #f9fafb;
         --bg-muted-light: #f3f4f6;
@@ -28,13 +25,10 @@
         --border-subtle-light: #f3f4f6;
         --accent-light: #000000;
         --accent-fg-light: #ffffff;
-        --shadow-color-light: 220, 13%, 69%;
-
-        /* Dark Theme (Lovable Style) */
-        --bg-default-dark: #09090b; /* Very dark, almost black */
-        --bg-subtle-dark: #121214;  /* Slightly lighter for panels */
-        --bg-muted-dark: #18181b;   /* For secondary elements */
-        --bg-interactive-dark: #27272a; /* For hover states/inputs */
+        --bg-default-dark: #09090b;
+        --bg-subtle-dark: #121214;
+        --bg-muted-dark: #18181b;
+        --bg-interactive-dark: #27272a;
         --fg-default-dark: #ededed;
         --fg-muted-dark: #a1a1aa;
         --fg-subtle-dark: #71717a;
@@ -42,106 +36,39 @@
         --border-subtle-dark: #18181b;
         --accent-dark: #ffffff;
         --accent-fg-dark: #000000;
-        --shadow-color-dark: 0, 0%, 0%;
       }
-
-      /* Base styles applying CSS variables */
       body {
         font-family: var(--font-sans);
         background-color: var(--bg-default);
         color: var(--fg-default);
         transition: background-color 0.3s ease, color 0.3s ease;
       }
-      
-      /* Theme class definitions */
-      .light {
-        --bg-default: var(--bg-default-light);
-        --bg-subtle: var(--bg-subtle-light);
-        --bg-muted: var(--bg-muted-light);
-        --bg-interactive: var(--bg-interactive-light);
-        --fg-default: var(--fg-default-light);
-        --fg-muted: var(--fg-muted-light);
-        --fg-subtle: var(--fg-subtle-light);
-        --border-default: var(--border-default-light);
-        --border-subtle: var(--border-subtle-light);
-        --accent: var(--accent-light);
-        --accent-fg: var(--accent-fg-light);
-        --shadow-color: var(--shadow-color-light);
-      }
-
-      .dark {
-        --bg-default: var(--bg-default-dark);
-        --bg-subtle: var(--bg-subtle-dark);
-        --bg-muted: var(--bg-muted-dark);
-        --bg-interactive: var(--bg-interactive-dark);
-        --fg-default: var(--fg-default-dark);
-        --fg-muted: var(--fg-muted-dark);
-        --fg-subtle: var(--fg-subtle-dark);
-        --border-default: var(--border-default-dark);
-        --border-subtle: var(--border-subtle-dark);
-        --accent: var(--accent-dark);
-        --accent-fg: var(--accent-fg-dark);
-        --shadow-color: var(--shadow-color-dark);
-      }
-
-      /* Scrollbar */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background-color: var(--bg-interactive);
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background-color: var(--fg-subtle);
-      }
-
-      /* Animations */
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes slideInUp {
-        from { transform: translateY(10px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
-      
-      /* Lovable-style Gradient Blob Animation */
-      @keyframes gradient-move {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-      
-      .lovable-gradient-bg {
-        background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15), rgba(236, 72, 153, 0.15), rgba(168, 85, 247, 0.15), transparent 70%);
-        filter: blur(60px);
-        z-index: 0;
-      }
+      .light { --bg-default: var(--bg-default-light); --bg-subtle: var(--bg-subtle-light); --bg-muted: var(--bg-muted-light); --bg-interactive: var(--bg-interactive-light); --fg-default: var(--fg-default-light); --fg-muted: var(--fg-muted-light); --fg-subtle: var(--fg-subtle-light); --border-default: var(--border-default-light); --border-subtle: var(--border-subtle-light); --accent: var(--accent-light); --accent-fg: var(--accent-fg-light); }
+      .dark { --bg-default: var(--bg-default-dark); --bg-subtle: var(--bg-subtle-dark); --bg-muted: var(--bg-muted-dark); --bg-interactive: var(--bg-interactive-dark); --fg-default: var(--fg-default-dark); --fg-muted: var(--fg-muted-dark); --fg-subtle: var(--fg-subtle-dark); --border-default: var(--border-default-dark); --border-subtle: var(--border-subtle-dark); --accent: var(--accent-dark); --accent-fg: var(--accent-fg-dark); }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background-color: var(--bg-interactive); border-radius: 3px; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes slideInUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
   <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.1.0",
+    "react-dom": "https://esm.sh/react-dom@^19.1.1",
     "@google/genai": "https://esm.sh/@google/genai@^1.9.0",
+    "@webcontainer/api": "https://esm.sh/@webcontainer/api@^1.5.1",
     "react/": "https://esm.sh/react@^19.1.0/",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.4",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
-  <body>
+  <body class="dark">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

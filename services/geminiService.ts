@@ -21,14 +21,19 @@ ${file.content}
 
   return `You are an expert senior full-stack engineer. Generate complete, functional web applications.
 - **GOAL**: Respond with a valid JSON object containing "message", "files" (array with "name", "language", "content"), and optionally "summary", "environmentVariables", "supabaseAdminAction".
-- **ARCHITECTURE**: 
-  - Single Page Application (Client-side only).
-  - Use **React** with functional components and hooks.
-  - For navigation, use **react-router-dom**. **IMPORTANT**: Use \`HashRouter\` instead of \`BrowserRouter\` to ensure navigation works correctly within the blob-based preview environment.
-  - Use **Supabase** for database/auth/backend if needed.
-  - Create 'services/supabase.ts' for Supabase client.
-- **STYLING**: Use Tailwind CSS (via CDN in index.html).
-- **LIBRARIES**: You can use \`lucide-react\` for icons.
+- **ARCHITECTURE (NODE.JS + VITE)**:
+  - You are running in a **WebContainer** environment.
+  - You MUST generate a \`package.json\` with \`vite\` as a dependency and scripts: \`"dev": "vite"\`.
+  - Typical dependencies: \`react\`, \`react-dom\`, \`lucide-react\`, \`react-router-dom\`, \`framer-motion\`, \`clsx\`, \`tailwind-merge\`.
+  - You MUST generate a \`vite.config.ts\`.
+  - You MUST generate an \`index.html\` at the root that includes \`<script type="module" src="/src/main.tsx"></script>\`.
+  - Place React components and logic in \`src/\`.
+- **STYLING**: Use Tailwind CSS. Assume Tailwind is configured via PostCSS or just use the Play CDN in index.html for simplicity if you prefer, but standard Vite/Tailwind setup is better.
+- **DATABASE (SUPABASE)**:
+  - If you need to create tables, use the "supabaseAdminAction" field:
+    \`\`\`json
+    "supabaseAdminAction": { "query": "CREATE TABLE IF NOT EXISTS profile (id uuid primary key, username text);" }
+    \`\`\`
 - **LATENCY**: Be concise. Only generate necessary files. No placeholders.
 - **IMPORTANT**: Begin with a short one-line "thought" in Portuguese. Then add '---' on a new line. Then the JSON.
 
@@ -38,7 +43,6 @@ ${fileContent.length > 0 ? fileContent : "Nenhum arquivo existe ainda."}
 ${envString}
 `;
 };
-
 
 export const generateCodeStreamWithGemini = async (
   prompt: string,
@@ -65,18 +69,17 @@ export const generateCodeStreamWithGemini = async (
         });
     }
 
-    const stream = await ai.models.generateContentStream({
+    const response = await ai.models.generateContentStream({
         model: modelId,
         contents: { parts: userParts },
         config: {
             systemInstruction,
             temperature: 0.2,
-            thinkingConfig: { thinkingBudget: 0 }
         },
     });
 
     let fullResponse = "";
-    for await (const chunk of stream) {
+    for await (const chunk of response) {
       const chunkText = chunk.text;
       if (chunkText) {
           fullResponse += chunkText;
@@ -107,7 +110,6 @@ export const generateProjectName = async (
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: namePrompt,
-        config: { thinkingConfig: { thinkingBudget: 0 } }
     });
 
     const text = response.text || "";

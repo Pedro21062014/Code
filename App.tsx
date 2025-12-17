@@ -25,7 +25,6 @@ import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 
-// Helper para sanitizar objetos do Firestore
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
   for (const key in sanitized) {
@@ -36,12 +35,11 @@ const sanitizeFirestoreData = (data: any) => {
   return sanitized;
 };
 
-// Helper para extrair JSON da resposta da IA
 const extractAndParseJson = (text: string): any => {
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
   if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-    throw new Error("JSON inválido na resposta da IA.");
+    throw new Error("Resposta da IA não contém um JSON válido.");
   }
   const jsonString = text.substring(firstBrace, lastBrace + 1);
   return JSON.parse(jsonString);
@@ -67,7 +65,7 @@ const initialProjectState: ProjectState = {
 
 export const App: React.FC = () => {
   const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
-  const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
+  const { files, activeFile, chatMessages, projectName, envVars } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
@@ -83,7 +81,7 @@ export const App: React.FC = () => {
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  const [isProUser, setIsProUser] = useLocalStorage<boolean>('is-pro-user', false);
+  const [isProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
   const [pendingPrompt, setPendingPrompt] = useState<any>(null);
   
@@ -208,12 +206,13 @@ export const App: React.FC = () => {
 
     setProject(p => ({ 
       ...p, 
-      chatMessages: [...p.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Pensando...', isThinking: true }] 
+      chatMessages: [...p.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando solicitação...', isThinking: true }] 
     }));
     
     if (view !== 'editor') setView('editor');
     setIsInitializing(true);
     setGeneratedFileNames(new Set());
+    setCodeError(null);
 
     if (project.files.length === 0 && effectiveGeminiApiKey) {
       setGeneratingFile('Analisando...');
@@ -244,23 +243,6 @@ export const App: React.FC = () => {
       const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
       const result = extractAndParseJson(payload);
       
-      // VERIFICAÇÃO DE SUPABASE
-      if (result.supabaseAdminAction && (!userSettings?.supabase_project_url || !userSettings?.supabase_service_key)) {
-          setProject(p => {
-              const msgs = [...p.chatMessages];
-              const last = msgs[msgs.length - 1];
-              if (last?.role === 'assistant') {
-                  last.content = "Este projeto requer uma integração com o Supabase para funcionar corretamente (banco de dados/auth). Por favor, configure as credenciais para que eu possa criar as tabelas necessárias.";
-                  last.isThinking = false;
-              }
-              return { ...p, chatMessages: msgs };
-          });
-          setSupabaseAdminModalOpen(true);
-          setIsInitializing(false);
-          setGeneratingFile(null);
-          return;
-      }
-
       if (result.files) {
         setProject(p => {
             const map = new Map(p.files.map(f => [f.name, f]));
@@ -273,7 +255,7 @@ export const App: React.FC = () => {
             const msgs = [...p.chatMessages];
             const last = msgs[msgs.length - 1];
             if (last?.role === 'assistant') {
-                last.content = result.message || 'Geração concluída.';
+                last.content = result.message || 'Pronto! O código foi gerado.';
                 last.summary = result.summary;
                 last.isThinking = false;
             }
@@ -285,11 +267,17 @@ export const App: React.FC = () => {
       setProject(p => {
             const msgs = [...p.chatMessages];
             const last = msgs[msgs.length - 1];
-            if (last?.isThinking) { last.content = `Erro: ${msg}`; last.isThinking = false; }
+            if (last?.isThinking) { last.content = `Desculpe, ocorreu um erro: ${msg}`; last.isThinking = false; }
             return { ...p, chatMessages: msgs };
         });
     } finally { setIsInitializing(false); setGeneratingFile(null); }
   }, [project, effectiveGeminiApiKey, userSettings, sessionUser, view, setProject]);
+
+  const handleFixCode = useCallback(() => {
+    if (!codeError) return;
+    const prompt = `O preview da aplicação falhou com o seguinte erro: "${codeError}". Por favor, analise os arquivos atuais e aplique as correções necessárias para que o projeto funcione corretamente. Foque em corrigir erros de importação, sintaxe ou lógica do React.`;
+    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+  }, [codeError, handleSendMessage]);
 
   const handleLoadProject = useCallback((projectId: number) => {
     const projectToLoad = savedProjects.find(p => p.id === projectId);
@@ -356,7 +344,7 @@ export const App: React.FC = () => {
                   onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))} 
                   onRunLocally={() => setLocalRunModalOpen(true)}
                   onSyncGithub={() => setGithubSyncModalOpen(true)}
-                  codeError={codeError} onFixCode={() => {}} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
+                  codeError={codeError} onFixCode={handleFixCode} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
                 />
               </main>
               <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
@@ -382,7 +370,7 @@ export const App: React.FC = () => {
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
       <SettingsModal isOpen={isSettingsOpen && !!sessionUser} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen && !!sessionUser} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
-      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => handleSaveSettings({ gemini_api_key: k })} />
+      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => { handleSaveSettings({ gemini_api_key: k }); if (pendingPrompt) { handleSendMessage(pendingPrompt.prompt, pendingPrompt.provider, pendingPrompt.model, pendingPrompt.attachments); setPendingPrompt(null); } }} />
       <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => { setProject(p => ({...p, files: f, activeFile: f.find(x => x.name.includes('html'))?.name || f[0]?.name || null})); setGithubModalOpen(false); setView('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
       <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} projectName={projectName} />
       <PublishModal isOpen={isLocalRunModalOpen} onClose={() => setLocalRunModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} />
