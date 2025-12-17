@@ -184,11 +184,15 @@ export const App: React.FC = () => {
     if (!sessionUser) { setAuthModalOpen(true); return; }
     
     const selectedModel = AI_MODELS.find(m => m.id === modelId);
-    const cost = selectedModel?.creditCost || 1;
+    
+    // Se o usuário estiver usando sua própria chave para Gemini, o custo é zero
+    const isUsingOwnGeminiKey = provider === AIProvider.Gemini && !!userSettings?.gemini_api_key;
+    const cost = isUsingOwnGeminiKey ? 0 : (selectedModel?.creditCost || 1);
+    
     const currentCredits = userSettings?.credits || 0;
 
     if (currentCredits < cost) {
-        alert(`Créditos insuficientes (${currentCredits}/${cost}).`);
+        alert(`Créditos insuficientes (${currentCredits}/${cost}). Configure sua própria chave do Gemini nas configurações para gerar código gratuitamente.`);
         return;
     }
 
@@ -198,10 +202,13 @@ export const App: React.FC = () => {
       return;
     }
     
-    const newCreditBalance = currentCredits - cost;
-    setUserSettings(prev => prev ? { ...prev, credits: newCreditBalance } : null);
-    if (isFirebaseAvailable.current) {
-        updateDoc(doc(db, "users", sessionUser.uid), { credits: newCreditBalance }).catch(console.error);
+    // Só desconta créditos se não for chave própria
+    if (cost > 0) {
+        const newCreditBalance = currentCredits - cost;
+        setUserSettings(prev => prev ? { ...prev, credits: newCreditBalance } : null);
+        if (isFirebaseAvailable.current) {
+            updateDoc(doc(db, "users", sessionUser.uid), { credits: newCreditBalance }).catch(console.error);
+        }
     }
 
     setProject(p => ({ 
@@ -321,6 +328,7 @@ export const App: React.FC = () => {
             recentProjects={savedProjects}
             onLoadProject={id => handleLoadProject(id)}
             credits={userSettings?.credits || 0}
+            userGeminiKey={userSettings?.gemini_api_key}
           />
       ) : view === 'pricing' ? (
           <PricingPage onBack={() => setView('welcome')} onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} />
@@ -336,6 +344,7 @@ export const App: React.FC = () => {
                     credits={userSettings?.credits || 0}
                     generatingFile={generatingFile}
                     isGenerating={isInitializing}
+                    userGeminiKey={userSettings?.gemini_api_key}
                 />
               </div>
               <main className="flex-1 min-w-0 h-full relative">

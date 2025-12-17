@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon } from './Icons';
 import { ProjectFile, SavedProject } from '../types';
@@ -18,6 +19,7 @@ interface WelcomeScreenProps {
   recentProjects?: SavedProject[];
   onLoadProject?: (id: number) => void;
   credits: number;
+  userGeminiKey?: string;
 }
 
 const getFileLanguage = (fileName: string): string => {
@@ -67,7 +69,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onOpenSettings = () => {},
     recentProjects = [],
     onLoadProject = (_: number) => {},
-    credits
+    credits,
+    userGeminiKey
 }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
@@ -171,6 +174,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   const userName = session?.user?.email?.split('@')[0] || 'dev';
   const selectedModelObj = AI_MODELS.find(m => m.id === selectedModel);
+  const isSelectedGemini = selectedModel.includes('gemini');
+  const actualCreditCost = (isSelectedGemini && userGeminiKey) ? 0 : (selectedModelObj?.creditCost || 0);
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#09090b] text-white overflow-hidden relative font-sans">
@@ -268,33 +273,41 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             >
                                 {getModelIcon(selectedModel)}
                                 <span className="truncate max-w-[100px]">{selectedModelObj?.name}</span>
-                                <span className="text-[10px] text-gray-500 font-bold px-1 rounded bg-black/20">-{selectedModelObj?.creditCost}</span>
+                                <span className={`text-[10px] font-bold px-1 rounded bg-black/20 ${actualCreditCost === 0 ? 'text-green-400' : 'text-gray-500'}`}>
+                                    -{actualCreditCost}
+                                </span>
                                 <ChevronDownIcon className="w-3 h-3 text-gray-500" />
                             </button>
 
                             {isModelDropdownOpen && (
                                 <div className="absolute bottom-full mb-2 right-0 w-64 bg-[#18181b] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn">
                                     <div className="p-1 max-h-80 overflow-y-auto custom-scrollbar">
-                                        {AI_MODELS.map(model => (
-                                            <button
-                                                key={model.id}
-                                                onClick={() => {
-                                                    setSelectedModel(model.id);
-                                                    setIsModelDropdownOpen(false);
-                                                }}
-                                                className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                                    selectedModel === model.id 
-                                                        ? 'bg-[#27272a] text-white' 
-                                                        : 'text-gray-400 hover:bg-[#27272a] hover:text-gray-200'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {getModelIcon(model.id)}
-                                                    {model.name}
-                                                </div>
-                                                <span className="text-[10px] bg-black/40 px-1.5 rounded text-gray-500">{model.creditCost}c</span>
-                                            </button>
-                                        ))}
+                                        {AI_MODELS.map(model => {
+                                            const isGeminiModel = model.id.includes('gemini');
+                                            const modelCost = (isGeminiModel && userGeminiKey) ? 0 : model.creditCost;
+                                            return (
+                                                <button
+                                                    key={model.id}
+                                                    onClick={() => {
+                                                        setSelectedModel(model.id);
+                                                        setIsModelDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                                        selectedModel === model.id 
+                                                            ? 'bg-[#27272a] text-white' 
+                                                            : 'text-gray-400 hover:bg-[#27272a] hover:text-gray-200'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {getModelIcon(model.id)}
+                                                        {model.name}
+                                                    </div>
+                                                    <span className={`text-[10px] px-1.5 rounded ${modelCost === 0 ? 'bg-green-500/10 text-green-400' : 'bg-black/40 text-gray-500'}`}>
+                                                        {modelCost}c
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

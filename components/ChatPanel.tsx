@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
@@ -13,6 +14,7 @@ interface ChatPanelProps {
   credits: number;
   generatingFile: string | null;
   isGenerating: boolean;
+  userGeminiKey?: string;
 }
 
 const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => (
@@ -32,7 +34,7 @@ const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }
 );
 
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onToggleSidebar, projectName, credits, generatingFile, isGenerating }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onToggleSidebar, projectName, credits, generatingFile, isGenerating, userGeminiKey }) => {
   const [input, setInput] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AIProvider.Gemini);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -98,7 +100,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
     }
   };
 
-  const currentCost = AI_MODELS.find(m => m.id === selectedModel)?.creditCost || 0;
+  const modelObj = AI_MODELS.find(m => m.id === selectedModel);
+  const isUsingPersonalKey = selectedProvider === AIProvider.Gemini && !!userGeminiKey;
+  const currentCost = isUsingPersonalKey ? 0 : (modelObj?.creditCost || 0);
   
   return (
     <div className="bg-[#121214] w-full flex flex-col h-full border-r border-[#27272a] text-sm">
@@ -201,9 +205,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#27272a] border border-[#3f3f46]">
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${currentCost === 0 ? 'bg-green-900/20 border-green-500/30' : 'bg-[#27272a] border-[#3f3f46]'}`}>
                     <span className="text-[10px] text-gray-500 font-medium uppercase">Custo:</span>
-                    <span className="text-[10px] text-gray-200 font-bold">{currentCost}</span>
+                    <span className={`text-[10px] font-bold ${currentCost === 0 ? 'text-green-400' : 'text-gray-200'}`}>
+                        {currentCost}
+                    </span>
                 </div>
            </div>
 
