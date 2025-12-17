@@ -87,7 +87,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, onError, theme,
           write(data) { addLog(data); }
         }));
 
-        instance.on('server-ready', (port, serverUrl) => {
+        instance.on('server-ready', (port: number, serverUrl: string) => {
           if (mounted) {
             setUrl(serverUrl);
             setStatus('ready');
@@ -109,8 +109,6 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, onError, theme,
 
     return () => {
       mounted = false;
-      // WebContainer.boot() só pode ser chamado uma vez, 
-      // então normalmente mantemos a instância viva.
     };
   }, []);
 
@@ -118,7 +116,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, onError, theme,
   useEffect(() => {
     if (status === 'ready' && webcontainerInstance.current) {
       const tree = mapFilesToTree(files);
-      webcontainerInstance.current.mount(tree).catch(e => console.error("Erro ao remontar arquivos:", e));
+      webcontainerInstance.current.mount(tree).catch((e: Error) => console.error("Erro ao remontar arquivos:", e));
     }
   }, [files, status]);
 
