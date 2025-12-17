@@ -11,6 +11,9 @@ interface CodePreviewProps {
   onUrlChange?: (url: string) => void;
 }
 
+// Cache global da promessa de boot para garantir instância única
+let webcontainerPromise: Promise<WebContainer> | null = null;
+
 /**
  * Converte a lista plana de arquivos em uma estrutura de árvore para o WebContainer.
  */
@@ -53,13 +56,16 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, onError, theme,
     let mounted = true;
 
     async function initWebContainer() {
-      if (status !== 'idle') return;
-      
       try {
         setStatus('booting');
         addLog('Iniciando WebContainer...');
         
-        const instance = await WebContainer.boot();
+        // Singleton pattern: boot() apenas se não houver promessa ativa
+        if (!webcontainerPromise) {
+          webcontainerPromise = WebContainer.boot();
+        }
+        
+        const instance = await webcontainerPromise;
         webcontainerInstance.current = instance;
 
         if (!mounted) return;
