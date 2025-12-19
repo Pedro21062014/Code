@@ -373,7 +373,7 @@ export const App: React.FC = () => {
             files: projectToLoad.files,
             projectName: projectToLoad.name,
             chatMessages: projectToLoad.chat_history,
-            env_vars: projectToLoad.env_vars || {},
+            envVars: projectToLoad.env_vars || {},
             currentProjectId: projectToLoad.id,
             activeFile: projectToLoad.files.find(f => f.name.includes('html'))?.name || projectToLoad.files[0]?.name || null,
         });
