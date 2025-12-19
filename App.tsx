@@ -14,6 +14,7 @@ import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal';
 import { ImageStudioModal } from './components/ImageStudioModal';
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
+import { ProWelcomeOnboarding } from './components/ProWelcomeOnboarding';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
@@ -24,6 +25,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { ChatIcon, TerminalIcon } from './components/Icons';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -69,6 +71,7 @@ export const App: React.FC = () => {
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
+  const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -79,6 +82,7 @@ export const App: React.FC = () => {
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isImageStudioOpen, setImageStudioOpen] = useState(false);
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
+  const [showProOnboarding, setShowProOnboarding] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [isProUser] = useLocalStorage<boolean>('is-pro-user', false);
@@ -120,7 +124,7 @@ export const App: React.FC = () => {
 
   const fetchUserSettings = useCallback(async (userUid: string): Promise<UserSettings | null> => {
     const localDataKey = `user_settings_${userUid}`;
-    let localSettings: UserSettings = { id: userUid, credits: DAILY_CREDIT_LIMIT };
+    let localSettings: UserSettings = { id: userUid, credits: DAILY_CREDIT_LIMIT, plan: 'Hobby' };
     
     try {
         const stored = localStorage.getItem(localDataKey);
@@ -138,20 +142,34 @@ export const App: React.FC = () => {
 
       if (docSnap.exists()) {
         const data = sanitizeFirestoreData(docSnap.data());
-        let mergedSettings = { id: userUid, ...data } as UserSettings;
-        const today = new Date().toISOString().split('T')[0];
-        if (mergedSettings.last_credits_reset !== today) {
-            mergedSettings.credits = DAILY_CREDIT_LIMIT;
-            mergedSettings.last_credits_reset = today;
-            await updateDoc(docRef, { credits: DAILY_CREDIT_LIMIT, last_credits_reset: today });
+        let mergedSettings = { id: userUid, ...data } as unknown as UserSettings;
+        
+        // Verifica se deve mostrar onboarding Pro
+        if (mergedSettings.plan === 'Pro' && !mergedSettings.hasSeenProWelcome) {
+            setShowProOnboarding(true);
         }
+
+        const planLimit = mergedSettings.plan === 'Pro' ? 500 : mergedSettings.plan === 'Enterprise' ? 1000 : 300;
+        const today = new Date().toISOString().split('T')[0];
+        
+        if (mergedSettings.last_credits_reset !== today) {
+            mergedSettings.credits = planLimit;
+            mergedSettings.last_credits_reset = today;
+            await updateDoc(docRef, { credits: planLimit, last_credits_reset: today });
+        }
+        
         localStorage.setItem(localDataKey, JSON.stringify(mergedSettings));
         setIsOfflineMode(false);
         return mergedSettings;
       } else {
-        const initialData = { credits: DAILY_CREDIT_LIMIT, last_credits_reset: new Date().toISOString().split('T')[0] };
+        const initialData = { 
+            credits: DAILY_CREDIT_LIMIT, 
+            plan: 'Hobby' as const,
+            last_credits_reset: new Date().toISOString().split('T')[0],
+            hasSeenProWelcome: false
+        };
         await setDoc(docRef, initialData);
-        return { ...localSettings, ...initialData };
+        return { ...localSettings, ...initialData } as UserSettings;
       }
     } catch (error: any) {
       isFirebaseAvailable.current = false;
@@ -159,6 +177,17 @@ export const App: React.FC = () => {
       return localSettings;
     }
   }, []);
+
+  const handleCompleteProOnboarding = async () => {
+    if (sessionUser && userSettings) {
+        setShowProOnboarding(false);
+        const updated = { ...userSettings, hasSeenProWelcome: true };
+        setUserSettings(updated);
+        if (isFirebaseAvailable.current) {
+            await updateDoc(doc(db, "users", sessionUser.uid), { hasSeenProWelcome: true });
+        }
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
@@ -184,11 +213,8 @@ export const App: React.FC = () => {
     if (!sessionUser) { setAuthModalOpen(true); return; }
     
     const selectedModel = AI_MODELS.find(m => m.id === modelId);
-    
-    // Se o usuário estiver usando sua própria chave para Gemini, o custo é zero
     const isUsingOwnGeminiKey = provider === AIProvider.Gemini && !!userSettings?.gemini_api_key;
     const cost = isUsingOwnGeminiKey ? 0 : (selectedModel?.creditCost || 1);
-    
     const currentCredits = userSettings?.credits || 0;
 
     if (currentCredits < cost) {
@@ -202,7 +228,6 @@ export const App: React.FC = () => {
       return;
     }
     
-    // Só desconta créditos se não for chave própria
     if (cost > 0) {
         const newCreditBalance = currentCredits - cost;
         setUserSettings(prev => prev ? { ...prev, credits: newCreditBalance } : null);
@@ -217,6 +242,8 @@ export const App: React.FC = () => {
     }));
     
     if (view !== 'editor') setView('editor');
+    if (window.innerWidth < 1024) setActiveMobileTab('chat');
+    
     setIsInitializing(true);
     setGeneratedFileNames(new Set());
     setCodeError(null);
@@ -268,6 +295,8 @@ export const App: React.FC = () => {
             }
             return { ...p, chatMessages: msgs };
       });
+      
+      if (window.innerWidth < 1024) setActiveMobileTab('editor');
         
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro desconhecido";
@@ -299,6 +328,7 @@ export const App: React.FC = () => {
         });
         setCodeError(null);
         setView('editor');
+        setActiveMobileTab('editor');
     }
   }, [savedProjects, setProject]);
 
@@ -313,6 +343,7 @@ export const App: React.FC = () => {
 
   return (
     <div className={theme}>
+      {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
       {view === 'welcome' ? (
           <WelcomeScreen 
             session={sessionUser ? { user: sessionUser } : null}
@@ -321,7 +352,7 @@ export const App: React.FC = () => {
             onShowPricing={() => setView('pricing')}
             onShowProjects={() => setView('projects')}
             onOpenGithubImport={() => setGithubModalOpen(true)}
-            onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
+            onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); setActiveMobileTab('editor'); }}
             onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
             onLogout={() => signOut(auth).then(() => { setProject(initialProjectState); setView('welcome'); })}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -329,6 +360,7 @@ export const App: React.FC = () => {
             onLoadProject={id => handleLoadProject(id)}
             credits={userSettings?.credits || 0}
             userGeminiKey={userSettings?.gemini_api_key}
+            currentPlan={userSettings?.plan || 'Hobby'}
           />
       ) : view === 'pricing' ? (
           <PricingPage onBack={() => setView('welcome')} onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} />
@@ -337,7 +369,10 @@ export const App: React.FC = () => {
       ) : (
           <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
-              <div className="w-[400px] flex-shrink-0 border-r border-var-border-default h-full z-10 bg-[#121214]">
+              <div className={`
+                w-full lg:w-[400px] flex-shrink-0 border-r border-var-border-default h-full z-10 bg-[#121214] transition-all
+                ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}
+              `}>
                 <ChatPanel 
                     messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} 
                     onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} projectName={projectName}
@@ -345,20 +380,41 @@ export const App: React.FC = () => {
                     generatingFile={generatingFile}
                     isGenerating={isInitializing}
                     userGeminiKey={userSettings?.gemini_api_key}
+                    onCloseMobile={() => setActiveMobileTab('editor')}
                 />
               </div>
-              <main className="flex-1 min-w-0 h-full relative">
+              
+              <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
                 <EditorView 
                   files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
                   onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))} 
                   onRunLocally={() => setLocalRunModalOpen(true)}
                   onSyncGithub={() => setGithubSyncModalOpen(true)}
                   codeError={codeError} onFixCode={handleFixCode} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
+                  onOpenChatMobile={() => setActiveMobileTab('chat')}
                 />
               </main>
-              <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                 <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)}></div>
-                 <div className={`absolute top-0 left-0 w-[300px] h-full bg-[#121214] shadow-2xl transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+
+              <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-[#18181b] border border-[#27272a] rounded-full p-1 shadow-2xl z-50">
+                  <button 
+                    onClick={() => setActiveMobileTab('chat')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all ${activeMobileTab === 'chat' ? 'bg-white text-black font-bold' : 'text-gray-500'}`}
+                  >
+                    <ChatIcon className="w-5 h-5" />
+                    <span className="text-xs">Chat</span>
+                  </button>
+                  <button 
+                    onClick={() => setActiveMobileTab('editor')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all ${activeMobileTab === 'editor' ? 'bg-white text-black font-bold' : 'text-gray-500'}`}
+                  >
+                    <TerminalIcon className="w-5 h-5" />
+                    <span className="text-xs">Editor</span>
+                  </button>
+              </div>
+
+              <div className={`fixed inset-0 z-[60] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)}></div>
+                 <div className={`absolute top-0 left-0 w-[280px] sm:w-[320px] h-full bg-[#121214] shadow-2xl transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <Sidebar
                         files={files} envVars={envVars} onEnvVarChange={v => setProject(p => ({ ...p, envVars: v }))} activeFile={activeFile} onFileSelect={f => {setProject(p => ({...p, activeFile: f})); setSidebarOpen(false);}}
                         onDownload={() => downloadProjectAsZip(files, projectName)} onOpenSettings={() => setSettingsOpen(true)}
@@ -380,7 +436,7 @@ export const App: React.FC = () => {
       <SettingsModal isOpen={isSettingsOpen && !!sessionUser} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen && !!sessionUser} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
       <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => { handleSaveSettings({ gemini_api_key: k }); if (pendingPrompt) { handleSendMessage(pendingPrompt.prompt, pendingPrompt.provider, pendingPrompt.model, pendingPrompt.attachments); setPendingPrompt(null); } }} />
-      <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => { setProject(p => ({...p, files: f, activeFile: f.find(x => x.name.includes('html'))?.name || f[0]?.name || null})); setGithubModalOpen(false); setView('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
+      <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => { setProject(p => ({...p, files: f, activeFile: f.find(x => x.name.includes('html'))?.name || f[0]?.name || null})); setGithubModalOpen(false); setView('editor'); setActiveMobileTab('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
       <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} projectName={projectName} />
       <PublishModal isOpen={isLocalRunModalOpen} onClose={() => setLocalRunModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} />
       <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={(d, n) => setProject(p => ({...p, files: [...p.files, { name: n, language: 'image', content: d }] }))} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => setApiKeyModalOpen(true)} />
