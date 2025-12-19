@@ -135,9 +135,9 @@ export const generateImagesWithImagen = async (prompt: string, apiKey: string, n
     });
 
     const images: string[] = [];
-    if (response.candidates && response.candidates[0].content.parts) {
+    if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts) {
       for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
+        if (part.inlineData && part.inlineData.data) {
           images.push(part.inlineData.data);
         }
       }
