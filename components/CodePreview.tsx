@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ProjectFile, Theme } from '../types';
-import { SandpackProvider, SandpackLayout, SandpackPreview, SandpackFileExplorer } from '@codesandbox/sandpack-react';
+import { SandpackProvider, SandpackLayout, SandpackPreview } from '@codesandbox/sandpack-react';
 
 interface CodePreviewProps {
   files: ProjectFile[];
@@ -11,37 +11,44 @@ interface CodePreviewProps {
   onUrlChange?: (url: string) => void;
 }
 
-export const CodePreview: React.FC<CodePreviewProps> = ({ files, onError, theme, envVars, onUrlChange }) => {
-  // Map our ProjectFile structure to Sandpack's files object
+export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme }) => {
+  // O Sandpack exige que os caminhos dos arquivos comecem com '/'
   const sandpackFiles = files.reduce((acc, file) => {
-    // Sandpack expects files to be an object with paths as keys
-    // We ensure the path is consistent. If it starts with src/, etc.
-    acc[file.name] = file.content;
+    const path = file.name.startsWith('/') ? file.name : `/${file.name}`;
+    acc[path] = file.content;
     return acc;
   }, {} as Record<string, string>);
 
-  // Determine if we should use a specific template based on files present
-  // If package.json exists, sandpack will use it.
+  // Verifica se temos os arquivos essenciais para um projeto Vite
   const hasPackageJson = files.some(f => f.name === 'package.json');
   
+  // Se não houver arquivos, mostramos um estado vazio amigável
+  if (files.length === 0) {
+    return (
+      <div className="w-full h-full bg-[#09090b] flex items-center justify-center text-gray-500 text-sm italic">
+        Aguardando geração de código para o preview...
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full bg-[#09090b] overflow-hidden">
       <SandpackProvider
-        template="vite-react-ts" // Default fallback template
+        // Usamos 'node' como ambiente para rodar o Vite real gerado pela IA
+        template="vite-react-ts"
         files={sandpackFiles}
         theme={theme === 'dark' ? 'dark' : 'light'}
         options={{
-          classes: {
-            "sp-wrapper": "h-full flex flex-col",
-            "sp-layout": "flex-1 h-full border-0 rounded-none",
-            "sp-preview": "h-full",
-          },
           recompileMode: "immediate",
-          recompileDelay: 500,
+          recompileDelay: 300,
+          // Garante que o Tailwind via CDN funcione se a IA não configurar o PostCSS completo
           externalResources: ["https://cdn.tailwindcss.com"],
+          initMode: "immediate",
         }}
         customSetup={{
-          environment: "node", // Use Node environment for Vite/React templates
+          environment: "node",
+          // Definimos o ponto de entrada explicitamente conforme o system prompt do Gemini
+          entry: "/src/main.tsx",
         }}
       >
         <SandpackLayout style={{ height: '100%', borderRadius: 0, border: 'none' }}>

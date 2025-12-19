@@ -76,7 +76,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     currentPlan = 'Hobby'
 }) => {
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  /* Updated default model to gemini-3-flash-preview */
+  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -195,7 +196,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <div className="flex items-center gap-2">
                   <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase border ${
                       currentPlan === 'Pro' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
-                      currentPlan === 'Enterprise' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                       'bg-gray-500/10 text-gray-400 border-gray-500/20'
                   }`}>
                       {currentPlan}
@@ -207,7 +207,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   </div>
               </div>
               
-              {currentPlan !== 'Pro' && currentPlan !== 'Enterprise' && (
+              {currentPlan !== 'Pro' && (
                 <button 
                     onClick={onShowPricing}
                     className="relative group bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[9px] md:text-[10px] font-bold px-3 py-1.5 rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20"

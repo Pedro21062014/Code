@@ -10,11 +10,12 @@ export const ProWelcomeOnboarding: React.FC<ProWelcomeOnboardingProps> = ({ onCo
 
   useEffect(() => {
     // Sequência de animação estendida e cinematográfica
+    // Iniciamos o Step 1 mais rápido para evitar tela preta por muito tempo
     const timers = [
-      setTimeout(() => setStep(1), 800),    // "O futuro chegou..."
-      setTimeout(() => setStep(2), 4000),   // "Bem-vindo à elite."
-      setTimeout(() => setStep(3), 7500),   // "CODEGEN STUDIO PRO" (Reveal)
-      setTimeout(() => setStep(4), 11000),  // "Seu potencial agora é ilimitado."
+      setTimeout(() => setStep(1), 300),    // "O futuro chegou..."
+      setTimeout(() => setStep(2), 3500),   // "Bem-vindo à elite."
+      setTimeout(() => setStep(3), 7000),   // "CODEGEN STUDIO PRO" (Reveal)
+      setTimeout(() => setStep(4), 10500),  // "Seu potencial agora é ilimitado."
       setTimeout(() => setStep(5), 14000),  // "O que você vai revolucionar hoje?"
       setTimeout(() => setStep(6), 18000),  // Finaliza
     ];

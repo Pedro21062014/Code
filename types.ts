@@ -47,7 +47,7 @@ export interface UserSettings {
   neon_connection_string?: string;
   credits?: number;
   last_credits_reset?: string;
-  plan?: 'Hobby' | 'Pro' | 'Enterprise';
+  plan?: 'Hobby' | 'Pro';
   hasSeenProWelcome?: boolean;
 }
 

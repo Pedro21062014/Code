@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // Props padrão para ícones SVG
@@ -17,21 +18,21 @@ const defaultProps = {
 // Ícone principal da aplicação (Logo)
 export const AppLogo = ({ className = "w-8 h-8 text-white", ...props }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
 );
 
-// Ícone oficial do Gemini atualizado (Estrela de 4 pontas com gradiente)
+// Ícone Profissional do Gemini (Estrela de 4 pontas com curvas suaves e gradiente vibrante)
 export const GeminiIcon = ({ className = "w-5 h-5" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 1.5L14.85 9.15L22.5 12L14.85 14.85L12 22.5L9.15 14.85L1.5 12L9.15 9.15L12 1.5Z" fill="url(#gemini_grad)" />
+        <path d="M12 24C12 24 11.5 14.5 9 12C6.5 9.5 0 9 0 9C0 9 6.5 8.5 9 6C11.5 3.5 12 0 12 0C12 0 12.5 3.5 15 6C17.5 8.5 24 9 24 9C24 9 17.5 9.5 15 12C12.5 14.5 12 24 12 24Z" fill="url(#gemini_modern_grad)" />
         <defs>
-            <linearGradient id="gemini_grad" x1="1.5" y1="1.5" x2="22.5" y2="22.5" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#4E79E3"/>
-                <stop offset="0.5" stopColor="#9C77C0"/>
-                <stop offset="1" stopColor="#D66C8C"/>
+            <linearGradient id="gemini_modern_grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#0EA5E9"/>
+                <stop offset="0.5" stopColor="#6366F1"/>
+                <stop offset="1" stopColor="#A855F7"/>
             </linearGradient>
         </defs>
     </svg>
