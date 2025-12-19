@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sidebar } from './components/Sidebar';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
@@ -23,7 +22,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "firebase/firestore";
-import { ChatIcon, TerminalIcon } from './components/Icons';
+import { ChatIcon, TerminalIcon, UserMenu } from './components/Icons';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -71,7 +70,6 @@ export const App: React.FC = () => {
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
 
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
@@ -200,13 +198,11 @@ export const App: React.FC = () => {
     };
 
     try {
-      // 1. Salvar no LocalStorage para redundância
       setSavedProjects(prev => {
         const filtered = prev.filter(p => p.id !== projectId);
         return [projectData, ...filtered];
       });
 
-      // 2. Sincronizar com Firestore se disponível
       if (isFirebaseAvailable.current) {
         await setDoc(doc(db, "projects", projectId.toString()), {
           ...projectData,
@@ -214,10 +210,7 @@ export const App: React.FC = () => {
         }, { merge: true });
       }
 
-      // 3. Atualizar o estado do projeto atual com o ID correto
       setProject(prev => ({ ...prev, currentProjectId: projectId }));
-      
-      console.log("Projeto salvo com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar projeto:", error);
       alert("Erro ao salvar o projeto. Tente novamente.");
@@ -324,7 +317,6 @@ export const App: React.FC = () => {
 
     try {
       const fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, onChunk, modelId, effectiveGeminiApiKey!, attachments);
-      
       const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
       const result = extractAndParseJson(payload);
       
@@ -421,28 +413,43 @@ export const App: React.FC = () => {
           <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
               <div className={`
-                w-full lg:w-[400px] flex-shrink-0 border-r border-var-border-default h-full z-10 bg-[#121214] transition-all
+                w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all
                 ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}
               `}>
                 <ChatPanel 
                     messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} 
-                    onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} projectName={projectName}
+                    projectName={projectName}
                     credits={userSettings?.credits || 0}
                     generatingFile={generatingFile}
                     isGenerating={isInitializing}
                     userGeminiKey={userSettings?.gemini_api_key}
                     onCloseMobile={() => setActiveMobileTab('editor')}
+                    onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
+                    onOpenGithub={() => setGithubSyncModalOpen(true)}
+                    onOpenSettings={() => setSettingsOpen(true)}
                 />
               </div>
               
               <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
                 <EditorView 
                   files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                  onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))} 
+                  onFileSelect={n => setProject(p => ({...p, activeFile: n}))} 
+                  onFileDelete={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))} 
                   onRunLocally={() => setLocalRunModalOpen(true)}
                   onSyncGithub={() => setGithubSyncModalOpen(true)}
                   codeError={codeError} onFixCode={handleFixCode} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
                   onOpenChatMobile={() => setActiveMobileTab('chat')}
+                  onDownload={() => downloadProjectAsZip(files, projectName)}
+                  onSave={handleSaveProject}
+                  onOpenProjects={() => setView('projects')}
+                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                  onOpenImageStudio={() => setImageStudioOpen(true)}
+                  onLogout={() => signOut(auth)}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  session={sessionUser}
+                  isGenerating={isInitializing}
+                  generatingFile={generatingFile}
+                  generatedFileNames={generatedFileNames}
                 />
               </main>
 
@@ -461,24 +468,6 @@ export const App: React.FC = () => {
                     <TerminalIcon className="w-5 h-5" />
                     <span className="text-xs">Editor</span>
                   </button>
-              </div>
-
-              <div className={`fixed inset-0 z-[60] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)}></div>
-                 <div className={`absolute top-0 left-0 w-[280px] sm:w-[320px] h-full bg-[#121214] shadow-2xl transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <Sidebar
-                        files={files} envVars={envVars} onEnvVarChange={v => setProject(p => ({ ...p, envVars: v }))} activeFile={activeFile} onFileSelect={f => {setProject(p => ({...p, activeFile: f})); setSidebarOpen(false);}}
-                        onDownload={() => downloadProjectAsZip(files, projectName)} onOpenSettings={() => setSettingsOpen(true)}
-                        onOpenGithubImport={() => setGithubModalOpen(true)} onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
-                        onSaveProject={handleSaveProject} onOpenProjects={() => setView('projects')}
-                        onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} onOpenImageStudio={() => setImageStudioOpen(true)} onClose={() => setSidebarOpen(false)}
-                        onRenameFile={(o, n) => setProject(p => ({ ...p, files: p.files.map(f => f.name === o ? {...f, name: n} : f) }))} 
-                        onDeleteFile={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))}
-                        onOpenStripeModal={() => {}} onOpenNeonModal={() => {}} onOpenOSMModal={() => {}}
-                        session={sessionUser} onLogin={() => setAuthModalOpen(true)} onLogout={() => signOut(auth)}
-                        isOfflineMode={isOfflineMode} generatingFile={generatingFile} isGenerating={isInitializing} generatedFileNames={generatedFileNames}
-                    />
-                 </div>
               </div>
             </div>
           </div>
