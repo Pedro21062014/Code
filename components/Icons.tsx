@@ -1,6 +1,9 @@
 
 import React from 'react';
 
+// Re-export UserMenu to be available easily
+export { UserMenu } from './UserMenu';
+
 // Props padrão para ícones SVG
 type IconProps = React.ComponentProps<'svg'> & {
     className?: string;
@@ -52,7 +55,6 @@ export const DeepSeekIcon = ({ className = "w-5 h-5" }: IconProps) => (
        <path d="M15.5 14.5c0 1.105-.895 2-2 2s-2-.895-2-2 .895-2 2-2 2 .895 2 2z" fill="#FFF"/>
     </svg>
 );
-
 
 export const LinkedInIcon = ({ className = "w-5 h-5" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -239,7 +241,7 @@ export const LogOutIcon = ({ className = "w-6 h-6" }: IconProps) => (
 
 export const SaveIcon = ({ className = "w-6 h-6" }: IconProps) => (
   <svg {...defaultProps} className={className} viewBox="0 0 24 24">
-    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h11l5 5v11a2 2 0 0 1-2 2z" />
     <polyline points="17 21 17 13 7 13 7 21" />
     <polyline points="7 3 7 8 15 8" />
   </svg>
