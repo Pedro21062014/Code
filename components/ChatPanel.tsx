@@ -9,6 +9,7 @@ interface ChatPanelProps {
   onSendMessage: (prompt: string, provider: AIProvider, model: string, attachments: { data: string; mimeType: string }[]) => void;
   isProUser: boolean;
   onClose?: () => void;
+  onCloseMobile?: () => void;
   onToggleSidebar?: () => void;
   projectName?: string;
   credits: number;
@@ -34,7 +35,7 @@ const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }
 );
 
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onToggleSidebar, projectName, credits, generatingFile, isGenerating, userGeminiKey }) => {
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onCloseMobile, onToggleSidebar, projectName, credits, generatingFile, isGenerating, userGeminiKey }) => {
   const [input, setInput] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AIProvider.Gemini);
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -105,56 +106,63 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
   const currentCost = isUsingPersonalKey ? 0 : (modelObj?.creditCost || 0);
   
   return (
-    <div className="bg-[#121214] w-full flex flex-col h-full border-r border-[#27272a] text-sm">
+    <div className="bg-[#121214] w-full flex flex-col h-full border-r border-[#27272a] text-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-[#27272a] flex justify-between items-center flex-shrink-0 bg-[#121214]">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
             {onToggleSidebar && (
-                <button onClick={onToggleSidebar} className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#27272a] transition-colors">
+                <button onClick={onToggleSidebar} className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#27272a] transition-colors flex-shrink-0">
                     <MenuIcon className="w-5 h-5" />
                 </button>
             )}
-            <div className="flex flex-col">
-                <h2 className="text-gray-200 font-medium text-sm">{projectName || 'Project'}</h2>
+            <div className="flex flex-col min-w-0">
+                <h2 className="text-gray-200 font-medium text-xs md:text-sm truncate">{projectName || 'Project'}</h2>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500">Assistente IA</span>
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 text-[10px] font-bold border border-blue-800/50">
-                        {credits} créditos
+                    <span className="hidden sm:inline text-[10px] text-gray-500">Assistente IA</span>
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 text-[9px] md:text-[10px] font-bold border border-blue-800/50">
+                        {credits}c
                     </span>
                 </div>
             </div>
         </div>
-        {onClose && (
-            <button onClick={onClose} className="p-1 rounded text-gray-500 hover:text-white hover:bg-[#27272a]">
-                <CloseIcon />
-            </button>
-        )}
+        <div className="flex items-center gap-1">
+            {onCloseMobile && (
+                <button onClick={onCloseMobile} className="lg:hidden p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#27272a]">
+                    <CloseIcon className="w-5 h-5" />
+                </button>
+            )}
+            {onClose && (
+                <button onClick={onClose} className="hidden lg:block p-1 rounded text-gray-500 hover:text-white hover:bg-[#27272a]">
+                    <CloseIcon />
+                </button>
+            )}
+        </div>
       </div>
 
-      <div className="flex-grow p-4 overflow-y-auto space-y-6 custom-scrollbar">
+      <div className="flex-grow p-3 md:p-4 overflow-y-auto space-y-6 custom-scrollbar">
           {messages.map((msg, index) => (
             msg.role === 'system' ? (
                 <div key={index} className="flex justify-center">
-                    <span className="text-xs text-gray-600 bg-[#18181b] px-2 py-1 rounded border border-[#27272a]">{msg.content}</span>
+                    <span className="text-[10px] md:text-xs text-gray-600 bg-[#18181b] px-2 py-1 rounded border border-[#27272a]">{msg.content}</span>
                 </div>
             ) : (
-                <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'assistant' ? 'bg-gradient-to-br from-blue-600 to-purple-600' : 'bg-[#27272a] border border-[#3f3f46]'}`}>
-                        {msg.role === 'assistant' ? <AppLogo className="w-5 h-5 text-white" /> : <div className="text-xs text-gray-400">Você</div>}
+                <div key={index} className={`flex gap-2 md:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'assistant' ? 'bg-gradient-to-br from-blue-600 to-purple-600' : 'bg-[#27272a] border border-[#3f3f46]'}`}>
+                        {msg.role === 'assistant' ? <AppLogo className="w-4 h-4 md:w-5 md:h-5 text-white" /> : <div className="text-[10px] text-gray-400">Tu</div>}
                     </div>
                     
                     <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                         <div className={`px-4 py-2.5 rounded-2xl ${
+                         <div className={`px-3 py-2 md:px-4 md:py-2.5 rounded-2xl ${
                              msg.role === 'user' 
-                             ? 'bg-[#27272a] text-gray-100 rounded-tr-sm' 
-                             : 'bg-[#18181b] text-gray-300 rounded-tl-sm border border-[#27272a]'
+                             ? 'bg-[#27272a] text-gray-100 rounded-tr-sm text-sm' 
+                             : 'bg-[#18181b] text-gray-300 rounded-tl-sm border border-[#27272a] text-sm'
                          }`}>
                              {msg.isThinking ? (
                                 <ThinkingIndicator generatingFile={generatingFile} />
                             ) : (
-                                <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
-                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                <div className="prose prose-invert prose-sm max-w-none leading-relaxed overflow-x-auto">
+                                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                                     {msg.summary && (
-                                        <div className="mt-4 p-3 bg-black/20 rounded-lg border border-white/5 text-[11px] text-gray-400 italic">
+                                        <div className="mt-4 p-3 bg-black/20 rounded-lg border border-white/5 text-[10px] md:text-[11px] text-gray-400 italic">
                                             {msg.summary}
                                         </div>
                                     )}
@@ -168,23 +176,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
           <div ref={chatEndRef} />
       </div>
 
-      <div className="p-4 border-t border-[#27272a] bg-[#121214]">
+      <div className="p-3 md:p-4 border-t border-[#27272a] bg-[#121214] flex-shrink-0">
         <form onSubmit={handleSubmit} className="relative bg-[#18181b] border border-[#27272a] rounded-xl focus-within:ring-1 focus-within:ring-gray-500 focus-within:border-gray-500 transition-all">
            
            {/* Model Selection */}
-           <div className="flex items-center justify-between p-2 border-b border-[#27272a]">
-                <div className="flex items-center gap-2">
+           <div className="flex items-center justify-between p-2 border-b border-[#27272a] gap-2 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1 md:gap-2 min-w-max">
                     <div className="relative">
                         <select
                             value={selectedProvider}
                             onChange={e => setSelectedProvider(e.target.value as AIProvider)}
                             disabled={isGenerating}
-                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-xs text-gray-300 font-medium py-1 pl-2 pr-7 rounded cursor-pointer focus:outline-none transition-colors disabled:opacity-50"
+                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-[10px] text-gray-300 font-medium py-1 pl-1.5 pr-6 rounded cursor-pointer focus:outline-none transition-colors disabled:opacity-50"
                         >
                             {availableProviders.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                            <ChevronDownIcon className="w-3 h-3" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-400">
+                            <ChevronDownIcon className="w-2.5 h-2.5" />
                         </div>
                     </div>
                     
@@ -195,19 +203,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
                             value={selectedModel}
                             onChange={e => setSelectedModel(e.target.value)}
                             disabled={isGenerating}
-                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-xs text-gray-300 font-medium py-1 pl-2 pr-7 rounded cursor-pointer focus:outline-none transition-colors truncate max-w-[120px] disabled:opacity-50"
+                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-[10px] text-gray-300 font-medium py-1 pl-1.5 pr-6 rounded cursor-pointer focus:outline-none transition-colors truncate max-w-[90px] md:max-w-[120px] disabled:opacity-50"
                         >
                             {providerModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                            <ChevronDownIcon className="w-3 h-3" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-400">
+                            <ChevronDownIcon className="w-2.5 h-2.5" />
                         </div>
                     </div>
                 </div>
 
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${currentCost === 0 ? 'bg-green-900/20 border-green-500/30' : 'bg-[#27272a] border-[#3f3f46]'}`}>
-                    <span className="text-[10px] text-gray-500 font-medium uppercase">Custo:</span>
-                    <span className={`text-[10px] font-bold ${currentCost === 0 ? 'text-green-400' : 'text-gray-200'}`}>
+                <div className={`hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${currentCost === 0 ? 'bg-green-900/20 border-green-500/30' : 'bg-[#27272a] border-[#3f3f46]'}`}>
+                    <span className="text-[9px] text-gray-500 font-medium uppercase">Custo:</span>
+                    <span className={`text-[9px] font-bold ${currentCost === 0 ? 'text-green-400' : 'text-gray-200'}`}>
                         {currentCost}
                     </span>
                 </div>
@@ -217,9 +225,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
            {attachedFiles.length > 0 && (
             <div className="px-2 pt-2 flex flex-wrap gap-2">
               {attachedFiles.map((file, index) => (
-                <div key={index} className="flex items-center gap-1 text-xs bg-[#27272a] text-gray-300 px-2 py-1 rounded-md border border-[#3f3f46]">
-                  <span className="truncate max-w-[100px]">{file.name}</span>
-                  <button type="button" onClick={() => removeFile(file)} className="hover:text-white"><CloseIcon className="w-3 h-3" /></button>
+                <div key={index} className="flex items-center gap-1 text-[10px] bg-[#27272a] text-gray-300 px-2 py-1 rounded-md border border-[#3f3f46]">
+                  <span className="truncate max-w-[80px]">{file.name}</span>
+                  <button type="button" onClick={() => removeFile(file)} className="hover:text-white"><CloseIcon className="w-2.5 h-2.5" /></button>
                 </div>
               ))}
             </div>
@@ -235,8 +243,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
                     handleSubmit(e);
                 }
             }}
-            placeholder={isGenerating ? "Gerando projeto..." : "O que vamos construir hoje?"}
-            className="w-full p-3 bg-transparent text-gray-200 placeholder-gray-600 focus:outline-none resize-none text-sm min-h-[80px] disabled:opacity-50"
+            placeholder={isGenerating ? "Gerando projeto..." : "O que vamos construir?"}
+            className="w-full p-3 bg-transparent text-gray-200 placeholder-gray-600 focus:outline-none resize-none text-sm min-h-[60px] md:min-h-[80px] disabled:opacity-50"
             rows={1}
           />
           
@@ -248,7 +256,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
                 onClick={() => fileInputRef.current?.click()}
                 className="p-1.5 text-gray-500 hover:text-white hover:bg-[#27272a] rounded-md transition-colors disabled:opacity-50"
             >
-                <PaperclipIcon />
+                <PaperclipIcon className="w-5 h-5" />
             </button>
             <button 
                 type="submit" 

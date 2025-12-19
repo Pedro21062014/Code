@@ -1,3 +1,4 @@
+
 export enum AIProvider {
   Gemini = 'Gemini',
   OpenAI = 'OpenAI',
@@ -46,6 +47,8 @@ export interface UserSettings {
   neon_connection_string?: string;
   credits?: number;
   last_credits_reset?: string;
+  plan?: 'Hobby' | 'Pro' | 'Enterprise';
+  hasSeenProWelcome?: boolean;
 }
 
 export type Theme = 'light' | 'dark';
