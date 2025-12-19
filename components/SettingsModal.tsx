@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CloseIcon, KeyIcon, GithubIcon } from './Icons';
 import { UserSettings } from '../types';
@@ -14,7 +15,8 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
     if (!key) return { success: false, message: 'A chave não pode estar em branco.' };
     try {
         const ai = new GoogleGenAI({ apiKey: key });
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: 'diga "ok"' });
+        /* Using gemini-3-flash-preview for the connectivity test as it's the standard basic model */
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: 'diga "ok"' });
         // FIX: Safely check for response.text
         const text = response.text || "";
         if (text.trim().toLowerCase().includes('ok')) {

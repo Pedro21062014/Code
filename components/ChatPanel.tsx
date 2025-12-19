@@ -37,27 +37,17 @@ const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isProUser, onClose, onCloseMobile, onToggleSidebar, projectName, credits, generatingFile, isGenerating, userGeminiKey }) => {
   const [input, setInput] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<AIProvider>(AIProvider.Gemini);
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0]?.id || '');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   
-  const availableProviders = isProUser ? Object.values(AIProvider) : [AIProvider.Gemini];
-  const providerModels = AI_MODELS.filter(m => m.provider === selectedProvider);
-
   useEffect(() => {
-    if (!availableProviders.includes(selectedProvider)) {
-      setSelectedProvider(AIProvider.Gemini);
+    if (AI_MODELS.length > 0 && !AI_MODELS.some(m => m.id === selectedModel)) {
+        setSelectedModel(AI_MODELS[0].id);
     }
-  }, [isProUser, selectedProvider, availableProviders]);
-  
-  useEffect(() => {
-    if (providerModels.length > 0 && !providerModels.some(m => m.id === selectedModel)) {
-        setSelectedModel(providerModels[0].id);
-    }
-  }, [selectedProvider, providerModels, selectedModel]);
+  }, [selectedModel]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,7 +82,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
         });
 
         const attachments = await Promise.all(filePromises);
-        onSendMessage(input, selectedProvider, selectedModel, attachments);
+        onSendMessage(input, AIProvider.Gemini, selectedModel, attachments);
         
         setInput('');
         setAttachedFiles([]);
@@ -102,7 +92,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
   };
 
   const modelObj = AI_MODELS.find(m => m.id === selectedModel);
-  const isUsingPersonalKey = selectedProvider === AIProvider.Gemini && !!userGeminiKey;
+  const isUsingPersonalKey = !!userGeminiKey;
   const currentCost = isUsingPersonalKey ? 0 : (modelObj?.creditCost || 0);
   
   return (
@@ -117,7 +107,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
             <div className="flex flex-col min-w-0">
                 <h2 className="text-gray-200 font-medium text-xs md:text-sm truncate">{projectName || 'Project'}</h2>
                 <div className="flex items-center gap-2">
-                    <span className="hidden sm:inline text-[10px] text-gray-500">Assistente IA</span>
+                    <span className="hidden sm:inline text-[10px] text-gray-500">Assistente Gemini</span>
                     <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 text-[9px] md:text-[10px] font-bold border border-blue-800/50">
                         {credits}c
                     </span>
@@ -182,18 +172,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
            {/* Model Selection */}
            <div className="flex items-center justify-between p-2 border-b border-[#27272a] gap-2 overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1 md:gap-2 min-w-max">
-                    <div className="relative">
-                        <select
-                            value={selectedProvider}
-                            onChange={e => setSelectedProvider(e.target.value as AIProvider)}
-                            disabled={isGenerating}
-                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-[10px] text-gray-300 font-medium py-1 pl-1.5 pr-6 rounded cursor-pointer focus:outline-none transition-colors disabled:opacity-50"
-                        >
-                            {availableProviders.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-400">
-                            <ChevronDownIcon className="w-2.5 h-2.5" />
-                        </div>
+                    <div className="flex items-center gap-2 px-1.5 py-1 rounded bg-[#27272a] text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                        Google Gemini
                     </div>
                     
                     <div className="h-4 w-px bg-[#27272a]"></div>
@@ -203,9 +183,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, i
                             value={selectedModel}
                             onChange={e => setSelectedModel(e.target.value)}
                             disabled={isGenerating}
-                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-[10px] text-gray-300 font-medium py-1 pl-1.5 pr-6 rounded cursor-pointer focus:outline-none transition-colors truncate max-w-[90px] md:max-w-[120px] disabled:opacity-50"
+                            className="appearance-none bg-[#27272a] hover:bg-[#3f3f46] text-[10px] text-gray-300 font-medium py-1 pl-1.5 pr-6 rounded cursor-pointer focus:outline-none transition-colors truncate max-w-[120px] md:max-w-[150px] disabled:opacity-50"
                         >
-                            {providerModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                            {AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-gray-400">
                             <ChevronDownIcon className="w-2.5 h-2.5" />

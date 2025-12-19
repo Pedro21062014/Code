@@ -19,12 +19,10 @@ import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
 import { generateCodeStreamWithGemini, generateProjectName } from './services/geminiService';
-import { generateCodeStreamWithOpenAI } from './services/openAIService';
-import { generateCodeStreamWithDeepSeek } from './services/deepseekService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ChatIcon, TerminalIcon } from './components/Icons';
 
 const sanitizeFirestoreData = (data: any) => {
@@ -67,7 +65,7 @@ const initialProjectState: ProjectState = {
 
 export const App: React.FC = () => {
   const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
-  const { files, activeFile, chatMessages, projectName, envVars } = project;
+  const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
@@ -97,6 +95,7 @@ export const App: React.FC = () => {
   const [sessionUser, setSessionUser] = useState<any | null>(null);
   const isFirebaseAvailable = useRef(true);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const effectiveGeminiApiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
 
@@ -114,11 +113,7 @@ export const App: React.FC = () => {
             const data = sanitizeFirestoreData(doc.data());
             projects.push({ ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject);
         });
-        setSavedProjects(prev => {
-            const remoteIds = new Set(projects.map(p => p.id));
-            const localOnly = prev.filter(p => !remoteIds.has(p.id));
-            return [...projects, ...localOnly].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        });
+        setSavedProjects(projects.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
     } catch (error: any) { console.error("Error fetching projects:", error); }
   }, [setSavedProjects]);
 
@@ -144,12 +139,12 @@ export const App: React.FC = () => {
         const data = sanitizeFirestoreData(docSnap.data());
         let mergedSettings = { id: userUid, ...data } as unknown as UserSettings;
         
-        // Verifica se deve mostrar onboarding Pro
-        if (mergedSettings.plan === 'Pro' && !mergedSettings.hasSeenProWelcome) {
+        const plan = mergedSettings.plan?.toLowerCase();
+        if (plan === 'pro' && !mergedSettings.hasSeenProWelcome) {
             setShowProOnboarding(true);
         }
 
-        const planLimit = mergedSettings.plan === 'Pro' ? 500 : mergedSettings.plan === 'Enterprise' ? 1000 : 300;
+        const planLimit = plan === 'pro' ? 500 : 300;
         const today = new Date().toISOString().split('T')[0];
         
         if (mergedSettings.last_credits_reset !== today) {
@@ -172,19 +167,76 @@ export const App: React.FC = () => {
         return { ...localSettings, ...initialData } as UserSettings;
       }
     } catch (error: any) {
+      console.error("Firebase fetch settings failed", error);
       isFirebaseAvailable.current = false;
       setIsOfflineMode(true);
       return localSettings;
     }
   }, []);
 
-  const handleCompleteProOnboarding = async () => {
+  const handleSaveProject = useCallback(async () => {
+    if (!sessionUser) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    if (files.length === 0) {
+      alert("Não há arquivos para salvar.");
+      return;
+    }
+
+    setIsSaving(true);
+    const projectId = currentProjectId || Date.now();
+    
+    const projectData: SavedProject = {
+      id: projectId,
+      ownerId: sessionUser.uid,
+      name: projectName,
+      files: files,
+      chat_history: chatMessages,
+      env_vars: envVars,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      // 1. Salvar no LocalStorage para redundância
+      setSavedProjects(prev => {
+        const filtered = prev.filter(p => p.id !== projectId);
+        return [projectData, ...filtered];
+      });
+
+      // 2. Sincronizar com Firestore se disponível
+      if (isFirebaseAvailable.current) {
+        await setDoc(doc(db, "projects", projectId.toString()), {
+          ...projectData,
+          updated_at: serverTimestamp()
+        }, { merge: true });
+      }
+
+      // 3. Atualizar o estado do projeto atual com o ID correto
+      setProject(prev => ({ ...prev, currentProjectId: projectId }));
+      
+      console.log("Projeto salvo com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar projeto:", error);
+      alert("Erro ao salvar o projeto. Tente novamente.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, setSavedProjects, setProject]);
+
+  const handleCompleteOnboarding = async () => {
     if (sessionUser && userSettings) {
         setShowProOnboarding(false);
         const updated = { ...userSettings, hasSeenProWelcome: true };
         setUserSettings(updated);
         if (isFirebaseAvailable.current) {
-            await updateDoc(doc(db, "users", sessionUser.uid), { hasSeenProWelcome: true });
+            try {
+                await updateDoc(doc(db, "users", sessionUser.uid), { hasSeenProWelcome: true });
+            } catch (e) {
+                console.error("Failed to save welcome status", e);
+            }
         }
     }
   };
@@ -227,6 +279,11 @@ export const App: React.FC = () => {
       setApiKeyModalOpen(true);
       return;
     }
+
+    if (provider !== AIProvider.Gemini) {
+      alert("Apenas o provedor Gemini está disponível no momento.");
+      return;
+    }
     
     if (cost > 0) {
         const newCreditBalance = currentCredits - cost;
@@ -266,13 +323,7 @@ export const App: React.FC = () => {
     };
 
     try {
-      let fullResponse;
-      switch (provider) {
-        case AIProvider.Gemini: fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, onChunk, modelId, effectiveGeminiApiKey!, attachments); break;
-        case AIProvider.OpenAI: fullResponse = await generateCodeStreamWithOpenAI(prompt, project.files, onChunk, modelId); break;
-        case AIProvider.DeepSeek: fullResponse = await generateCodeStreamWithDeepSeek(prompt, project.files, onChunk, modelId); break;
-        default: throw new Error('Provedor não suportado');
-      }
+      const fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, onChunk, modelId, effectiveGeminiApiKey!, attachments);
       
       const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
       const result = extractAndParseJson(payload);
@@ -312,7 +363,7 @@ export const App: React.FC = () => {
   const handleFixCode = useCallback(() => {
     if (!codeError) return;
     const prompt = `O preview da aplicação falhou com o seguinte erro: "${codeError}". Por favor, analise os arquivos atuais e aplique as correções necessárias para que o projeto funcione corretamente. Foque em corrigir erros de importação, sintaxe ou lógica do React.`;
-    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-2.5-flash');
+    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-3-flash-preview');
   }, [codeError, handleSendMessage]);
 
   const handleLoadProject = useCallback((projectId: number) => {
@@ -322,7 +373,7 @@ export const App: React.FC = () => {
             files: projectToLoad.files,
             projectName: projectToLoad.name,
             chatMessages: projectToLoad.chat_history,
-            envVars: projectToLoad.env_vars || {},
+            env_vars: projectToLoad.env_vars || {},
             currentProjectId: projectToLoad.id,
             activeFile: projectToLoad.files.find(f => f.name.includes('html'))?.name || projectToLoad.files[0]?.name || null,
         });
@@ -343,7 +394,7 @@ export const App: React.FC = () => {
 
   return (
     <div className={theme}>
-      {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
+      {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteOnboarding} />}
       {view === 'welcome' ? (
           <WelcomeScreen 
             session={sessionUser ? { user: sessionUser } : null}
@@ -419,7 +470,7 @@ export const App: React.FC = () => {
                         files={files} envVars={envVars} onEnvVarChange={v => setProject(p => ({ ...p, envVars: v }))} activeFile={activeFile} onFileSelect={f => {setProject(p => ({...p, activeFile: f})); setSidebarOpen(false);}}
                         onDownload={() => downloadProjectAsZip(files, projectName)} onOpenSettings={() => setSettingsOpen(true)}
                         onOpenGithubImport={() => setGithubModalOpen(true)} onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
-                        onSaveProject={() => alert('Salvando...')} onOpenProjects={() => setView('projects')}
+                        onSaveProject={handleSaveProject} onOpenProjects={() => setView('projects')}
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} onOpenImageStudio={() => setImageStudioOpen(true)} onClose={() => setSidebarOpen(false)}
                         onRenameFile={(o, n) => setProject(p => ({ ...p, files: p.files.map(f => f.name === o ? {...f, name: n} : f) }))} 
                         onDeleteFile={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))}

@@ -87,7 +87,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
             <p className="text-lg text-gray-400 max-w-2xl mx-auto">Comece de graça e expanda conforme você cresce. Todos os planos incluem acesso aos nossos poderosos recursos de geração de código por IA.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full animate-slideInUp" style={{ animationDelay: '100ms' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl animate-slideInUp" style={{ animationDelay: '100ms' }}>
             <PricingCard
                 title="Hobby"
                 price="Grátis"
@@ -119,22 +119,6 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
                 onClick={() => onContactClick('Pro')} 
                 isLoading={isLoading === 'Pro'}
                 buttonText="Falar com a Equipe"
-            />
-             <PricingCard
-                title="Enterprise"
-                price="Custom"
-                description="Soluções sob medida para grandes equipes e empresas."
-                features={[
-                    "Tudo do Pro, e mais:",
-                    "Deployment em infraestrutura própria",
-                    "Modelos treinados com seu código",
-                    "Console de administração centralizado",
-                    "Controle de acesso granular (RBAC)",
-                    "Account Manager dedicado",
-                ]}
-                onClick={() => onContactClick('Enterprise')}
-                isLoading={isLoading === 'Enterprise'}
-                buttonText="Contatar Vendas"
             />
         </div>
 

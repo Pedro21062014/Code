@@ -20,21 +20,26 @@ ${file.content}
   }
 
   return `You are an expert senior full-stack engineer. Generate complete, functional web applications.
-- **GOAL**: Respond with a valid JSON object containing "message", "files" (array with "name", "language", "content"), and optionally "summary", "environmentVariables", "supabaseAdminAction".
+- **STRUCTURE & ORGANIZATION**:
+  - Organise your code into a professional folder structure.
+  - Core files in root: \`index.html\`, \`package.json\`, \`vite.config.ts\`, \`tsconfig.json\`, \`tailwind.config.js\`.
+  - Source code MUST be in \`src/\`.
+  - Components in \`src/components/\`.
+  - Styles in \`src/styles/\`.
+  - Hooks in \`src/hooks/\`.
+  - Utils/Services in \`src/lib/\` or \`src/services/\`.
+  - Assets in \`public/\`.
+  - **IMPORTANT**: Every file in the "files" array must have a full relative path (e.g., "src/components/Navbar.tsx").
+
 - **ARCHITECTURE (NODE.JS + VITE)**:
   - You are running in a **WebContainer** environment.
   - You MUST generate a \`package.json\` with \`vite\` as a dependency and scripts: \`"dev": "vite"\`.
   - Typical dependencies: \`react\`, \`react-dom\`, \`lucide-react\`, \`react-router-dom\`, \`framer-motion\`, \`clsx\`, \`tailwind-merge\`.
-  - You MUST generate a \`vite.config.ts\`.
-  - You MUST generate an \`index.html\` at the root that includes \`<script type="module" src="/src/main.tsx"></script>\`.
-  - Place React components and logic in \`src/\`.
-- **STYLING**: Use Tailwind CSS. Assume Tailwind is configured via PostCSS or just use the Play CDN in index.html for simplicity if you prefer, but standard Vite/Tailwind setup is better.
-- **DATABASE (SUPABASE)**:
-  - If you need to create tables, use the "supabaseAdminAction" field:
-    \`\`\`json
-    "supabaseAdminAction": { "query": "CREATE TABLE IF NOT EXISTS profile (id uuid primary key, username text);" }
-    \`\`\`
-- **LATENCY**: Be concise. Only generate necessary files. No placeholders.
+  - Place your React entry point at \`src/main.tsx\`.
+  - The \`index.html\` must point to \`/src/main.tsx\`.
+
+- **GOAL**: Respond with a valid JSON object containing "message", "files" (array with "name", "language", "content"), and optionally "summary", "environmentVariables".
+- **LATENCY**: Be concise. Only generate/update necessary files. No placeholders.
 - **IMPORTANT**: Begin with a short one-line "thought" in Portuguese. Then add '---' on a new line. Then the JSON.
 
 Current files:
@@ -92,63 +97,53 @@ export const generateCodeStreamWithGemini = async (
   } catch (error) {
     console.error("Error calling Gemini API:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    const errorJson = JSON.stringify({
+    return JSON.stringify({
         message: `Ocorreu um erro ao chamar a API do Gemini: ${errorMessage}.`
     });
-    return errorJson;
   }
 };
 
-export const generateProjectName = async (
-  prompt: string,
-  apiKey: string
-): Promise<string> => {
+export const generateProjectName = async (prompt: string, apiKey: string): Promise<string> => {
    try {
     const ai = new GoogleGenAI({ apiKey });
     const namePrompt = `Gere um nome de projeto em PascalCase (ex: QuantumQuill) para: "${prompt}". Apenas o nome.`;
-    
+    /* Using gemini-3-flash-preview for basic text task as per guidelines */
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: namePrompt,
     });
-
-    const text = response.text || "";
-    const projectName = text.trim().replace(/[^a-zA-Z0-9]/g, '');
-    return projectName || "NovoProjeto";
+    return response.text?.trim().replace(/[^a-zA-Z0-9]/g, '') || "NovoProjeto";
   } catch (error) {
-    console.error("Error generating project name:", error);
     return "NovoProjeto";
   }
 };
 
-export const generateImagesWithImagen = async (
-  prompt: string,
-  apiKey: string,
-  numberOfImages: number,
-  aspectRatio: string
-): Promise<string[]> => {
+export const generateImagesWithImagen = async (prompt: string, apiKey: string, numberOfImages: number, aspectRatio: string): Promise<string[]> => {
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt,
+    /* Switch to gemini-2.5-flash-image (default for image gen) using generateContent as per SDK rules */
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: prompt }]
+      },
       config: {
-        numberOfImages,
-        outputMimeType: 'image/png',
-        aspectRatio: aspectRatio as any,
+        imageConfig: {
+          aspectRatio: aspectRatio as any,
+        }
       },
     });
 
-    if (!response.generatedImages) {
-        return [];
+    const images: string[] = [];
+    if (response.candidates && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          images.push(part.inlineData.data);
+        }
+      }
     }
-
-    return response.generatedImages
-        .map(img => img.image?.imageBytes)
-        .filter((bytes): bytes is string => !!bytes);
-        
+    return images;
   } catch (error) {
-    console.error("Error calling Imagen API:", error);
     throw error;
   }
 };
