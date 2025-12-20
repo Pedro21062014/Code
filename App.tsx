@@ -396,6 +396,8 @@ export const App: React.FC = () => {
             </div>
           </div>
       )}
+      
+      {/* Modais de Aplicação Global */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
       <SettingsModal 
         isOpen={isSettingsOpen} 
@@ -403,9 +405,29 @@ export const App: React.FC = () => {
         settings={userSettings || { id: '' }} 
         onSave={handleUpdateSettings} 
       />
+      
+      {/* GitHub Modals - Agora renderizados corretamente */}
+      <GithubImportModal 
+        isOpen={isGithubModalOpen} 
+        onClose={() => setGithubModalOpen(false)} 
+        onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} 
+        githubToken={userSettings?.github_access_token} 
+        onOpenSettings={() => setSettingsOpen(true)} 
+      />
+      
+      <GithubSyncModal 
+        isOpen={isGithubSyncModalOpen} 
+        onClose={() => setGithubSyncModalOpen(false)} 
+        files={files}
+        projectName={projectName}
+        githubToken={userSettings?.github_access_token}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+
       <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
       <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} onSaveRequired={handleSaveProject} />
       <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={() => {}} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => {}} />
+      <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
     </div>
   );
 };

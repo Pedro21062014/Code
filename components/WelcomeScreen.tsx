@@ -248,7 +248,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     autoFocus
                 />
 
-                {/* Attachments UI inside input area */}
+                {/* Attachments UI */}
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 px-4 md:px-6 mb-2">
                     {attachedFiles.map((file, idx) => (
@@ -263,7 +263,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 )}
                 
                 {/* Input Footer */}
-                <div className="flex flex-col sm:flex-row items-center justify-between px-4 pb-4 gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between px-4 pb-4 gap-4 relative z-20">
                     <div className="flex flex-wrap items-center justify-center gap-2">
                         <button 
                             onClick={() => fileInputRef.current?.click()}
@@ -275,8 +275,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" accept="image/*,text/*" />
 
                         <button 
-                            onClick={onOpenGithubImport}
-                            className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-[10px] md:text-xs font-medium text-gray-300 transition-colors border border-transparent hover:border-gray-600"
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onOpenGithubImport(); }}
+                            className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-[10px] md:text-xs font-medium text-gray-300 transition-colors border border-transparent hover:border-gray-600 relative z-30"
                         >
                             <GithubIcon className="w-3.5 h-3.5 md:w-4 h-4" />
                             <span className="inline">Github</span>
@@ -292,7 +293,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                        {/* Model Selector Dropdown */}
+                        {/* Model Selector */}
                         <div className="relative" ref={dropdownRef}>
                              <button 
                                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
@@ -351,7 +352,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </div>
         </div>
 
-        {/* Bottom Cards / Recents */}
+        {/* Bottom Cards */}
         <div className="w-full max-w-3xl mt-12 md:mt-16 animate-slideInUp px-2" style={{ animationDelay: '200ms' }}>
             <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                 <div className="flex gap-2 md:gap-4 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
@@ -373,7 +374,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         <div 
                             key={project.id}
                             onClick={() => onLoadProject(project.id)}
-                            className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-600 transition-all cursor-pointer"
+                            className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-500 transition-all cursor-pointer"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50 group-hover:opacity-80 transition-opacity"></div>
                             <div className="absolute top-3 left-3 md:top-4 md:left-4">

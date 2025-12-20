@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GithubIcon, CloseIcon, PlusIcon, LoaderIcon, CheckCircleIcon } from './Icons';
+import { GithubIcon, CloseIcon, PlusIcon, LoaderIcon, CheckCircleIcon, TerminalIcon } from './Icons';
 import { ProjectFile } from '../types';
 
 interface GithubRepo {
@@ -28,17 +28,21 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [newRepoName, setNewRepoName] = useState(projectName.toLowerCase().replace(/\s+/g, '-'));
+  const [newRepoName, setNewRepoName] = useState('');
   const [isPrivate, setIsPrivate] = useState(true);
+  const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen && githubToken) {
       fetchRepos();
       setSuccess(null);
       setError(null);
-      setNewRepoName(projectName.toLowerCase().replace(/\s+/g, '-'));
+      setLogs([]);
+      setNewRepoName(projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
     }
-  }, [isOpen, githubToken]);
+  }, [isOpen, githubToken, projectName]);
+
+  const addLog = (msg: string) => setLogs(prev => [...prev, `> ${msg}`]);
 
   const fetchRepos = async () => {
     setLoadingRepos(true);
@@ -62,18 +66,22 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   const pushFilesToRepo = async (owner: string, repo: string) => {
     setSyncing(true);
     setError(null);
+    setLogs([`Iniciando sincronização com ${owner}/${repo}...`]);
+    
     try {
       const headers = {
         'Authorization': `Bearer ${githubToken}`,
         'Accept': 'application/vnd.github+json',
       };
 
-      // 1. Get default branch
+      addLog("Verificando branch padrão...");
       const repoResp = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+      if(!repoResp.ok) throw new Error("Repositório não acessível");
       const repoInfo = await repoResp.json();
       const branch = repoInfo.default_branch || 'main';
 
-      // 2. Create blobs for each file
+      addLog(`Preparando ${files.length} arquivos para upload...`);
+      // Create blobs concurrently
       const treeItems = await Promise.all(files.map(async (file) => {
         const blobResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
           method: 'POST',
@@ -92,7 +100,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
         };
       }));
 
-      // 3. Get latest commit SHA
+      addLog("Obtendo referência do commit...");
       let baseTreeSha;
       try {
         const refResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`, { headers });
@@ -101,10 +109,10 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
         const commitData = await commitResp.json();
         baseTreeSha = commitData.tree.sha;
       } catch (e) {
-        // Might be a fresh repo with no commits
+        addLog("Repositório vazio detectado. Criando commit inicial.");
       }
 
-      // 4. Create new tree
+      addLog("Construindo árvore de arquivos...");
       const treeResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
         method: 'POST',
         headers,
@@ -115,7 +123,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
       });
       const treeData = await treeResp.json();
 
-      // 5. Create commit
+      addLog("Criando commit...");
       const commitResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
         method: 'POST',
         headers,
@@ -127,7 +135,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
       });
       const commitData = await commitResp.json();
 
-      // 6. Update reference
+      addLog("Atualizando referência remota...");
       const finalResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
         method: baseTreeSha ? 'PATCH' : 'POST',
         headers,
@@ -140,9 +148,11 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
 
       if (!finalResp.ok) throw new Error('Falha ao atualizar referência do Git');
 
-      setSuccess(`Sincronizado com sucesso em ${owner}/${repo}`);
-      setTimeout(onClose, 2000);
+      addLog("Sincronização concluída com sucesso.");
+      setSuccess(`Código enviado para ${owner}/${repo}`);
+      setTimeout(onClose, 2500);
     } catch (err: any) {
+      addLog(`ERRO: ${err.message}`);
       setError(`Erro ao sincronizar: ${err.message}`);
     } finally {
       setSyncing(false);
@@ -152,6 +162,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   const handleCreateAndPush = async () => {
     setSyncing(true);
     setError(null);
+    setLogs([`Criando repositório ${newRepoName}...`]);
     try {
       const response = await fetch('https://api.github.com/user/repos', {
         method: 'POST',
@@ -170,6 +181,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
           throw new Error(errData.message || 'Falha ao criar repositório');
       }
       const newRepo = await response.json();
+      addLog("Repositório criado. Aguardando propagação...");
       // Wait a bit for GitHub to initialize the repo
       await new Promise(r => setTimeout(r, 2000));
       await pushFilesToRepo(newRepo.owner.login, newRepo.name);
@@ -182,76 +194,109 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
-      <div className="bg-[#18181b] rounded-2xl shadow-2xl w-full max-w-lg border border-[#27272a] overflow-hidden animate-slideInUp" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-[#27272a] flex justify-between items-center">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
+      <div className="bg-[#09090b] rounded-2xl shadow-2xl w-full max-w-xl border border-[#27272a] overflow-hidden animate-slideInUp flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+        
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-[#27272a] flex justify-between items-center bg-[#0c0c0e]">
           <div className="flex items-center gap-2">
             <GithubIcon className="w-5 h-5 text-white" />
-            <h2 className="text-xl font-bold text-white">Sincronizar com GitHub</h2>
+            <h2 className="text-sm font-bold text-white uppercase tracking-widest">Version Control</h2>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white transition-colors">
-            <CloseIcon />
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-white transition-colors">
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+          
           {!githubToken ? (
-            <div className="bg-amber-900/20 border border-amber-900/50 p-4 rounded-xl text-center">
-              <p className="text-amber-200 text-sm mb-4">Token do GitHub não configurado.</p>
-              <button onClick={onOpenSettings} className="px-4 py-2 bg-amber-500 text-black text-sm font-bold rounded-lg hover:bg-amber-400 transition-colors">
-                Ir para Configurações
+            <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
+               <div className="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center border border-[#27272a]">
+                 <GithubIcon className="w-8 h-8 text-gray-500" />
+               </div>
+              <p className="text-gray-400 text-sm max-w-xs mx-auto">Token do GitHub não configurado. Adicione-o nas configurações para sincronizar.</p>
+              <button onClick={onOpenSettings} className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors">
+                Configurar Token
               </button>
             </div>
+          ) : syncing ? (
+             <div className="py-4 space-y-4">
+                 <div className="flex items-center gap-3 text-white">
+                     <LoaderIcon className="w-5 h-5 animate-spin text-blue-500" />
+                     <span className="font-mono text-sm">Executando operação git...</span>
+                 </div>
+                 <div className="bg-[#000] rounded-lg border border-[#27272a] p-4 h-48 overflow-y-auto font-mono text-[10px] text-gray-400 space-y-1 custom-scrollbar">
+                     {logs.map((log, i) => <div key={i}>{log}</div>)}
+                 </div>
+             </div>
+          ) : success ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                      <CheckCircleIcon className="w-8 h-8 text-green-500" />
+                  </div>
+                  <h3 className="text-white font-medium">Sincronização Concluída</h3>
+                  <p className="text-gray-500 text-sm">{success}</p>
+              </div>
           ) : (
             <>
-              <div className="flex bg-[#09090b] p-1 rounded-xl">
+              {/* Tab Switcher */}
+              <div className="flex bg-[#121214] p-1 rounded-lg border border-[#27272a]">
                 <button 
                   onClick={() => setIsCreating(false)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${!isCreating ? 'bg-[#27272a] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${!isCreating ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
-                  Selecionar Repo
+                  Push Existente
                 </button>
                 <button 
                   onClick={() => setIsCreating(true)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${isCreating ? 'bg-[#27272a] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${isCreating ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   Criar Novo
                 </button>
               </div>
 
               {isCreating ? (
-                <div className="space-y-4 animate-fadeIn">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5 ml-1">Nome do Repositório</label>
-                    <input 
-                      type="text" 
-                      value={newRepoName}
-                      onChange={e => setNewRepoName(e.target.value)}
-                      placeholder="meu-app-incrivel"
-                      className="w-full bg-[#09090b] border border-[#27272a] rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-                    />
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Repository Name</label>
+                    <div className="flex items-center bg-[#121214] border border-[#27272a] rounded-lg px-3 focus-within:border-blue-500 transition-colors">
+                        <span className="text-gray-500 text-sm font-mono mr-1">git/</span>
+                        <input 
+                            type="text" 
+                            value={newRepoName}
+                            onChange={e => setNewRepoName(e.target.value)}
+                            className="flex-1 bg-transparent py-3 text-white text-sm focus:outline-none font-mono"
+                            placeholder="project-name"
+                        />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 px-1">
+
+                  <div className="grid grid-cols-2 gap-3">
                     <button 
                       onClick={() => setIsPrivate(true)}
-                      className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition-all ${isPrivate ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-transparent border-[#27272a] text-gray-500'}`}
+                      className={`py-3 px-4 rounded-lg border text-left transition-all ${isPrivate ? 'bg-blue-900/10 border-blue-500/50' : 'bg-[#121214] border-[#27272a] hover:border-gray-600'}`}
                     >
-                      Privado
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Visibilidade</div>
+                        <div className={`text-sm font-medium ${isPrivate ? 'text-blue-400' : 'text-white'}`}>Privado</div>
                     </button>
                     <button 
                       onClick={() => setIsPrivate(false)}
-                      className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition-all ${!isPrivate ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-transparent border-[#27272a] text-gray-500'}`}
+                      className={`py-3 px-4 rounded-lg border text-left transition-all ${!isPrivate ? 'bg-green-900/10 border-green-500/50' : 'bg-[#121214] border-[#27272a] hover:border-gray-600'}`}
                     >
-                      Público
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Visibilidade</div>
+                        <div className={`text-sm font-medium ${!isPrivate ? 'text-green-400' : 'text-white'}`}>Público</div>
                     </button>
                   </div>
+
                   <button 
                     onClick={handleCreateAndPush}
-                    disabled={syncing || !newRepoName}
-                    className="w-full bg-white text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    disabled={!newRepoName}
+                    className="w-full bg-white text-black py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
                   >
-                    {syncing ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <PlusIcon className="w-4 h-4" />}
-                    Criar e Sincronizar
+                    <PlusIcon className="w-4 h-4" />
+                    Inicializar Repositório
                   </button>
                 </div>
               ) : (
@@ -260,34 +305,31 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Filtrar repositórios..."
-                    className="w-full bg-[#09090b] border border-[#27272a] rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                    placeholder="Filtrar seus repositórios..."
+                    className="w-full bg-[#121214] border border-[#27272a] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-all font-mono placeholder-gray-600"
                   />
-                  <div className="max-h-60 overflow-y-auto custom-scrollbar border border-[#27272a] rounded-xl bg-[#09090b]">
+                  
+                  <div className="h-48 overflow-y-auto custom-scrollbar border border-[#27272a] rounded-lg bg-[#0c0c0e]">
                     {loadingRepos ? (
-                      <div className="p-8 text-center"><LoaderIcon className="w-6 h-6 animate-spin mx-auto text-gray-600" /></div>
+                      <div className="h-full flex items-center justify-center"><LoaderIcon className="w-5 h-5 animate-spin text-gray-600" /></div>
                     ) : (
                       repositories.filter(r => r.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(repo => (
                         <button 
                           key={repo.id}
                           onClick={() => pushFilesToRepo(repo.owner.login, repo.name)}
-                          disabled={syncing}
                           className="w-full text-left px-4 py-3 border-b border-[#27272a] last:border-0 hover:bg-[#18181b] transition-colors group flex items-center justify-between"
                         >
-                          <div>
-                            <p className="text-sm font-medium text-gray-200 group-hover:text-white">{repo.full_name}</p>
-                            <span className="text-[10px] text-gray-500">{repo.private ? 'Privado' : 'Público'}</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-mono text-gray-300 group-hover:text-white transition-colors">{repo.full_name}</span>
+                            <span className="text-[10px] text-gray-600">{repo.private ? 'Private' : 'Public'}</span>
                           </div>
-                          <span className="text-[10px] text-blue-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Push →</span>
+                          <span className="text-[10px] text-white font-bold bg-[#27272a] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">PUSH</span>
                         </button>
                       ))
                     )}
                   </div>
                 </div>
               )}
-
-              {error && <p className="text-xs text-red-500 bg-red-500/10 p-3 rounded-xl border border-red-500/20">{error}</p>}
-              {success && <p className="text-xs text-green-500 bg-green-500/10 p-3 rounded-xl border border-green-500/20 flex items-center gap-2"><CheckCircleIcon className="w-4 h-4" /> {success}</p>}
             </>
           )}
         </div>
