@@ -36,6 +36,7 @@ export interface ChatMessage {
 // UserSettings reflecting Firestore 'users' collection
 export interface UserSettings {
   id: string;
+  email?: string; // Adicionado para facilitar busca
   updated_at?: string;
   gemini_api_key?: string;
   github_access_token?: string;
@@ -56,6 +57,7 @@ export type Theme = 'light' | 'dark';
 export interface SavedProject {
   id: number;
   ownerId?: string; // UID do usuário do Firebase
+  shared_with?: string[]; // Lista de emails ou UIDs com quem o projeto foi compartilhado
   name: string;
   files: ProjectFile[];
   chat_history: ChatMessage[];
