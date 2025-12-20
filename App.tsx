@@ -9,11 +9,13 @@ import { PricingPage } from './components/PricingPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { GithubImportModal } from './components/GithubImportModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
+import { ShareModal } from './components/ShareModal';
 import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal';
 import { ImageStudioModal } from './components/ImageStudioModal';
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProWelcomeOnboarding } from './components/ProWelcomeOnboarding';
+import { CodePreview } from './components/CodePreview';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
@@ -21,8 +23,8 @@ import { generateCodeStreamWithGemini, generateProjectName } from './services/ge
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp } from "firebase/firestore";
-import { ChatIcon, TerminalIcon, UserMenu } from './components/Icons';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
+import { ChatIcon, TerminalIcon, LoaderIcon } from './components/Icons';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -67,18 +69,20 @@ export const App: React.FC = () => {
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
-  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects'>(files.length > 0 ? 'editor' : 'welcome');
+  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects' | 'public_preview'>(files.length > 0 ? 'editor' : 'welcome');
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
 
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
   const [isGithubSyncModalOpen, setGithubSyncModalOpen] = useState(false);
-  const [isLocalRunModalOpen, setLocalRunModalOpen] = useState(false);
+  const [isShareModalOpen, setShareModalOpen] = useState(false);
+  const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isImageStudioOpen, setImageStudioOpen] = useState(false);
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
   const [showProOnboarding, setShowProOnboarding] = useState(false);
+  const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [isProUser] = useLocalStorage<boolean>('is-pro-user', false);
@@ -97,6 +101,44 @@ export const App: React.FC = () => {
 
   const effectiveGeminiApiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
 
+  // Lógica de Detecção de Projeto Público (Fullscreen)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const publicProjectId = params.get('p');
+    
+    if (publicProjectId) {
+      setIsLoadingPublic(true);
+      const fetchPublicProject = async () => {
+        try {
+          const docRef = doc(db, "projects", publicProjectId);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = sanitizeFirestoreData(docSnap.data()) as SavedProject;
+            setProject({
+              files: data.files,
+              projectName: data.name,
+              chatMessages: data.chat_history || [],
+              envVars: data.env_vars || {},
+              currentProjectId: data.id,
+              activeFile: data.files[0]?.name || null
+            });
+            setView('public_preview');
+          } else {
+            alert("Projeto não encontrado ou o link expirou.");
+            window.location.href = window.location.origin;
+          }
+        } catch (error) {
+          console.error("Error loading public project:", error);
+          alert("Erro ao carregar projeto público. Verifique sua conexão.");
+        } finally {
+          setIsLoadingPublic(false);
+        }
+      };
+      fetchPublicProject();
+    }
+  }, []);
+
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
@@ -104,91 +146,55 @@ export const App: React.FC = () => {
   const fetchUserProjects = useCallback(async (userId: string) => {
     if (!isFirebaseAvailable.current) return;
     try {
-        const q = query(collection(db, "projects"), where("ownerId", "==", userId));
-        const querySnapshot = await getDocs(q);
-        const projects: SavedProject[] = [];
-        querySnapshot.forEach((doc: any) => {
-            const data = sanitizeFirestoreData(doc.data());
-            projects.push({ ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject);
+        const projectsMap = new Map<string, SavedProject>();
+        const qOwner = query(collection(db, "projects"), where("ownerId", "==", userId));
+        const qShared = query(collection(db, "projects"), where("shared_with", "array-contains", userId));
+        const results = await Promise.allSettled([getDocs(qOwner), getDocs(qShared)]);
+        results.forEach((res, idx) => {
+          if (res.status === 'fulfilled') {
+            res.value.forEach((doc) => {
+              const data = sanitizeFirestoreData(doc.data());
+              const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
+              projectsMap.set(doc.id, p);
+            });
+          }
         });
-        setSavedProjects(projects.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+        const sortedProjects = Array.from(projectsMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        setSavedProjects(sortedProjects);
     } catch (error: any) { console.error("Error fetching projects:", error); }
   }, [setSavedProjects]);
 
   const fetchUserSettings = useCallback(async (userUid: string): Promise<UserSettings | null> => {
-    const localDataKey = `user_settings_${userUid}`;
-    let localSettings: UserSettings = { id: userUid, credits: DAILY_CREDIT_LIMIT, plan: 'Hobby' };
-    
-    try {
-        const stored = localStorage.getItem(localDataKey);
-        if (stored) localSettings = { ...localSettings, ...JSON.parse(stored) };
-    } catch (e) { console.warn("Failed to parse local settings", e); }
-
-    if (!isFirebaseAvailable.current) {
-        setIsOfflineMode(true);
-        return localSettings;
-    }
-
+    if (!isFirebaseAvailable.current) return null;
     try {
       const docRef = doc(db, "users", userUid);
       const docSnap = await getDoc(docRef);
-
+      const currentUserEmail = auth.currentUser?.email?.toLowerCase() || "";
       if (docSnap.exists()) {
         const data = sanitizeFirestoreData(docSnap.data());
         let mergedSettings = { id: userUid, ...data } as unknown as UserSettings;
-        
-        const plan = mergedSettings.plan?.toLowerCase();
-        if (plan === 'pro' && !mergedSettings.hasSeenProWelcome) {
-            setShowProOnboarding(true);
+        if ((!data.email || data.email !== currentUserEmail) && currentUserEmail) {
+            await updateDoc(docRef, { email: currentUserEmail }).catch(() => {});
+            mergedSettings.email = currentUserEmail;
         }
-
-        const planLimit = plan === 'pro' ? 500 : 300;
-        const today = new Date().toISOString().split('T')[0];
-        
-        if (mergedSettings.last_credits_reset !== today) {
-            mergedSettings.credits = planLimit;
-            mergedSettings.last_credits_reset = today;
-            await updateDoc(docRef, { credits: planLimit, last_credits_reset: today });
-        }
-        
-        localStorage.setItem(localDataKey, JSON.stringify(mergedSettings));
-        setIsOfflineMode(false);
         return mergedSettings;
       } else {
-        const initialData = { 
-            credits: DAILY_CREDIT_LIMIT, 
-            plan: 'Hobby' as const,
-            last_credits_reset: new Date().toISOString().split('T')[0],
-            hasSeenProWelcome: false
-        };
+        const initialData = { email: currentUserEmail, credits: DAILY_CREDIT_LIMIT, plan: 'Hobby' as const, last_credits_reset: new Date().toISOString().split('T')[0], hasSeenProWelcome: false };
         await setDoc(docRef, initialData);
-        return { ...localSettings, ...initialData } as UserSettings;
+        return { id: userUid, ...initialData } as UserSettings;
       }
-    } catch (error: any) {
-      console.error("Firebase fetch settings failed", error);
-      isFirebaseAvailable.current = false;
-      setIsOfflineMode(true);
-      return localSettings;
-    }
+    } catch (error: any) { return null; }
   }, []);
 
   const handleSaveProject = useCallback(async () => {
-    if (!sessionUser) {
-      setAuthModalOpen(true);
-      return;
-    }
-
-    if (files.length === 0) {
-      alert("Não há arquivos para salvar.");
-      return;
-    }
-
+    if (!sessionUser) { setAuthModalOpen(true); return; }
+    if (files.length === 0) return;
     setIsSaving(true);
     const projectId = currentProjectId || Date.now();
-    
     const projectData: SavedProject = {
       id: projectId,
       ownerId: sessionUser.uid,
+      shared_with: project.currentProjectId ? (savedProjects.find(p => p.id === project.currentProjectId)?.shared_with || []) : [],
       name: projectName,
       files: files,
       chat_history: chatMessages,
@@ -196,56 +202,29 @@ export const App: React.FC = () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
     try {
-      setSavedProjects(prev => {
-        const filtered = prev.filter(p => p.id !== projectId);
-        return [projectData, ...filtered];
-      });
-
-      if (isFirebaseAvailable.current) {
-        await setDoc(doc(db, "projects", projectId.toString()), {
-          ...projectData,
-          updated_at: serverTimestamp()
-        }, { merge: true });
-      }
-
+      setSavedProjects(prev => [projectData, ...prev.filter(p => p.id !== projectId)]);
+      await setDoc(doc(db, "projects", projectId.toString()), { ...projectData, updated_at: serverTimestamp() }, { merge: true });
       setProject(prev => ({ ...prev, currentProjectId: projectId }));
-    } catch (error) {
-      console.error("Erro ao salvar projeto:", error);
-      alert("Erro ao salvar o projeto. Tente novamente.");
-    } finally {
-      setIsSaving(false);
-    }
-  }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, setSavedProjects, setProject]);
+    } catch (error: any) { alert("Erro ao salvar projeto no servidor."); } finally { setIsSaving(false); }
+  }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
 
-  const handleCompleteOnboarding = async () => {
-    if (sessionUser && userSettings) {
-        setShowProOnboarding(false);
-        const updated = { ...userSettings, hasSeenProWelcome: true };
-        setUserSettings(updated);
-        if (isFirebaseAvailable.current) {
-            try {
-                await updateDoc(doc(db, "users", sessionUser.uid), { hasSeenProWelcome: true });
-            } catch (e) {
-                console.error("Failed to save welcome status", e);
-            }
-        }
+  const handleShareProject = useCallback(async (targetUid: string, email: string) => {
+    if (!currentProjectId) await handleSaveProject();
+    if (currentProjectId) {
+      try {
+        await updateDoc(doc(db, "projects", currentProjectId.toString()), { shared_with: arrayUnion(targetUid) });
+      } catch (error: any) { throw new Error(error.message); }
     }
-  };
+  }, [currentProjectId, handleSaveProject]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
-        setSessionUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL
-        });
+        setSessionUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL });
         const settings = await fetchUserSettings(user.uid);
         setUserSettings(settings);
-        await fetchUserProjects(user.uid);
+        fetchUserProjects(user.uid);
       } else {
         setSessionUser(null);
         setUserSettings(null);
@@ -256,193 +235,110 @@ export const App: React.FC = () => {
 
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
     if (!sessionUser) { setAuthModalOpen(true); return; }
-    
     const selectedModel = AI_MODELS.find(m => m.id === modelId);
-    const isUsingOwnGeminiKey = provider === AIProvider.Gemini && !!userSettings?.gemini_api_key;
-    const cost = isUsingOwnGeminiKey ? 0 : (selectedModel?.creditCost || 1);
     const currentCredits = userSettings?.credits || 0;
-
-    if (currentCredits < cost) {
-        alert(`Créditos insuficientes (${currentCredits}/${cost}). Configure sua própria chave do Gemini nas configurações para gerar código gratuitamente.`);
-        return;
-    }
-
-    if (provider === AIProvider.Gemini && !effectiveGeminiApiKey) {
-      setPendingPrompt({ prompt, provider, model: modelId, attachments });
-      setApiKeyModalOpen(true);
-      return;
-    }
-
-    if (provider !== AIProvider.Gemini) {
-      alert("Apenas o provedor Gemini está disponível no momento.");
-      return;
-    }
+    const cost = provider === AIProvider.Gemini && userSettings?.gemini_api_key ? 0 : (selectedModel?.creditCost || 1);
     
-    if (cost > 0) {
-        const newCreditBalance = currentCredits - cost;
-        setUserSettings(prev => prev ? { ...prev, credits: newCreditBalance } : null);
-        if (isFirebaseAvailable.current) {
-            updateDoc(doc(db, "users", sessionUser.uid), { credits: newCreditBalance }).catch(console.error);
-        }
-    }
+    if (currentCredits < cost) { alert("Créditos insuficientes."); return; }
+    if (provider === AIProvider.Gemini && !effectiveGeminiApiKey) { setPendingPrompt({ prompt, provider, model: modelId, attachments }); setApiKeyModalOpen(true); return; }
 
-    setProject(p => ({ 
-      ...p, 
-      chatMessages: [...p.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando solicitação...', isThinking: true }] 
-    }));
-    
+    setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando...', isThinking: true }] }));
     if (view !== 'editor') setView('editor');
-    if (window.innerWidth < 1024) setActiveMobileTab('chat');
-    
     setIsInitializing(true);
-    setGeneratedFileNames(new Set());
-    setCodeError(null);
-
-    if (project.files.length === 0 && effectiveGeminiApiKey) {
-      setGeneratingFile('Analisando...');
-      generateProjectName(prompt, effectiveGeminiApiKey).then(n => setProject(p => ({...p, projectName: n})));
-    }
-
-    let accumulatedContent = "";
-    const onChunk = (chunk: string) => {
-        accumulatedContent += chunk;
-        const fileMatches = [...accumulatedContent.matchAll(/"name":\s*"([^"]+)"/g)];
-        if (fileMatches.length > 0) {
-            const names = new Set<string>();
-            fileMatches.forEach(m => names.add(m[1]));
-            setGeneratedFileNames(names);
-            setGeneratingFile(fileMatches[fileMatches.length - 1][1]);
-        }
-    };
-
+    
     try {
-      const fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, onChunk, modelId, effectiveGeminiApiKey!, attachments);
+      const fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, (c) => {}, modelId, effectiveGeminiApiKey!, attachments);
       const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
       const result = extractAndParseJson(payload);
-      
       if (result.files) {
         setProject(p => {
             const map = new Map(p.files.map(f => [f.name, f]));
             result.files.forEach((file: ProjectFile) => map.set(file.name, file));
-            return { ...p, files: Array.from(map.values()), activeFile: p.activeFile || result.files[0].name };
+            return { ...p, files: Array.from(map.values()), activeFile: p.activeFile || result.files[0].name, chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: result.message, summary: result.summary, isThinking: false }] };
         });
       }
-
-      setProject(p => {
-            const msgs = [...p.chatMessages];
-            const last = msgs[msgs.length - 1];
-            if (last?.role === 'assistant') {
-                last.content = result.message || 'Pronto! O código foi gerado.';
-                last.summary = result.summary;
-                last.isThinking = false;
-            }
-            return { ...p, chatMessages: msgs };
-      });
-      
-      if (window.innerWidth < 1024) setActiveMobileTab('editor');
-        
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Erro desconhecido";
-      setProject(p => {
-            const msgs = [...p.chatMessages];
-            const last = msgs[msgs.length - 1];
-            if (last?.isThinking) { last.content = `Desculpe, ocorreu um erro: ${msg}`; last.isThinking = false; }
-            return { ...p, chatMessages: msgs };
-        });
-    } finally { setIsInitializing(false); setGeneratingFile(null); }
-  }, [project, effectiveGeminiApiKey, userSettings, sessionUser, view, setProject]);
-
-  const handleFixCode = useCallback(() => {
-    if (!codeError) return;
-    const prompt = `O preview da aplicação falhou com o seguinte erro: "${codeError}". Por favor, analise os arquivos atuais e aplique as correções necessárias para que o projeto funcione corretamente. Foque em corrigir erros de importação, sintaxe ou lógica do React.`;
-    handleSendMessage(prompt, AIProvider.Gemini, 'gemini-3-flash-preview');
-  }, [codeError, handleSendMessage]);
+    } catch (e) { console.error(e); } finally { setIsInitializing(false); }
+  }, [project, effectiveGeminiApiKey, userSettings, sessionUser, view]);
 
   const handleLoadProject = useCallback((projectId: number) => {
-    const projectToLoad = savedProjects.find(p => p.id === projectId);
-    if (projectToLoad) {
-        setProject({
-            files: projectToLoad.files,
-            projectName: projectToLoad.name,
-            chatMessages: projectToLoad.chat_history,
-            envVars: projectToLoad.env_vars || {},
-            currentProjectId: projectToLoad.id,
-            activeFile: projectToLoad.files.find(f => f.name.includes('html'))?.name || projectToLoad.files[0]?.name || null,
-        });
-        setCodeError(null);
+    const p = savedProjects.find(x => x.id === projectId);
+    if (p) {
+        setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], envVars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
         setView('editor');
-        setActiveMobileTab('editor');
     }
-  }, [savedProjects, setProject]);
+  }, [savedProjects]);
 
-  const handleSaveSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
-    if (!sessionUser) return;
-    const updated = { ...userSettings, ...newSettings };
-    setUserSettings(updated as UserSettings);
-    if (isFirebaseAvailable.current) {
-        await updateDoc(doc(db, "users", sessionUser.uid), newSettings);
-    }
-  }, [sessionUser, userSettings]);
+  if (isLoadingPublic) {
+    return (
+      <div className="h-screen w-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
+        <LoaderIcon className="w-10 h-10 text-blue-500 animate-spin" />
+        <p className="text-gray-400 font-mono text-sm animate-pulse tracking-widest">CARREGANDO APLICAÇÃO...</p>
+      </div>
+    );
+  }
+
+  if (view === 'public_preview') {
+    return (
+      <div className="h-screen w-full bg-white relative">
+        <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} />
+        <div className="fixed bottom-4 right-4 z-50">
+            <button 
+                onClick={() => window.location.href = window.location.origin}
+                className="flex items-center gap-2 px-4 py-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/10 hover:bg-black transition-all shadow-2xl"
+            >
+                Criado com Codegen Studio
+            </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={theme}>
-      {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteOnboarding} />}
+      {showProOnboarding && <ProWelcomeOnboarding onComplete={() => setShowProOnboarding(false)} />}
       {view === 'welcome' ? (
           <WelcomeScreen 
             session={sessionUser ? { user: sessionUser } : null}
             onLoginClick={() => setAuthModalOpen(true)}
-            onPromptSubmit={(p, m, a) => { const mod = AI_MODELS.find(x => x.id === m); handleSendMessage(p, mod!.provider, m, a); }}
+            onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
             onShowPricing={() => setView('pricing')}
             onShowProjects={() => setView('projects')}
             onOpenGithubImport={() => setGithubModalOpen(true)}
-            onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); setActiveMobileTab('editor'); }}
+            onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
             onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-            onLogout={() => signOut(auth).then(() => { setProject(initialProjectState); setView('welcome'); })}
+            onLogout={() => signOut(auth)}
             onOpenSettings={() => setSettingsOpen(true)}
             recentProjects={savedProjects}
-            onLoadProject={id => handleLoadProject(id)}
+            onLoadProject={handleLoadProject}
             credits={userSettings?.credits || 0}
             userGeminiKey={userSettings?.gemini_api_key}
             currentPlan={userSettings?.plan || 'Hobby'}
           />
       ) : view === 'pricing' ? (
-          <PricingPage onBack={() => setView('welcome')} onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} />
+          <PricingPage onBack={() => setView('welcome')} onNewProject={() => {}} />
       ) : view === 'projects' ? (
-          <ProjectsPage projects={savedProjects} onLoadProject={handleLoadProject} onDeleteProject={id => setSavedProjects(p => p.filter(x => x.id !== id))} onBack={() => setView('welcome')} onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} />
+          <ProjectsPage projects={savedProjects} onLoadProject={handleLoadProject} onDeleteProject={() => {}} onBack={() => setView('welcome')} onNewProject={() => {}} />
       ) : (
           <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
-              <div className={`
-                w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all
-                ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}
-              `}>
+              <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
                 <ChatPanel 
                     messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} 
-                    projectName={projectName}
-                    credits={userSettings?.credits || 0}
-                    generatingFile={generatingFile}
-                    isGenerating={isInitializing}
-                    userGeminiKey={userSettings?.gemini_api_key}
-                    onCloseMobile={() => setActiveMobileTab('editor')}
-                    onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
-                    onOpenGithub={() => setGithubSyncModalOpen(true)}
-                    onOpenSettings={() => setSettingsOpen(true)}
+                    projectName={projectName} credits={userSettings?.credits || 0} generatingFile={generatingFile} isGenerating={isInitializing}
                 />
               </div>
-              
               <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
                 <EditorView 
                   files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                  onFileSelect={n => setProject(p => ({...p, activeFile: n}))} 
-                  onFileDelete={n => setProject(p => ({ ...p, files: p.files.filter(f => f.name !== n) }))} 
-                  onRunLocally={() => setLocalRunModalOpen(true)}
+                  onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={() => {}} 
+                  onRunLocally={() => setPublishModalOpen(true)}
                   onSyncGithub={() => setGithubSyncModalOpen(true)}
-                  codeError={codeError} onFixCode={handleFixCode} onClearError={() => setCodeError(null)} onError={setCodeError} envVars={envVars}
-                  onOpenChatMobile={() => setActiveMobileTab('chat')}
+                  onShare={() => setShareModalOpen(true)}
+                  codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
                   onDownload={() => downloadProjectAsZip(files, projectName)}
                   onSave={handleSaveProject}
                   onOpenProjects={() => setView('projects')}
-                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                  onNewProject={() => setView('welcome')}
                   onOpenImageStudio={() => setImageStudioOpen(true)}
                   onLogout={() => signOut(auth)}
                   onOpenSettings={() => setSettingsOpen(true)}
@@ -452,34 +348,14 @@ export const App: React.FC = () => {
                   generatedFileNames={generatedFileNames}
                 />
               </main>
-
-              <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-[#18181b] border border-[#27272a] rounded-full p-1 shadow-2xl z-50">
-                  <button 
-                    onClick={() => setActiveMobileTab('chat')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all ${activeMobileTab === 'chat' ? 'bg-white text-black font-bold' : 'text-gray-500'}`}
-                  >
-                    <ChatIcon className="w-5 h-5" />
-                    <span className="text-xs">Chat</span>
-                  </button>
-                  <button 
-                    onClick={() => setActiveMobileTab('editor')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all ${activeMobileTab === 'editor' ? 'bg-white text-black font-bold' : 'text-gray-500'}`}
-                  >
-                    <TerminalIcon className="w-5 h-5" />
-                    <span className="text-xs">Editor</span>
-                  </button>
-              </div>
             </div>
           </div>
       )}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <SettingsModal isOpen={isSettingsOpen && !!sessionUser} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
-      <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen && !!sessionUser} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleSaveSettings} />
-      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={k => { handleSaveSettings({ gemini_api_key: k }); if (pendingPrompt) { handleSendMessage(pendingPrompt.prompt, pendingPrompt.provider, pendingPrompt.model, pendingPrompt.attachments); setPendingPrompt(null); } }} />
-      <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={f => { setProject(p => ({...p, files: f, activeFile: f.find(x => x.name.includes('html'))?.name || f[0]?.name || null})); setGithubModalOpen(false); setView('editor'); setActiveMobileTab('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
-      <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} projectName={projectName} />
-      <PublishModal isOpen={isLocalRunModalOpen} onClose={() => setLocalRunModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} />
-      <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={(d, n) => setProject(p => ({...p, files: [...p.files, { name: n, language: 'image', content: d }] }))} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => setApiKeyModalOpen(true)} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={() => {}} />
+      <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
+      <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} onSaveRequired={handleSaveProject} />
+      <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={() => {}} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => {}} />
     </div>
   );
 };

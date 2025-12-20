@@ -10,46 +10,26 @@
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <style>
-      :root {
-        --font-sans: 'Inter', sans-serif;
-        --bg-default-light: #ffffff;
-        --bg-subtle-light: #f9fafb;
-        --bg-muted-light: #f3f4f6;
-        --bg-interactive-light: #e5e7eb;
-        --fg-default-light: #111827;
-        --fg-muted-light: #4b5563;
-        --fg-subtle-light: #9ca3af;
-        --border-default-light: #e5e7eb;
-        --border-subtle-light: #f3f4f6;
-        --accent-light: #000000;
-        --accent-fg-light: #ffffff;
-        --bg-default-dark: #09090b;
-        --bg-subtle-dark: #121214;
-        --bg-muted-dark: #18181b;
-        --bg-interactive-dark: #27272a;
-        --fg-default-dark: #ededed;
-        --fg-muted-dark: #a1a1aa;
-        --fg-subtle-dark: #71717a;
-        --border-default-dark: #27272a;
-        --border-subtle-dark: #18181b;
-        --accent-dark: #ffffff;
-        --accent-fg-dark: #000000;
-      }
       body {
-        font-family: var(--font-sans);
-        background-color: var(--bg-default);
-        color: var(--fg-default);
-        transition: background-color 0.3s ease, color 0.3s ease;
+        font-family: 'Inter', sans-serif;
+        background-color: #0a0a0a;
+        color: #ededed;
+        margin: 0;
+        overflow: hidden;
       }
-      .light { --bg-default: var(--bg-default-light); --bg-subtle: var(--bg-subtle-light); --bg-muted: var(--bg-muted-light); --bg-interactive: var(--bg-interactive-light); --fg-default: var(--fg-default-light); --fg-muted: var(--fg-muted-light); --fg-subtle: var(--fg-subtle-light); --border-default: var(--border-default-light); --border-subtle: var(--border-subtle-light); --accent: var(--accent-light); --accent-fg: var(--accent-fg-light); }
-      .dark { --bg-default: var(--bg-default-dark); --bg-subtle: var(--bg-subtle-dark); --bg-muted: var(--bg-muted-dark); --bg-interactive: var(--bg-interactive-dark); --fg-default: var(--fg-default-dark); --fg-muted: var(--fg-muted-dark); --fg-subtle: var(--fg-subtle-dark); --border-default: var(--border-default-dark); --border-subtle: var(--border-subtle-dark); --accent: var(--accent-dark); --accent-fg: var(--accent-fg-dark); }
-      ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background-color: var(--bg-interactive); border-radius: 3px; }
+      
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       @keyframes slideInUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+      
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
   <script type="importmap">
 {
