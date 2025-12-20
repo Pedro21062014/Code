@@ -85,7 +85,6 @@ export const App: React.FC = () => {
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  const [isProUser] = useLocalStorage<boolean>('is-pro-user', false);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
   const [pendingPrompt, setPendingPrompt] = useState<any>(null);
   
@@ -96,12 +95,29 @@ export const App: React.FC = () => {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
   const isFirebaseAvailable = useRef(true);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const effectiveGeminiApiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
 
-  // Lógica de Detecção de Projeto Público (Fullscreen)
+  // Lógica de Monitoramento para Onboarding Pro (Corrigida)
+  useEffect(() => {
+    // Verifica se os settings foram carregados
+    if (!userSettings) return;
+
+    const plan = userSettings.plan || 'Hobby';
+    const hasSeen = userSettings.hasSeenProWelcome === true; // Garante que é estritamente true
+
+    // Se o plano for Pro (case insensitive) e ainda não viu o welcome
+    if (plan.toLowerCase() === 'pro' && !hasSeen) {
+      // Pequeno delay para garantir que a UI carregou
+      const timer = setTimeout(() => {
+          setShowProOnboarding(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [userSettings]);
+
+  // Carregamento de Projeto Público
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const publicProjectId = params.get('p');
@@ -130,7 +146,6 @@ export const App: React.FC = () => {
           }
         } catch (error) {
           console.error("Error loading public project:", error);
-          alert("Erro ao carregar projeto público. Verifique sua conexão.");
         } finally {
           setIsLoadingPublic(false);
         }
@@ -152,9 +167,8 @@ export const App: React.FC = () => {
         
         const results = await Promise.allSettled([getDocs(qOwner), getDocs(qShared)]);
         
-        results.forEach((res, idx) => {
+        results.forEach((res) => {
           if (res.status === 'fulfilled') {
-            // Fix: Use 'any' type to avoid "Cannot use namespace as type" error from conflicting Firestore declarations
             const snapshot = (res as any).value;
             snapshot.forEach((doc: any) => {
               const data = sanitizeFirestoreData(doc.data());
@@ -164,8 +178,8 @@ export const App: React.FC = () => {
           }
         });
         
-        const sortedProjects = Array.from(projectsMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        setSavedProjects(sortedProjects);
+        const sorted = Array.from(projectsMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        setSavedProjects(sorted);
     } catch (error: any) { console.error("Error fetching projects:", error); }
   }, [setSavedProjects]);
 
@@ -175,6 +189,7 @@ export const App: React.FC = () => {
       const docRef = doc(db, "users", userUid);
       const docSnap = await getDoc(docRef);
       const currentUserEmail = auth.currentUser?.email?.toLowerCase() || "";
+      
       if (docSnap.exists()) {
         const data = sanitizeFirestoreData(docSnap.data());
         let mergedSettings = { id: userUid, ...data } as unknown as UserSettings;
@@ -190,6 +205,31 @@ export const App: React.FC = () => {
       }
     } catch (error: any) { return null; }
   }, []);
+
+  const handleUpdateSettings = async (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => {
+    if (!sessionUser) return;
+    try {
+      const docRef = doc(db, "users", sessionUser.uid);
+      await updateDoc(docRef, {
+        ...newSettings,
+        updated_at: serverTimestamp()
+      });
+      setUserSettings(prev => prev ? { ...prev, ...newSettings } : null);
+    } catch (error) {
+      console.error("Erro ao atualizar configurações:", error);
+    }
+  };
+
+  const handleCompleteProOnboarding = async () => {
+    setShowProOnboarding(false);
+    if (sessionUser) {
+      const docRef = doc(db, "users", sessionUser.uid);
+      // Atualiza estado local imediatamente
+      setUserSettings(prev => prev ? { ...prev, hasSeenProWelcome: true } : null);
+      // Atualiza Firestore em segundo plano
+      await updateDoc(docRef, { hasSeenProWelcome: true }).catch(console.error);
+    }
+  };
 
   const handleSaveProject = useCallback(async () => {
     if (!sessionUser) { setAuthModalOpen(true); return; }
@@ -211,7 +251,7 @@ export const App: React.FC = () => {
       setSavedProjects(prev => [projectData, ...prev.filter(p => p.id !== projectId)]);
       await setDoc(doc(db, "projects", projectId.toString()), { ...projectData, updated_at: serverTimestamp() }, { merge: true });
       setProject(prev => ({ ...prev, currentProjectId: projectId }));
-    } catch (error: any) { alert("Erro ao salvar projeto no servidor."); } finally { setIsSaving(false); }
+    } catch (error: any) { alert("Erro ao salvar projeto."); } finally { setIsSaving(false); }
   }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
 
   const handleShareProject = useCallback(async (targetUid: string, email: string) => {
@@ -300,7 +340,7 @@ export const App: React.FC = () => {
 
   return (
     <div className={theme}>
-      {showProOnboarding && <ProWelcomeOnboarding onComplete={() => setShowProOnboarding(false)} />}
+      {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
       {view === 'welcome' ? (
           <WelcomeScreen 
             session={sessionUser ? { user: sessionUser } : null}
@@ -328,7 +368,7 @@ export const App: React.FC = () => {
             <div className="flex flex-1 overflow-hidden relative">
               <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
                 <ChatPanel 
-                    messages={chatMessages} onSendMessage={handleSendMessage} isProUser={isProUser} 
+                    messages={chatMessages} onSendMessage={handleSendMessage} isProUser={userSettings?.plan === 'Pro'} 
                     projectName={projectName} credits={userSettings?.credits || 0} generatingFile={generatingFile} isGenerating={isInitializing}
                 />
               </div>
@@ -343,7 +383,7 @@ export const App: React.FC = () => {
                   onDownload={() => downloadProjectAsZip(files, projectName)}
                   onSave={handleSaveProject}
                   onOpenProjects={() => setView('projects')}
-                  onNewProject={() => setView('welcome')}
+                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                   onOpenImageStudio={() => setImageStudioOpen(true)}
                   onLogout={() => signOut(auth)}
                   onOpenSettings={() => setSettingsOpen(true)}
@@ -357,7 +397,12 @@ export const App: React.FC = () => {
           </div>
       )}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={() => {}} />
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setSettingsOpen(false)} 
+        settings={userSettings || { id: '' }} 
+        onSave={handleUpdateSettings} 
+      />
       <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
       <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} onSaveRequired={handleSaveProject} />
       <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={() => {}} apiKey={effectiveGeminiApiKey} onOpenApiKeyModal={() => {}} />

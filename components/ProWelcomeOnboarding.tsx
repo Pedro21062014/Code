@@ -9,164 +9,161 @@ export const ProWelcomeOnboarding: React.FC<ProWelcomeOnboardingProps> = ({ onCo
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    // Sequência de animação estendida e cinematográfica
-    // Iniciamos o Step 1 mais rápido para evitar tela preta por muito tempo
+    // Cronograma de precisão (Total ~10s para ser rápido e impactante)
     const timers = [
-      setTimeout(() => setStep(1), 300),    // "O futuro chegou..."
-      setTimeout(() => setStep(2), 3500),   // "Bem-vindo à elite."
-      setTimeout(() => setStep(3), 7000),   // "CODEGEN STUDIO PRO" (Reveal)
-      setTimeout(() => setStep(4), 10500),  // "Seu potencial agora é ilimitado."
-      setTimeout(() => setStep(5), 14000),  // "O que você vai revolucionar hoje?"
-      setTimeout(() => setStep(6), 18000),  // Finaliza
+      setTimeout(() => setStep(1), 500),   // Grid Init
+      setTimeout(() => setStep(2), 2000),  // PRO Reveal
+      setTimeout(() => setStep(3), 5000),  // Features
+      setTimeout(() => setStep(4), 9000),  // Welcome
+      setTimeout(() => setStep(5), 11500), // Finish
     ];
 
     return () => timers.forEach(clearTimeout);
   }, []);
 
   useEffect(() => {
-    if (step === 6) {
-      onComplete();
-    }
+    if (step === 5) onComplete();
   }, [step, onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-black z-[9999] flex items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 bg-[#000000] z-[9999] flex items-center justify-center overflow-hidden font-sans cursor-wait">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@100;400;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600;900&family=JetBrains+Mono:wght@300;500&display=swap');
 
-        .font-serif-elegant { font-family: 'Playfair Display', serif; }
-        .font-sans-ultra { font-family: 'Inter', sans-serif; }
+        .font-pro { font-family: 'Inter', sans-serif; }
+        .font-code { font-family: 'JetBrains Mono', monospace; }
 
-        @keyframes revealBlur {
-          0% { filter: blur(20px); opacity: 0; transform: scale(1.1); }
-          100% { filter: blur(0px); opacity: 1; transform: scale(1); }
+        @keyframes scanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
         }
 
-        @keyframes trackingOut {
-          0% { letter-spacing: -0.5em; opacity: 0; }
-          100% { letter-spacing: 0.2em; opacity: 1; }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.98); filter: blur(10px); }
+          to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
         }
 
-        @keyframes glowPulse {
-          0%, 100% { text-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
-          50% { text-shadow: 0 0 50px rgba(168, 85, 247, 0.8), 0 0 100px rgba(59, 130, 246, 0.4); }
+        @keyframes shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
         }
 
-        @keyframes floatUpVanish {
-          0% { transform: translateY(0); opacity: 1; filter: blur(0px); }
-          100% { transform: translateY(-100px); opacity: 0; filter: blur(20px); }
+        @keyframes gridReveal {
+          from { opacity: 0; transform: scale(1.1); }
+          to { opacity: 1; transform: scale(1); }
         }
 
-        @keyframes particleBackground {
-          0% { transform: translateY(0) rotate(0deg); opacity: 0; }
-          50% { opacity: 0.5; }
-          100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        .bg-grid {
+          background-size: 50px 50px;
+          background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+          mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
         }
 
-        .particle {
-          position: absolute;
-          background: white;
-          border-radius: 50%;
-          pointer-events: none;
-          animation: particleBackground 10s linear infinite;
+        .text-metal {
+          background: linear-gradient(to bottom, #ffffff 0%, #a1a1aa 50%, #52525b 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
         }
 
-        .step-transition {
-          animation: revealBlur 2s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+        .animate-fade-up {
+          animation: fadeUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        .step-exit {
-          animation: floatUpVanish 1.5s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+        .shine-border {
+           position: relative;
+        }
+        .shine-border::after {
+           content: '';
+           position: absolute;
+           top: 0; left: 0; right: 0; height: 1px;
+           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+           animation: shimmer 3s infinite linear;
         }
       `}</style>
 
-      {/* Partículas de fundo (Ambiente) */}
-      <div className="absolute inset-0 overflow-hidden opacity-30">
-        {[...Array(20)].map((_, i) => (
-          <div 
-            key={i} 
-            className="particle"
-            style={{
-              width: Math.random() * 3 + 'px',
-              height: Math.random() * 3 + 'px',
-              left: Math.random() * 100 + '%',
-              top: Math.random() * 100 + '%',
-              animationDelay: Math.random() * 10 + 's',
-              animationDuration: Math.random() * 10 + 10 + 's'
-            }}
-          />
-        ))}
-      </div>
+      {/* Background Técnico */}
+      <div className={`absolute inset-0 bg-grid transition-opacity duration-1000 ${step >= 1 ? 'opacity-100 animate-[gridReveal_3s_ease-out]' : 'opacity-0'}`}></div>
+      
+      {/* Vinheta */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)] pointer-events-none"></div>
 
-      <div className="relative text-center w-full max-w-4xl px-6">
-        
-        {/* Step 1: O Prelúdio */}
+      <div className="relative z-10 w-full max-w-4xl px-6 flex flex-col items-center justify-center">
+
+        {/* Passo 1: Inicialização do Sistema */}
         {step === 1 && (
-          <div className="step-transition">
-            <h2 className="font-serif-elegant italic text-white/50 text-2xl md:text-3xl font-light">
-              Prepare-se para o extraordinário...
-            </h2>
+          <div className="flex flex-col items-center gap-4 animate-fade-up">
+            <div className="w-12 h-12 border border-white/20 rounded flex items-center justify-center relative overflow-hidden">
+               <div className="w-full h-[1px] bg-white/50 absolute top-0 animate-[scanline_1.5s_linear_infinite]"></div>
+               <div className="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+            <div className="font-code text-xs text-zinc-500 uppercase tracking-[0.3em]">
+              Authenticating License...
+            </div>
           </div>
         )}
 
-        {/* Step 2: A Boas Vindas */}
+        {/* Passo 2: A Revelação PRO */}
         {step === 2 && (
-          <div className="step-transition flex flex-col items-center">
-            <span className="font-sans-ultra text-blue-500 font-black tracking-[0.5em] text-xs uppercase mb-4">Acesso Exclusivo</span>
-            <h1 className="font-sans-ultra text-white text-4xl md:text-6xl font-extralight tracking-tight leading-none">
-              Bem-vindo ao <br/>
-              <span className="font-black">Codegen Studio</span>
+          <div className="flex flex-col items-center animate-fade-up">
+            <div className="font-pro font-bold text-[10px] text-zinc-500 border border-zinc-800 bg-zinc-900/50 px-3 py-1 rounded-full uppercase tracking-widest mb-8 backdrop-blur-md">
+              Enterprise Grade
+            </div>
+            
+            <h1 className="font-pro text-9xl md:text-[11rem] font-black tracking-tighter leading-none text-metal select-none">
+              PRO
             </h1>
+            
+            <div className="h-px w-32 bg-gradient-to-r from-transparent via-white/30 to-transparent mt-8"></div>
           </div>
         )}
 
-        {/* Step 3: O Reveal do Status PRO */}
+        {/* Passo 3: Funcionalidades (Minimalista) */}
         {step === 3 && (
-          <div className="step-transition flex flex-col items-center">
-             <div className="animate-[glowPulse_3s_infinite] flex flex-col items-center">
-                <div className="font-sans-ultra text-white/40 text-sm tracking-[1em] uppercase mb-8">Status da Conta</div>
-                <h1 className="font-sans-ultra text-white text-6xl md:text-9xl font-black italic tracking-tighter">
-                  VOCÊ É <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500">PRO</span>
-                </h1>
-                <div className="mt-8 h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent"></div>
-             </div>
+          <div className="w-full animate-fade-up">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-8 md:gap-0 border-t border-b border-white/5 py-12 bg-black/40 backdrop-blur-sm shine-border">
+              {[
+                { label: "UNLIMITED", sub: "Generations" },
+                { label: "ZERO", sub: "Latency" },
+                { label: "GITHUB", sub: "Sync Ready" }
+              ].map((item, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2 group cursor-default">
+                  <span className="font-pro text-3xl md:text-4xl font-bold text-white tracking-tight group-hover:scale-105 transition-transform duration-500">
+                    {item.label}
+                  </span>
+                  <span className="font-code text-[10px] text-zinc-500 uppercase tracking-[0.2em]">
+                    {item.sub}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Step 4: O Poder */}
+        {/* Passo 4: Boas-vindas Final */}
         {step === 4 && (
-          <div className="step-transition">
-            <h2 className="font-serif-elegant text-white text-3xl md:text-5xl leading-tight">
-              "Seu limite não é mais o código, <br/>
-              é a sua <span className="text-blue-400">imaginação</span>."
+          <div className="flex flex-col items-center animate-fade-up space-y-8">
+            <h2 className="font-pro text-4xl md:text-5xl font-medium text-white text-center tracking-tight leading-tight">
+              O ambiente está <br />
+              <span className="text-zinc-500">pronto para você.</span>
             </h2>
-          </div>
-        )}
-
-        {/* Step 5: A Transição Final */}
-        {step === 5 && (
-          <div className="step-transition space-y-8">
-             <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(255,255,255,0.3)]">
-                <svg className="w-10 h-10 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 17L12 22L22 17" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 12L12 17L22 12" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-             </div>
-             <div className="space-y-2">
-                <h2 className="font-sans-ultra text-white text-4xl md:text-6xl font-black tracking-tighter">
-                  O que você vai <br/>
-                  <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">revolucionar</span> hoje?
-                </h2>
-                <p className="font-sans-ultra text-gray-500 tracking-[0.2em] text-sm uppercase">Modo de Alta Performance Ativado</p>
-             </div>
+            
+            <div className="flex items-center gap-3 px-6 py-3 border border-white/10 rounded-full bg-white/5">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <span className="font-code text-xs text-zinc-300">System Online</span>
+            </div>
           </div>
         )}
 
       </div>
 
-      {/* Overlay de Vinheta para foco central */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)]"></div>
+      {/* Footer Fixo Técnico */}
+      <div className="absolute bottom-8 left-0 w-full text-center opacity-30">
+        <p className="font-code text-[9px] text-zinc-500 uppercase tracking-widest">
+          Codegen Studio Pro • v2.4.0 • Secure Connection
+        </p>
+      </div>
     </div>
   );
 };
