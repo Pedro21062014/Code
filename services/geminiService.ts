@@ -59,7 +59,8 @@ export const generateCodeStreamWithGemini = async (
   attachments?: { data: string; mimeType: string }[]
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    // Note: guidelines suggest process.env.API_KEY, but we support the provided apiKey as fallback
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || apiKey });
     const systemInstruction = getSystemPrompt(existingFiles, envVars);
 
     const userParts: any[] = [{ text: prompt }];
@@ -85,6 +86,7 @@ export const generateCodeStreamWithGemini = async (
 
     let fullResponse = "";
     for await (const chunk of response) {
+      // Fix: response.text is a property, not a method. Access directly.
       const chunkText = chunk.text;
       if (chunkText) {
           fullResponse += chunkText;
@@ -105,13 +107,14 @@ export const generateCodeStreamWithGemini = async (
 
 export const generateProjectName = async (prompt: string, apiKey: string): Promise<string> => {
    try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || apiKey });
     const namePrompt = `Gere um nome de projeto em PascalCase (ex: QuantumQuill) para: "${prompt}". Apenas o nome.`;
     /* Using gemini-3-flash-preview for basic text task as per guidelines */
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: namePrompt,
     });
+    // Fix: response.text is a property. Access directly.
     return response.text?.trim().replace(/[^a-zA-Z0-9]/g, '') || "NovoProjeto";
   } catch (error) {
     return "NovoProjeto";
@@ -120,7 +123,7 @@ export const generateProjectName = async (prompt: string, apiKey: string): Promi
 
 export const generateImagesWithImagen = async (prompt: string, apiKey: string, numberOfImages: number, aspectRatio: string): Promise<string[]> => {
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || apiKey });
     /* Switch to gemini-2.5-flash-image (default for image gen) using generateContent as per SDK rules */
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -137,6 +140,7 @@ export const generateImagesWithImagen = async (prompt: string, apiKey: string, n
     const images: string[] = [];
     if (response.candidates && response.candidates.length > 0 && response.candidates[0].content && response.candidates[0].content.parts) {
       for (const part of response.candidates[0].content.parts) {
+        // Find the image part in the response as per guidelines
         if (part.inlineData && part.inlineData.data) {
           images.push(part.inlineData.data);
         }

@@ -149,16 +149,21 @@ export const App: React.FC = () => {
         const projectsMap = new Map<string, SavedProject>();
         const qOwner = query(collection(db, "projects"), where("ownerId", "==", userId));
         const qShared = query(collection(db, "projects"), where("shared_with", "array-contains", userId));
+        
         const results = await Promise.allSettled([getDocs(qOwner), getDocs(qShared)]);
+        
         results.forEach((res, idx) => {
           if (res.status === 'fulfilled') {
-            res.value.forEach((doc) => {
+            // Fix: Use 'any' type to avoid "Cannot use namespace as type" error from conflicting Firestore declarations
+            const snapshot = (res as any).value;
+            snapshot.forEach((doc: any) => {
               const data = sanitizeFirestoreData(doc.data());
               const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
               projectsMap.set(doc.id, p);
             });
           }
         });
+        
         const sortedProjects = Array.from(projectsMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
         setSavedProjects(sortedProjects);
     } catch (error: any) { console.error("Error fetching projects:", error); }
