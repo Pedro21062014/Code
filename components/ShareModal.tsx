@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { CloseIcon, LoaderIcon, CheckCircleIcon, AppLogo } from './Icons';
+import { CloseIcon, LoaderIcon, CheckCircleIcon } from './Icons';
 import { db } from '../services/firebase';
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -34,20 +34,18 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
     setIsChecking(true);
 
     try {
-      // Verifica se o usuário existe no Firebase buscando pelo campo 'email'
-      // IMPORTANTE: O documento do usuário buscado DEVE ter o campo 'email' preenchido no Firestore
+      // Buscamos apenas 1 documento para economizar créditos e performance
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", targetEmail));
+      const q = query(usersRef, where("email", "==", targetEmail), limit(1));
       
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setError(`O e-mail "${targetEmail}" não possui uma conta no Codegen Studio ou ainda não completou o primeiro login.`);
+        setError(`Usuário "${targetEmail}" não encontrado. Peça para ele fazer login no Codegen Studio ao menos uma vez.`);
         setIsChecking(false);
         return;
       }
 
-      // Se encontrar mais de um (raro, mas possível se houver erro de integridade), pegamos o primeiro
       const targetUserDoc = querySnapshot.docs[0];
       const targetUserUid = targetUserDoc.id;
 
@@ -58,10 +56,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
       setTimeout(onClose, 2000);
     } catch (err: any) {
       console.error("Share error details:", err);
-      if (err.code === 'permission-denied') {
-          setError("Erro de permissão ao buscar usuário. Verifique as regras de segurança do Firestore.");
+      
+      if (err.code === 'permission-denied' || err.message?.includes('permission-denied')) {
+          setError("Erro de permissão no Firebase. Certifique-se de que as 'Security Rules' permitem a leitura da coleção 'users' por usuários autenticados.");
       } else {
-          setError("Erro ao compartilhar: " + (err.message || "Erro desconhecido"));
+          setError(`Erro ao compartilhar: ${err.message || "Erro desconhecido"}`);
       }
     } finally {
       setIsChecking(false);
@@ -104,21 +103,33 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
                     />
                 </div>
 
-                {error && <p className="text-xs text-red-400 text-center animate-fadeIn bg-red-500/10 p-3 rounded-xl border border-red-500/20">{error}</p>}
-                {success && <p className="text-xs text-green-400 text-center flex items-center justify-center gap-2 animate-fadeIn bg-green-500/10 p-3 rounded-xl border border-green-500/20"><CheckCircleIcon className="w-4 h-4" /> {success}</p>}
+                {error && (
+                    <div className="animate-fadeIn bg-red-500/10 p-4 rounded-xl border border-red-500/20">
+                        <p className="text-[11px] text-red-400 leading-relaxed text-center font-medium">
+                            {error}
+                        </p>
+                    </div>
+                )}
+                
+                {success && (
+                    <div className="animate-fadeIn bg-green-500/10 p-4 rounded-xl border border-green-500/20 flex items-center justify-center gap-2">
+                        <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                        <p className="text-xs text-green-400 font-bold">{success}</p>
+                    </div>
+                )}
 
                 <button 
                     disabled={isChecking || !email.trim()}
                     className="w-full bg-white text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                 >
                     {isChecking ? <LoaderIcon className="w-4 h-4 animate-spin" /> : null}
-                    {isChecking ? 'Verificando...' : 'Convidar Colaborador'}
+                    {isChecking ? 'Localizando usuário...' : 'Convidar Colaborador'}
                 </button>
             </div>
 
             <div className="pt-4 border-t border-white/5">
                 <p className="text-[10px] text-center text-gray-500 leading-relaxed uppercase tracking-widest font-bold">
-                    O convidado deve ter uma conta ativa <br/> para ser encontrado na busca.
+                    Dica: Verifique as Security Rules <br/> do seu projeto Firebase.
                 </p>
             </div>
         </form>
