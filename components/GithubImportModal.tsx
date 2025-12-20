@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { GithubIcon, CloseIcon } from './Icons';
+import { GithubIcon, CloseIcon, KeyIcon, LoaderIcon } from './Icons';
 import { ProjectFile } from '../types';
 
 interface GithubRepo {
@@ -11,6 +12,7 @@ interface GithubRepo {
   owner: {
     login: string;
   };
+  updated_at: string;
 }
 
 interface GithubImportModalProps {
@@ -31,21 +33,6 @@ const getFileLanguage = (fileName: string): string => {
         case 'css': return 'css';
         case 'json': return 'json';
         case 'md': return 'markdown';
-        case 'py': return 'python';
-        case 'rb': return 'ruby';
-        case 'go': return 'go';
-        case 'rs': return 'rust';
-        case 'java': return 'java';
-        case 'cs': return 'csharp';
-        case 'php': return 'php';
-        case 'sh': return 'shell';
-        case 'yml':
-        case 'yaml': return 'yaml';
-        case 'dockerfile': return 'dockerfile';
-        case 'sql': return 'sql';
-        case 'graphql': return 'graphql';
-        case 'vue': return 'vue';
-        case 'svelte': return 'svelte';
         default: return 'plaintext';
     }
 }
@@ -77,15 +64,15 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         });
 
         if (!response.ok) {
-          if (response.status === 401) throw new Error("Token do GitHub inválido ou expirado. Verifique-o nas configurações.");
-          throw new Error(`Não foi possível buscar repositórios. Status: ${response.status}`);
+          if (response.status === 401) throw new Error("Token expirado.");
+          throw new Error(`Erro: ${response.status}`);
         }
 
         const data = await response.json();
         setRepositories(data);
 
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
+        const message = err instanceof Error ? err.message : "Erro desconhecido.";
         setRepoError(message);
       } finally {
         setLoadingRepos(false);
@@ -93,7 +80,6 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
     };
     
     if (isOpen) {
-      // Reset state on open
       setSearchTerm('');
       setImportError(null);
       setImportingRepoName(null);
@@ -107,7 +93,7 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
     setImportingRepoName(repo.full_name);
     
     if (!githubToken) {
-        setImportError("Token de acesso do GitHub não encontrado. Por favor, adicione seu token nas configurações.");
+        setImportError("Token não encontrado.");
         return;
     }
     
@@ -121,53 +107,37 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         };
         
         const repoInfo = { owner: repo.owner.login, repo: repo.name };
-
         const repoDataResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}`, { headers });
-        if (!repoDataResponse.ok) {
-            if (repoDataResponse.status === 404) throw new Error("Repositório não encontrado. Verifique a URL e se o token tem acesso a ele.");
-            if (repoDataResponse.status === 401) throw new Error("Token do GitHub inválido ou expirado.");
-            throw new Error(`Não foi possível buscar os metadados do repositório. Status: ${repoDataResponse.status}`);
-        }
+        if (!repoDataResponse.ok) throw new Error("Erro ao acessar repositório.");
+        
         const repoData = await repoDataResponse.json();
         const defaultBranch = repoData.default_branch;
 
         const branchResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/branches/${defaultBranch}`, { headers });
-        if (!branchResponse.ok) throw new Error(`Não foi possível buscar a branch padrão '${defaultBranch}'.`);
         const branchData = await branchResponse.json();
         const treeSha = branchData.commit.commit.tree.sha;
 
         const treeResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/git/trees/${treeSha}?recursive=1`, { headers });
-        if (!treeResponse.ok) throw new Error('Não foi possível buscar a árvore de arquivos do repositório.');
         const treeData = await treeResponse.json();
         
         const fileBlobs = treeData.tree.filter((node: any) => node.type === 'blob' && node.size < 1000000);
 
         const importedFilesPromises = fileBlobs.map(async (fileNode: any) => {
             const contentResponse = await fetch(fileNode.url, { headers });
-            if (!contentResponse.ok) {
-                console.warn(`Skipping file ${fileNode.path} due to fetch error.`);
-                return null;
-            }
+            if (!contentResponse.ok) return null;
             const blobData = await contentResponse.json();
             
-            if (blobData.encoding !== 'base64') {
-                console.warn(`Skipping file ${fileNode.path} due to unsupported encoding: ${blobData.encoding}`);
-                return null;
-            }
+            if (blobData.encoding !== 'base64') return null;
             
             let content;
             try {
-                // Use TextDecoder for better UTF-8 support
                 const binaryString = atob(blobData.content);
                 const bytes = new Uint8Array(binaryString.length);
                 for (let i = 0; i < binaryString.length; i++) {
                     bytes[i] = binaryString.charCodeAt(i);
                 }
                 content = new TextDecoder('utf-8').decode(bytes);
-            } catch (e) {
-                console.warn(`Skipping file ${fileNode.path} due to decoding error (likely a binary file).`);
-                return null;
-            }
+            } catch (e) { return null; }
 
             return {
                 name: fileNode.path,
@@ -177,12 +147,11 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         });
 
         const importedFiles = (await Promise.all(importedFilesPromises)).filter((f): f is ProjectFile => f !== null);
-        
         onImport(importedFiles);
+        onClose();
 
     } catch (err) {
-        const message = err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
-        setImportError(`Falha ao importar repositório: ${message}`);
+        setImportError("Falha na importação.");
     } finally {
         setIsLoading(false);
         setImportingRepoName(null);
@@ -195,96 +164,106 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
 
   if (!isOpen) return null;
 
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-           <svg className="animate-spin h-8 w-8 text-white mb-4" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p>Importando <span className="font-bold text-white">{importingRepoName}</span>...</p>
-          <p className="text-sm text-gray-500">Isso pode levar alguns instantes.</p>
-        </div>
-      );
-    }
-
-    if (!githubToken) {
-      return (
-        <div className="p-3 bg-yellow-900/50 border border-yellow-700/50 rounded-lg text-sm text-yellow-200 mt-4">
-          Nenhum token de acesso do GitHub foi encontrado. Por favor, <button onClick={onOpenSettings} className="underline font-bold hover:text-white">adicione um nas configurações</button> para ver e importar seus repositórios.
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <div className="my-4">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar em seus repositórios..."
-            className="w-full p-2 bg-[#27272a] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-          />
-        </div>
-        
-        {loadingRepos && <div className="flex items-center justify-center h-64 text-gray-400"><svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Buscando repositórios...</div>}
-        {repoError && <p className="text-red-400 text-sm py-4 text-center">{repoError}</p>}
-        
-        {!loadingRepos && !repoError && (
-          <div className="max-h-80 overflow-y-auto border border-[#3f3f46] rounded-md bg-[#121214]">
-            {filteredRepositories.length > 0 ? (
-              <ul>
-                {filteredRepositories.map(repo => (
-                  <li key={repo.id} className="border-b border-[#3f3f46] last:border-b-0">
-                    <button
-                      onClick={() => handleImport(repo)}
-                      className="w-full text-left p-3 hover:bg-[#27272a] transition-colors duration-150"
-                    >
-                      <div className="flex justify-between items-center">
-                        <p className="font-semibold text-white">{repo.full_name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${repo.private ? 'bg-red-900 text-red-200' : 'bg-green-900 text-green-200'}`}>
-                          {repo.private ? 'Privado' : 'Público'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-400 mt-1 truncate">{repo.description}</p>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500 text-center p-8">Nenhum repositório encontrado.</p>
-            )}
-          </div>
-        )}
-      </>
-    );
-  };
-
-
   return (
     <div 
-      className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-start justify-center pt-20 animate-fadeIn"
       onClick={isLoading ? undefined : onClose}
     >
       <div 
-        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-2xl p-6 border border-[#27272a]"
+        className="bg-[#09090b] w-full max-w-2xl border border-[#27272a] shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[70vh] animate-slideInUp"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <GithubIcon /> Importar do GitHub
-          </h2>
-          <button onClick={isLoading ? undefined : onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white disabled:opacity-50" disabled={isLoading}>
-            <CloseIcon />
+        {/* Header Compacto */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272a] bg-[#0c0c0e]">
+          <div className="flex items-center gap-2 text-white/90">
+             <GithubIcon className="w-4 h-4" />
+             <span className="text-sm font-medium">Clonar Repositório</span>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+             <CloseIcon className="w-4 h-4" />
           </button>
         </div>
-        
-        {renderContent()}
 
-        {importError && <p className="text-red-400 text-sm mt-4 text-center">{importError}</p>}
+        {/* Content */}
+        {!githubToken ? (
+           <div className="flex flex-col items-center justify-center p-12 text-center space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center border border-[#27272a]">
+                 <KeyIcon className="w-8 h-8 text-gray-500" />
+              </div>
+              <div>
+                  <h3 className="text-white font-medium text-lg">Conexão Necessária</h3>
+                  <p className="text-gray-500 text-sm mt-2 max-w-xs mx-auto">
+                      Para acessar seus repositórios privados e públicos, precisamos do seu Token de Acesso Pessoal do GitHub.
+                  </p>
+              </div>
+              <button 
+                onClick={onOpenSettings}
+                className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Configurar Token
+              </button>
+           </div>
+        ) : (
+           <div className="flex flex-col h-full overflow-hidden">
+               <div className="p-2 border-b border-[#27272a]">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Filtrar por nome..."
+                    className="w-full bg-[#121214] text-white text-sm px-3 py-2 rounded-lg border border-transparent focus:border-[#3f3f46] focus:outline-none placeholder-gray-600 font-mono"
+                  />
+               </div>
 
+               <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+                   {loadingRepos ? (
+                       <div className="flex items-center justify-center py-10 gap-2 text-gray-500 text-xs">
+                           <LoaderIcon className="w-4 h-4 animate-spin" /> Carregando lista...
+                       </div>
+                   ) : filteredRepositories.length === 0 ? (
+                       <div className="text-center py-10 text-gray-600 text-xs">Nenhum repositório encontrado.</div>
+                   ) : (
+                       <div className="space-y-0.5">
+                           {filteredRepositories.map(repo => (
+                               <button
+                                   key={repo.id}
+                                   onClick={() => handleImport(repo)}
+                                   disabled={isLoading}
+                                   className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[#27272a] rounded-md group transition-colors disabled:opacity-50"
+                               >
+                                   <div className="flex items-center gap-3 overflow-hidden">
+                                       <span className="text-gray-400 group-hover:text-white transition-colors">
+                                            {repo.private ? (
+                                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                            ) : (
+                                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 
+                                            )}
+                                       </span>
+                                       <span className="text-sm text-gray-300 font-mono group-hover:text-white truncate">
+                                           {repo.full_name}
+                                       </span>
+                                   </div>
+                                   {importingRepoName === repo.full_name ? (
+                                       <LoaderIcon className="w-3.5 h-3.5 animate-spin text-white" />
+                                   ) : (
+                                       <span className="text-[10px] text-gray-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                           Clonar
+                                       </span>
+                                   )}
+                               </button>
+                           ))}
+                       </div>
+                   )}
+               </div>
+               
+               {importError && (
+                   <div className="p-3 bg-red-900/20 border-t border-red-900/30 text-red-400 text-xs text-center">
+                       {importError}
+                   </div>
+               )}
+           </div>
+        )}
       </div>
     </div>
   );
