@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, CloseIcon, PaperclipIcon, ChevronDownIcon, LoaderIcon, SupabaseIcon, GithubIcon, SettingsIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, ChevronDownIcon, LoaderIcon, SupabaseIcon, GithubIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -21,29 +21,21 @@ interface ChatPanelProps {
 
 const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => {
     return (
-        <div className="flex flex-col gap-4 py-2 w-full animate-fadeIn">
-            <div className="flex items-center gap-3">
-                <div className="relative">
-                    <div className="w-8 h-8 bg-blue-600/20 rounded-full animate-ping absolute inset-0"></div>
-                    <div className="relative w-8 h-8 bg-[#0a0a0a] border border-blue-500/40 rounded-full flex items-center justify-center">
-                        <LoaderIcon className="w-4 h-4 text-blue-400 animate-spin" />
-                    </div>
+        <div className="w-full animate-fadeIn my-2">
+            <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5 animate-pulse">
+                <div className="relative flex items-center justify-center w-5 h-5">
+                    <LoaderIcon className="w-4 h-4 animate-spin text-blue-400" />
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest leading-none">Architecting</span>
-                    <span className="text-[11px] text-gray-400 mt-1 italic animate-pulse">Codegen está projetando a solução...</span>
+                    <span className="text-xs font-mono text-gray-300">
+                        {generatingFile ? (
+                            <>Escrevendo <span className="text-blue-400">{generatingFile}</span>...</>
+                        ) : (
+                            "Processando solicitação..."
+                        )}
+                    </span>
                 </div>
             </div>
-            
-            {generatingFile && (
-                <div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] font-bold text-gray-500 uppercase">Updating Source</span>
-                        <span className="text-xs text-blue-300 font-mono truncate">{generatingFile}</span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
@@ -111,7 +103,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     <div className={`max-w-[90%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${
                         msg.role === 'user' 
                         ? 'bg-[#1a1a1a] text-white border border-white/5' 
-                        : 'text-gray-300'
+                        : 'text-gray-300 w-full'
                     }`}>
                         {msg.isThinking ? <ThinkingIndicator generatingFile={generatingFile} /> : <p className="whitespace-pre-wrap">{msg.content}</p>}
                     </div>

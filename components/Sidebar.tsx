@@ -211,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div className="mt-auto flex flex-col gap-3 w-full items-center">
                  <NavButton onClick={onOpenImageStudio} icon={<ImageIcon />} label="Image Studio" />
-                 <NavButton onClick={onSaveProject} icon={<SaveIcon />} label="Save Project" />
+                 {/* Save button removed from here */}
                  <NavButton onClick={onOpenProjects} icon={<ProjectsIcon />} label="My Projects" />
                  <div className="h-px w-8 bg-[#27272a] my-1"></div>
                  {session ? <NavButton onClick={onLogout} icon={<LogOutIcon />} label="Logout" /> : <NavButton onClick={onLogin} icon={<LogInIcon />} label="Login" />}
