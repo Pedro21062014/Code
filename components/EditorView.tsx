@@ -178,6 +178,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-4">
+            <button 
+                onClick={onSave} 
+                className="p-2.5 text-gray-500 hover:text-white transition-all hover:bg-white/5 rounded-xl" 
+                title="Salvar Projeto"
+            >
+                <SaveIcon className="w-5 h-5" />
+            </button>
             <button onClick={onSyncGithub} className="p-2.5 text-gray-500 hover:text-white transition-all hover:bg-white/5 rounded-xl" title="GitHub Sync">
                 <GithubIcon className="w-5 h-5" />
             </button>
