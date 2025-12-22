@@ -342,7 +342,8 @@ export const App: React.FC = () => {
   const handleLoadProject = useCallback((projectId: number) => {
     const p = savedProjects.find(x => x.id === projectId);
     if (p) {
-        setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], env_vars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
+        // Correção aplicada aqui: env_vars -> envVars
+        setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], envVars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
         setView('editor');
     }
   }, [savedProjects]);
