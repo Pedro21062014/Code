@@ -150,9 +150,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       <header className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-[#0a0a0a] z-50">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group" onClick={onOpenProjects}>
-                <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                    <AppLogo className="w-4.5 h-4.5 text-white" />
-                </div>
+                <AppLogo className="w-6 h-6 text-white group-hover:scale-105 transition-transform" />
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-black tracking-tight text-white/90">{projectName}</span>
                     <ChevronDownIcon className="w-3 h-3 text-gray-600" />

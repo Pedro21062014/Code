@@ -191,43 +191,48 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
          <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-      <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2 md:gap-4">
-          <div className="flex items-center gap-1.5 md:gap-3 bg-[#121214]/80 backdrop-blur-md border border-[#27272a] rounded-full pl-3 pr-1 py-1 shadow-2xl overflow-hidden">
-              <div className="flex items-center gap-2">
-                  <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase border ${
-                      currentPlan === 'Pro' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
-                      'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                  }`}>
-                      {currentPlan}
+      {/* Header com controles do usuário (Responsivo) */}
+      <header className="w-full p-4 md:p-6 flex justify-end items-center z-50 relative shrink-0">
+          <div className="flex items-center gap-2 md:gap-4">
+              <div className="flex items-center gap-1.5 md:gap-3 bg-[#121214]/80 backdrop-blur-md border border-[#27272a] rounded-full pl-3 pr-1 py-1 shadow-2xl overflow-hidden">
+                  <div className="flex items-center gap-2">
+                      <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase border ${
+                          currentPlan === 'Pro' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
+                          'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                      }`}>
+                          {currentPlan}
+                      </div>
+                      <div className="h-4 w-px bg-[#27272a]"></div>
+                      <div className="flex items-center gap-1.5 text-blue-400 text-[10px] md:text-xs font-bold">
+                          <SparklesIcon className="w-3 h-3 animate-pulse" />
+                          <span>{credits} créditos</span>
+                      </div>
                   </div>
-                  <div className="h-4 w-px bg-[#27272a]"></div>
-                  <div className="flex items-center gap-1.5 text-blue-400 text-[10px] md:text-xs font-bold">
-                      <SparklesIcon className="w-3 h-3 animate-pulse" />
-                      <span>{credits} créditos</span>
-                  </div>
+                  
+                  {currentPlan !== 'Pro' && (
+                    <button 
+                        onClick={onShowPricing}
+                        className="relative group flex items-center gap-2 px-4 py-1.5 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] overflow-hidden border border-white/50"
+                    >
+                        <span className="relative z-10 flex items-center gap-1">
+                            <SparklesIcon className="w-3 h-3 text-yellow-500" />
+                            Upgrade
+                        </span>
+                        {/* Silver Shimmer Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-300/50 to-transparent skew-x-12 translate-x-[-150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-in-out" />
+                    </button>
+                  )}
               </div>
-              
-              {currentPlan !== 'Pro' && (
-                <button 
-                    onClick={onShowPricing}
-                    className="relative group bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[9px] md:text-[10px] font-bold px-3 py-1.5 rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20"
-                >
-                    <span className="relative z-10 flex items-center gap-1">
-                        UPGRADE
-                    </span>
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></div>
-                </button>
-              )}
+              <UserMenu 
+                  user={session?.user || null} 
+                  onLogin={onLoginClick} 
+                  onLogout={onLogout} 
+                  onOpenSettings={onOpenSettings}
+              />
           </div>
-          <UserMenu 
-              user={session?.user || null} 
-              onLogin={onLoginClick} 
-              onLogout={onLogout} 
-              onOpenSettings={onOpenSettings}
-          />
-      </div>
+      </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 py-12 w-full max-w-5xl mx-auto min-h-screen">
+      <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 pb-12 w-full max-w-5xl mx-auto">
         
         {/* Hero Text */}
         <div className="mb-8 md:mb-12 text-center animate-slideInUp">

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { SettingsIcon, LogOutIcon, LogInIcon } from './Icons';
 
@@ -40,7 +41,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLogout, onO
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md hover:ring-2 hover:ring-white/20 transition-all border border-white/10"
+        className="w-9 h-9 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-md hover:ring-2 hover:ring-white/20 transition-all border border-white/10"
       >
         {initial}
       </button>

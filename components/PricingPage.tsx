@@ -65,10 +65,8 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
 
        <header className="fixed top-0 left-0 right-0 z-20 p-6">
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
-          <button onClick={onBack} className="flex items-center gap-2 group">
-             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:opacity-90 transition-opacity">
-                <AppLogo className="w-5 h-5 text-white" />
-             </div>
+          <button onClick={onBack} className="flex items-center gap-3 group">
+             <AppLogo className="w-8 h-8 text-white group-hover:scale-105 transition-transform" />
              <span className="font-semibold tracking-tight text-lg">codegen<span className="font-light opacity-70">studio</span></span>
           </button>
           <button onClick={onBack} className="text-sm font-medium text-gray-400 hover:text-white transition-colors flex items-center gap-2">

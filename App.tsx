@@ -23,7 +23,7 @@ import { generateCodeStreamWithGemini, generateProjectName } from './services/ge
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from "firebase/firestore";
 import { ChatIcon, TerminalIcon, LoaderIcon } from './components/Icons';
 
 const sanitizeFirestoreData = (data: any) => {
@@ -263,6 +263,27 @@ export const App: React.FC = () => {
     }
   }, [currentProjectId, handleSaveProject]);
 
+  // Função correta para deletar projeto
+  const handleDeleteProject = useCallback(async (projectId: number) => {
+    // 1. Atualiza estado local (Optimistic UI)
+    setSavedProjects(prev => prev.filter(p => p.id !== projectId));
+    
+    // 2. Se o projeto deletado for o atual, limpa o editor
+    if (project.currentProjectId === projectId) {
+        setProject(initialProjectState);
+    }
+
+    // 3. Deleta do Firestore
+    if (sessionUser) {
+        try {
+            await deleteDoc(doc(db, "projects", projectId.toString()));
+        } catch (error) {
+            console.error("Erro ao deletar projeto do Firestore:", error);
+            // Em produção, você poderia reverter o estado ou mostrar um toast de erro
+        }
+    }
+  }, [sessionUser, project.currentProjectId, setSavedProjects, setProject]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
@@ -287,12 +308,25 @@ export const App: React.FC = () => {
     if (currentCredits < cost) { alert("Créditos insuficientes."); return; }
     if (provider === AIProvider.Gemini && !effectiveGeminiApiKey) { setPendingPrompt({ prompt, provider, model: modelId, attachments }); setApiKeyModalOpen(true); return; }
 
-    setProject(p => ({ ...p, chatMessages: [...p.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando...', isThinking: true }] }));
+    // CRITICAL FIX: If we are in 'welcome' view, start a FRESH project state.
+    // This prevents appending to the old project when typing in the Welcome Screen.
+    let activeProjectState = project;
+    if (view === 'welcome') {
+        activeProjectState = { ...initialProjectState };
+    }
+
+    // Update state with new message (and reset project if coming from welcome)
+    setProject({ 
+        ...activeProjectState, 
+        chatMessages: [...activeProjectState.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando...', isThinking: true }] 
+    });
+
     if (view !== 'editor') setView('editor');
     setIsInitializing(true);
     
     try {
-      const fullResponse = await generateCodeStreamWithGemini(prompt, project.files, project.envVars, (c) => {}, modelId, effectiveGeminiApiKey!, attachments);
+      // Use activeProjectState.files instead of project.files to ensure we use the empty state if it's a new project
+      const fullResponse = await generateCodeStreamWithGemini(prompt, activeProjectState.files, activeProjectState.envVars, (c) => {}, modelId, effectiveGeminiApiKey!, attachments);
       const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
       const result = extractAndParseJson(payload);
       if (result.files) {
@@ -308,7 +342,7 @@ export const App: React.FC = () => {
   const handleLoadProject = useCallback((projectId: number) => {
     const p = savedProjects.find(x => x.id === projectId);
     if (p) {
-        setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], envVars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
+        setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], env_vars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
         setView('editor');
     }
   }, [savedProjects]);
@@ -362,7 +396,13 @@ export const App: React.FC = () => {
       ) : view === 'pricing' ? (
           <PricingPage onBack={() => setView('welcome')} onNewProject={() => {}} />
       ) : view === 'projects' ? (
-          <ProjectsPage projects={savedProjects} onLoadProject={handleLoadProject} onDeleteProject={() => {}} onBack={() => setView('welcome')} onNewProject={() => {}} />
+          <ProjectsPage 
+            projects={savedProjects} 
+            onLoadProject={handleLoadProject} 
+            onDeleteProject={handleDeleteProject} 
+            onBack={() => setView('welcome')} 
+            onNewProject={() => {}} 
+          />
       ) : (
           <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
