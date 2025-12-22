@@ -199,8 +199,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className="bg-[#09090b] flex h-full border-r border-[#27272a] select-none w-full">
         <div className="w-[60px] flex flex-col items-center py-4 gap-6 border-r border-[#27272a] bg-[#09090b] flex-shrink-0">
             <div className="mb-2 relative">
-                <button onClick={onNewProject} className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-white shadow-lg hover:opacity-90 transition-opacity">
-                    <AppLogo className="w-6 h-6" />
+                <button onClick={onNewProject} className="w-10 h-10 flex items-center justify-center rounded-xl bg-transparent hover:bg-white/5 text-white transition-colors">
+                    <AppLogo className="w-8 h-8" />
                 </button>
                 {isOfflineMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-[#09090b] shadow-sm" title="Modo Offline"></div>}
             </div>

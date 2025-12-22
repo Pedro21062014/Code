@@ -1,5 +1,6 @@
-import React from 'react';
-import { AppLogo, TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon } from './Icons';
+
+import React, { useState } from 'react';
+import { AppLogo, TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon, CloseIcon } from './Icons';
 import { SavedProject } from '../types';
 
 interface ProjectsPageProps {
@@ -16,11 +17,12 @@ const formatDate = (dateString: string) => {
 };
 
 export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack, onNewProject }) => {
+  const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
 
-  const handleDelete = (e: React.MouseEvent, projectId: number) => {
-    e.stopPropagation();
-    if (window.confirm('Tem certeza de que deseja excluir este projeto? Esta ação não pode ser desfeita.')) {
-      onDeleteProject(projectId);
+  const confirmDelete = () => {
+    if (projectToDelete !== null) {
+      onDeleteProject(projectToDelete);
+      setProjectToDelete(null);
     }
   };
 
@@ -39,10 +41,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-20 p-6">
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
-          <div className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity cursor-pointer" onClick={onBack}>
-             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg">
-                <AppLogo className="w-5 h-5 text-white" />
-             </div>
+          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity cursor-pointer group" onClick={onBack}>
+             <AppLogo className="w-8 h-8 text-white group-hover:scale-105 transition-transform" />
              <span className="font-semibold tracking-tight text-lg">codegen<span className="font-light opacity-70">studio</span></span>
           </div>
           <button 
@@ -109,7 +109,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                              </div>
 
                              <button 
-                                onClick={(e) => handleDelete(e, project.id)}
+                                onClick={(e) => { e.stopPropagation(); setProjectToDelete(project.id); }}
                                 className="p-2 rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                                 title="Excluir projeto"
                             >
@@ -145,6 +145,48 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                 </div>
             )}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {projectToDelete !== null && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setProjectToDelete(null)}>
+                <div 
+                    className="bg-[#18181b] border border-[#27272a] rounded-2xl w-full max-w-md overflow-hidden animate-slideInUp shadow-2xl relative"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                                <TrashIcon className="w-5 h-5" />
+                            </div>
+                            <button onClick={() => setProjectToDelete(null)} className="text-gray-500 hover:text-white transition-colors">
+                                <CloseIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <h3 className="text-xl font-semibold text-white mb-2">Excluir Projeto?</h3>
+                        <p className="text-gray-400 text-sm mb-6">
+                            Você tem certeza que deseja excluir este projeto? Esta ação removerá permanentemente todos os arquivos e histórico de chat e <span className="text-red-400 font-bold">não pode ser desfeita</span>.
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setProjectToDelete(null)}
+                                className="flex-1 px-4 py-2.5 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-white text-sm font-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={confirmDelete}
+                                className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors shadow-lg shadow-red-900/20"
+                            >
+                                Sim, excluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
       </main>
     </div>
   );
