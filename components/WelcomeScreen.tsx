@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon, MenuIcon } from './Icons';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon, MenuIcon, LogInIcon } from './Icons';
 import { ProjectFile, SavedProject } from '../types';
 import { AI_MODELS } from '../constants';
 import { UserMenu } from './UserMenu';
@@ -177,6 +177,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   const userName = session?.user?.email?.split('@')[0] || 'dev';
+  const isLoggedIn = !!session?.user;
   const selectedModelObj = AI_MODELS.find(m => m.id === selectedModel);
   const isSelectedGemini = selectedModel.includes('gemini');
   const actualCreditCost = (isSelectedGemini && userGeminiKey) ? 0 : (selectedModelObj?.creditCost || 0);
@@ -237,8 +238,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         {/* Hero Text */}
         <div className="mb-8 md:mb-12 text-center animate-slideInUp">
             <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-white mb-2 px-4">
-                Hora de lançar, {userName}
+                {isLoggedIn ? `Hora de lançar, ${userName}` : 'Faça login para continuar'}
             </h1>
+            {!isLoggedIn && (
+                <p className="text-gray-400 text-sm mt-2">Salve seu progresso e acesse recursos avançados.</p>
+            )}
         </div>
 
         {/* Main Input Area */}
@@ -248,7 +252,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Peça a Codegen para criar um blog sobre..."
+                    placeholder={isLoggedIn ? "Peça a Codegen para criar um blog sobre..." : "Descreva seu projeto..."}
                     className="w-full h-[120px] md:h-[140px] p-4 md:p-6 bg-transparent text-base md:text-lg text-white placeholder-gray-500 resize-none focus:outline-none rounded-t-2xl md:rounded-t-3xl"
                     autoFocus
                 />
@@ -361,54 +365,70 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="w-full max-w-3xl mt-12 md:mt-16 animate-slideInUp px-2" style={{ animationDelay: '200ms' }}>
             <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                 <div className="flex gap-2 md:gap-4 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-                    <button className="flex-shrink-0 px-4 py-1.5 rounded-full bg-[#18181b] border border-[#27272a] text-[11px] md:text-sm text-white font-medium whitespace-nowrap">
-                        {displayProjects.length > 0 ? "Vistos Recentemente" : "Começar Agora"}
-                    </button>
-                    <button onClick={onShowProjects} className="flex-shrink-0 px-4 py-1.5 rounded-full hover:bg-[#18181b] text-[11px] md:text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">Meus Projetos</button>
+                    {isLoggedIn && (
+                        <>
+                            <button className="flex-shrink-0 px-4 py-1.5 rounded-full bg-[#18181b] border border-[#27272a] text-[11px] md:text-sm text-white font-medium whitespace-nowrap">
+                                {displayProjects.length > 0 ? "Vistos Recentemente" : "Começar Agora"}
+                            </button>
+                            <button onClick={onShowProjects} className="flex-shrink-0 px-4 py-1.5 rounded-full hover:bg-[#18181b] text-[11px] md:text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">Meus Projetos</button>
+                        </>
+                    )}
                 </div>
-                {displayProjects.length > 0 && (
+                {isLoggedIn && displayProjects.length > 0 && (
                     <button onClick={onShowProjects} className="text-xs md:text-sm text-gray-400 hover:text-white flex items-center gap-1 transition-colors self-end sm:self-auto">
                         Ver todos <span className="text-lg">→</span>
                     </button>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {displayProjects.length > 0 ? (
-                    displayProjects.map((project, index) => (
-                        <div 
-                            key={project.id}
-                            onClick={() => onLoadProject(project.id)}
-                            className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-500 transition-all cursor-pointer"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50 group-hover:opacity-80 transition-opacity"></div>
-                            <div className="absolute top-3 left-3 md:top-4 md:left-4">
-                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded bg-[#27272a] flex items-center justify-center ${index % 2 === 0 ? 'text-blue-400' : 'text-purple-400'}`}>
-                                    {index % 2 === 0 ? <SparklesIcon className="w-4 h-4 md:w-5 md:h-5" /> : <FolderIcon className="w-4 h-4 md:w-5 md:h-5" />}
+            {isLoggedIn ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {displayProjects.length > 0 ? (
+                        displayProjects.map((project, index) => (
+                            <div 
+                                key={project.id}
+                                onClick={() => onLoadProject(project.id)}
+                                className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] overflow-hidden hover:border-gray-500 transition-all cursor-pointer"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                                <div className="absolute top-3 left-3 md:top-4 md:left-4">
+                                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded bg-[#27272a] flex items-center justify-center ${index % 2 === 0 ? 'text-blue-400' : 'text-purple-400'}`}>
+                                        {index % 2 === 0 ? <SparklesIcon className="w-4 h-4 md:w-5 md:h-5" /> : <FolderIcon className="w-4 h-4 md:w-5 md:h-5" />}
+                                    </div>
+                                </div>
+                                <div className="absolute bottom-3 left-3 right-3 md:bottom-4 md:left-4 md:right-4">
+                                    <h3 className="text-white text-sm md:text-base font-medium truncate">{project.name}</h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <ClockIcon className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-500" />
+                                        <p className="text-[10px] md:text-xs text-gray-500">{getTimeAgo(project.updated_at)}</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="absolute bottom-3 left-3 right-3 md:bottom-4 md:left-4 md:right-4">
-                                <h3 className="text-white text-sm md:text-base font-medium truncate">{project.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <ClockIcon className="w-2.5 h-2.5 md:w-3 md:h-3 text-gray-500" />
-                                    <p className="text-[10px] md:text-xs text-gray-500">{getTimeAgo(project.updated_at)}</p>
-                                </div>
+                        ))
+                    ) : (
+                        <>
+                            <div className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] border-dashed flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors cursor-pointer" onClick={() => folderInputRef.current?.click()}>
+                                <FolderIcon className="w-6 h-6 md:w-8 md:h-8 opacity-50" />
+                                <span className="text-xs md:text-sm">Abrir pasta local</span>
                             </div>
-                        </div>
-                    ))
-                ) : (
-                    <>
-                        <div className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] border-dashed flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors cursor-pointer" onClick={() => folderInputRef.current?.click()}>
-                            <FolderIcon className="w-6 h-6 md:w-8 md:h-8 opacity-50" />
-                            <span className="text-xs md:text-sm">Abrir pasta local</span>
-                        </div>
-                        <div className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] border-dashed flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors cursor-pointer" onClick={onOpenGithubImport}>
-                            <GithubIcon className="w-6 h-6 md:w-8 md:h-8 opacity-50" />
-                            <span className="text-xs md:text-sm">Clonar do GitHub</span>
-                        </div>
-                    </>
-                )}
-            </div>
+                            <div className="group relative h-32 md:h-40 rounded-xl bg-[#121214] border border-[#27272a] border-dashed flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors cursor-pointer" onClick={onOpenGithubImport}>
+                                <GithubIcon className="w-6 h-6 md:w-8 md:h-8 opacity-50" />
+                                <span className="text-xs md:text-sm">Clonar do GitHub</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            ) : (
+                <div className="w-full flex flex-col items-center justify-center py-12 border border-[#27272a] rounded-xl bg-[#121214]/50 border-dashed gap-4">
+                    <p className="text-gray-400 text-sm">Você precisa estar logado para acessar seus projetos.</p>
+                    <button 
+                        onClick={onLoginClick}
+                        className="flex items-center gap-2 px-6 py-2 bg-white text-black rounded-full font-bold text-sm hover:bg-gray-200 transition-colors"
+                    >
+                        <LogInIcon className="w-4 h-4" /> Fazer Login
+                    </button>
+                </div>
+            )}
         </div>
 
       </main>

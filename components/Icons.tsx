@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 // Re-export UserMenu to be available easily
 export { UserMenu } from './UserMenu';
@@ -27,15 +27,17 @@ export const AppLogo = ({ className = "w-8 h-8 text-white", ...props }: IconProp
     </svg>
 );
 
-// Ícone Profissional do Gemini (Estrela de 4 pontas com curvas suaves e gradiente vibrante)
+// Ícone Oficial do Google Gemini
 export const GeminiIcon = ({ className = "w-5 h-5" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 24C12 24 11.5 14.5 9 12C6.5 9.5 0 9 0 9C0 9 6.5 8.5 9 6C11.5 3.5 12 0 12 0C12 0 12.5 3.5 15 6C17.5 8.5 24 9 24 9C24 9 17.5 9.5 15 12C12.5 14.5 12 24 12 24Z" fill="url(#gemini_modern_grad)" />
+        {/* Forma de estrela de 4 pontas fluida característica do Gemini */}
+        <path d="M12 0C12 0 8.5 8 0 12C8.5 16 12 24 12 24C12 24 15.5 16 24 12C15.5 8 12 0 12 0Z" fill="url(#gemini_official_gradient)" />
         <defs>
-            <linearGradient id="gemini_modern_grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#0EA5E9"/>
-                <stop offset="0.5" stopColor="#6366F1"/>
-                <stop offset="1" stopColor="#A855F7"/>
+            <linearGradient id="gemini_official_gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                {/* Gradiente Azul -> Roxo -> Vermelho/Laranja */}
+                <stop offset="0%" stopColor="#4E7BEE" />
+                <stop offset="50%" stopColor="#9867F0" />
+                <stop offset="100%" stopColor="#ED4E45" />
             </linearGradient>
         </defs>
     </svg>
@@ -299,5 +301,13 @@ export const CheckCircleIcon = ({ className = "w-6 h-6" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+);
+
+export const GlobeIcon = ({ className = "w-6 h-6" }: IconProps) => (
+    <svg {...defaultProps} className={className} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z" />
     </svg>
 );
