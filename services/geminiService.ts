@@ -40,7 +40,7 @@ ${file.content}
 
 - **GOAL**: Respond with a valid JSON object containing "message", "files" (array with "name", "language", "content"), and optionally "summary", "environmentVariables".
 - **LATENCY**: Be concise. Only generate/update necessary files. No placeholders.
-- **IMPORTANT**: Begin with a short one-line "thought" in Portuguese. Then add '---' on a new line. Then the JSON.
+- **IMPORTANT**: Return ONLY valid JSON. Do not add markdown code blocks. The response should start with { and end with }.
 
 Current files:
 ${fileContent.length > 0 ? fileContent : "Nenhum arquivo existe ainda."}
@@ -81,6 +81,7 @@ export const generateCodeStreamWithGemini = async (
         config: {
             systemInstruction,
             temperature: 0.2,
+            responseMimeType: 'application/json',
         },
     });
 

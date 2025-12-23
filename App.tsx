@@ -16,6 +16,7 @@ import { ImageStudioModal } from './components/ImageStudioModal';
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProWelcomeOnboarding } from './components/ProWelcomeOnboarding';
 import { CodePreview } from './components/CodePreview';
+import { LandingPage } from './components/LandingPage'; // Import LandingPage
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
@@ -37,13 +38,32 @@ const sanitizeFirestoreData = (data: any) => {
 };
 
 const extractAndParseJson = (text: string): any => {
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-    throw new Error("Resposta da IA não contém um JSON válido.");
+  if (!text) return { message: "Erro: Resposta vazia da IA.", files: [] };
+
+  // 1. Tentar parsear diretamente
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // 2. Tentar encontrar o bloco JSON se houver texto ao redor
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+       // Fallback: tratar como mensagem de texto simples
+       return {
+         message: text,
+         files: []
+       };
+    }
+    
+    const jsonString = text.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonString);
+    } catch (innerError) {
+      console.error("JSON Parse Error:", innerError);
+      throw new Error("A resposta da IA não é um JSON válido.");
+    }
   }
-  const jsonString = text.substring(firstBrace, lastBrace + 1);
-  return JSON.parse(jsonString);
 };
 
 interface ProjectState {
@@ -69,7 +89,20 @@ export const App: React.FC = () => {
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
-  const [view, setView] = useState<'welcome' | 'editor' | 'pricing' | 'projects' | 'public_preview'>(files.length > 0 ? 'editor' : 'welcome');
+  const [sessionUser, setSessionUser] = useState<any | null>(null);
+
+  // Initial View Logic
+  const [view, setView] = useState<'landing' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'public_preview'>(() => {
+     if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
+     if (files.length > 0) return 'editor';
+     
+     // Check if user has visited before or is logged in (sessionUser might not be ready yet, handled in useEffect)
+     const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
+     if (!hasVisited) return 'landing';
+     
+     return 'welcome';
+  });
+
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
 
   const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -93,7 +126,7 @@ export const App: React.FC = () => {
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
 
   const [codeError, setCodeError] = useState<string | null>(null);
-  const [sessionUser, setSessionUser] = useState<any | null>(null);
+  
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -291,6 +324,11 @@ export const App: React.FC = () => {
         const settings = await fetchUserSettings(user.uid);
         setUserSettings(settings);
         fetchUserProjects(user.uid);
+        
+        // Se logou, não está mais na landing page se estiver nela
+        localStorage.setItem('codegen-has-visited', 'true');
+        setView(current => current === 'landing' ? 'welcome' : current);
+
       } else {
         setSessionUser(null);
         setUserSettings(null);
@@ -309,13 +347,11 @@ export const App: React.FC = () => {
     if (provider === AIProvider.Gemini && !effectiveGeminiApiKey) { setPendingPrompt({ prompt, provider, model: modelId, attachments }); setApiKeyModalOpen(true); return; }
 
     // CRITICAL FIX: If we are in 'welcome' view, start a FRESH project state.
-    // This prevents appending to the old project when typing in the Welcome Screen.
     let activeProjectState = project;
     if (view === 'welcome') {
         activeProjectState = { ...initialProjectState };
     }
 
-    // Update state with new message (and reset project if coming from welcome)
     setProject({ 
         ...activeProjectState, 
         chatMessages: [...activeProjectState.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando...', isThinking: true }] 
@@ -325,24 +361,49 @@ export const App: React.FC = () => {
     setIsInitializing(true);
     
     try {
-      // Use activeProjectState.files instead of project.files to ensure we use the empty state if it's a new project
       const fullResponse = await generateCodeStreamWithGemini(prompt, activeProjectState.files, activeProjectState.envVars, (c) => {}, modelId, effectiveGeminiApiKey!, attachments);
-      const payload = fullResponse.includes('\n---\n') ? fullResponse.substring(fullResponse.indexOf('\n---\n') + 5) : fullResponse;
-      const result = extractAndParseJson(payload);
-      if (result.files) {
-        setProject(p => {
-            const map = new Map(p.files.map(f => [f.name, f]));
-            result.files.forEach((file: ProjectFile) => map.set(file.name, file));
-            return { ...p, files: Array.from(map.values()), activeFile: p.activeFile || result.files[0].name, chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: result.message, summary: result.summary, isThinking: false }] };
-        });
+      
+      // Clean up markdown if present (though system prompt should prevent it)
+      let payload = fullResponse.trim();
+      if (payload.startsWith('```json')) {
+          payload = payload.replace(/^```json/, '').replace(/```$/, '');
+      } else if (payload.startsWith('```')) {
+          payload = payload.replace(/^```/, '').replace(/```$/, '');
       }
-    } catch (e) { console.error(e); } finally { setIsInitializing(false); }
+
+      const result = extractAndParseJson(payload);
+      
+      setProject(p => {
+            const map = new Map(p.files.map(f => [f.name, f]));
+            if (result.files && Array.isArray(result.files)) {
+                result.files.forEach((file: ProjectFile) => map.set(file.name, file));
+            }
+            
+            // Check if we have files to set activeFile, otherwise keep existing
+            const newActiveFile = (result.files && result.files.length > 0) ? result.files[0].name : p.activeFile;
+            
+            return { 
+                ...p, 
+                files: Array.from(map.values()), 
+                activeFile: newActiveFile, 
+                chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: result.message, summary: result.summary, isThinking: false }] 
+            };
+        });
+
+    } catch (e: any) { 
+        console.error(e); 
+        setProject(p => ({
+            ...p,
+            chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: `Erro: ${e.message}`, isThinking: false }]
+        }));
+    } finally { 
+        setIsInitializing(false); 
+    }
   }, [project, effectiveGeminiApiKey, userSettings, sessionUser, view]);
 
   const handleLoadProject = useCallback((projectId: number) => {
     const p = savedProjects.find(x => x.id === projectId);
     if (p) {
-        // Correção aplicada aqui: env_vars -> envVars
         setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], envVars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
         setView('editor');
     }
@@ -373,10 +434,29 @@ export const App: React.FC = () => {
     );
   }
 
+  // Se for Landing Page e não tiver usuário logado
+  if (view === 'landing' && !sessionUser) {
+    return (
+        <>
+            <LandingPage 
+                onGetStarted={() => {
+                    localStorage.setItem('codegen-has-visited', 'true');
+                    setView('welcome');
+                }}
+                onLogin={() => {
+                    localStorage.setItem('codegen-has-visited', 'true');
+                    setAuthModalOpen(true);
+                }}
+            />
+            <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
+        </>
+    );
+  }
+
   return (
     <div className={theme}>
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
-      {view === 'welcome' ? (
+      {view === 'welcome' || (view === 'landing' && sessionUser) ? (
           <WelcomeScreen 
             session={sessionUser ? { user: sessionUser } : null}
             onLoginClick={() => setAuthModalOpen(true)}
@@ -447,7 +527,7 @@ export const App: React.FC = () => {
         onSave={handleUpdateSettings} 
       />
       
-      {/* GitHub Modals - Agora renderizados corretamente */}
+      {/* GitHub Modals */}
       <GithubImportModal 
         isOpen={isGithubModalOpen} 
         onClose={() => setGithubModalOpen(false)} 
@@ -462,7 +542,7 @@ export const App: React.FC = () => {
         files={files}
         projectName={projectName}
         githubToken={userSettings?.github_access_token}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)} 
       />
 
       <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
