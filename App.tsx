@@ -16,7 +16,9 @@ import { ImageStudioModal } from './components/ImageStudioModal';
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProWelcomeOnboarding } from './components/ProWelcomeOnboarding';
 import { CodePreview } from './components/CodePreview';
-import { LandingPage } from './components/LandingPage'; // Import LandingPage
+import { LandingPage } from './components/LandingPage';
+import { PrivacyPage } from './components/PrivacyPage'; // Import PrivacyPage
+import { TermsPage } from './components/TermsPage'; // Import TermsPage
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, DEFAULT_GEMINI_API_KEY, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
@@ -92,7 +94,7 @@ export const App: React.FC = () => {
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
   // Initial View Logic
-  const [view, setView] = useState<'landing' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'public_preview'>(() => {
+  const [view, setView] = useState<'landing' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'public_preview' | 'privacy' | 'terms'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      
@@ -102,6 +104,8 @@ export const App: React.FC = () => {
      
      return 'welcome';
   });
+
+  const [previousView, setPreviousView] = useState<'landing' | 'welcome'>('landing');
 
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
 
@@ -447,10 +451,22 @@ export const App: React.FC = () => {
                     localStorage.setItem('codegen-has-visited', 'true');
                     setAuthModalOpen(true);
                 }}
+                onShowPricing={() => { setPreviousView('landing'); setView('pricing'); }}
+                onShowPrivacy={() => { setPreviousView('landing'); setView('privacy'); }}
+                onShowTerms={() => { setPreviousView('landing'); setView('terms'); }}
             />
             <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
         </>
     );
+  }
+
+  // Renderizar páginas de Privacidade e Termos
+  if (view === 'privacy') {
+    return <PrivacyPage onBack={() => setView(previousView)} />;
+  }
+
+  if (view === 'terms') {
+    return <TermsPage onBack={() => setView(previousView)} />;
   }
 
   return (
@@ -461,7 +477,7 @@ export const App: React.FC = () => {
             session={sessionUser ? { user: sessionUser } : null}
             onLoginClick={() => setAuthModalOpen(true)}
             onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
-            onShowPricing={() => setView('pricing')}
+            onShowPricing={() => { setPreviousView('welcome'); setView('pricing'); }}
             onShowProjects={() => setView('projects')}
             onOpenGithubImport={() => setGithubModalOpen(true)}
             onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
@@ -475,7 +491,7 @@ export const App: React.FC = () => {
             currentPlan={userSettings?.plan || 'Hobby'}
           />
       ) : view === 'pricing' ? (
-          <PricingPage onBack={() => setView('welcome')} onNewProject={() => {}} />
+          <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
       ) : view === 'projects' ? (
           <ProjectsPage 
             projects={savedProjects} 

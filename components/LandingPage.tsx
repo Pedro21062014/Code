@@ -1,15 +1,24 @@
 
-import React from 'react';
-import { AppLogo, SparklesIcon, TerminalIcon, GithubIcon, CheckCircleIcon } from './Icons';
+import React, { useRef } from 'react';
+import { AppLogo, SparklesIcon, TerminalIcon, GithubIcon, CheckCircleIcon, DatabaseIcon, SupabaseIcon, ChevronDownIcon, GlobeIcon, DownloadIcon } from './Icons';
 
 interface LandingPageProps {
   onGetStarted: () => void;
   onLogin: () => void;
+  onShowPricing: () => void;
+  onShowPrivacy: () => void;
+  onShowTerms: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onShowPricing, onShowPrivacy, onShowTerms }) => {
+  const featuresRef = useRef<HTMLElement>(null);
+
+  const scrollToFeatures = () => {
+    featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden font-sans selection:bg-blue-500/30">
+    <div className="h-screen w-full bg-[#050505] text-white overflow-y-auto overflow-x-hidden font-sans selection:bg-blue-500/30 custom-scrollbar scroll-smooth">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -25,6 +34,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin 
           <span className="font-bold text-lg tracking-tight">codegen<span className="font-light text-white/50">studio</span></span>
         </div>
         <div className="flex items-center gap-6">
+            <button onClick={onShowPricing} className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                Preços
+            </button>
             <button onClick={onLogin} className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
                 Login
             </button>
@@ -38,7 +50,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin 
       </nav>
 
       {/* Hero Section */}
-      <main className="relative z-10 pt-20 pb-32 px-6 flex flex-col items-center text-center">
+      <main className="relative z-10 pt-20 pb-20 px-6 flex flex-col items-center text-center">
         
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-8 animate-fadeIn">
             <SparklesIcon className="w-3 h-3" />
@@ -140,28 +152,155 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin 
             </div>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-32 max-w-6xl mx-auto w-full">
-            {[
-                { title: "Chat Inteligente", desc: "Converse naturalmente. A IA entende contexto, arquivos e intenções complexas.", icon: <SparklesIcon className="w-6 h-6 text-purple-400" /> },
-                { title: "Editor Fullstack", desc: "Um ambiente VS Code completo no navegador. Edite, visualize e debuge instantaneamente.", icon: <TerminalIcon className="w-6 h-6 text-blue-400" /> },
-                { title: "Deploy em 1-Click", desc: "Do conceito à produção em minutos. Hospedagem integrada e exportação para GitHub.", icon: <GithubIcon className="w-6 h-6 text-white" /> }
-            ].map((f, i) => (
-                <div key={i} className="p-8 rounded-2xl bg-[#0a0a0a] border border-[#1f1f22] hover:border-white/10 transition-all group">
-                    <div className="w-12 h-12 rounded-xl bg-[#121214] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                        {f.icon}
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-3">{f.title}</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
-                </div>
-            ))}
-        </div>
+        {/* Scroll Indicator */}
+        <button 
+            onClick={scrollToFeatures}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer p-2 hover:text-white transition-colors"
+        >
+            <ChevronDownIcon className="w-6 h-6 text-gray-500" />
+        </button>
 
       </main>
 
+      {/* Features Detail Section */}
+      <section ref={featuresRef} className="py-32 px-6 relative z-10 border-t border-[#1f1f22] bg-[#080808]">
+          <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl md:text-5xl font-semibold mb-16 text-center">Tudo o que você precisa <br/> <span className="text-gray-500">para ir do zero ao deploy.</span></h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Feature 1 */}
+                  <div className="p-8 rounded-3xl bg-[#0c0c0e] border border-[#1f1f22] hover:border-blue-500/30 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-6 text-blue-400">
+                          <SparklesIcon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Modelos de IA Avançados</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                          Acesse Gemini, GPT-4o e DeepSeek para gerar código complexo, corrigir bugs e refatorar em segundos.
+                      </p>
+                  </div>
+
+                  {/* Feature 2 */}
+                  <div className="p-8 rounded-3xl bg-[#0c0c0e] border border-[#1f1f22] hover:border-purple-500/30 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-6 text-purple-400">
+                          <TerminalIcon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Ambiente de Execução</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                          Preview instantâneo com WebContainers. É como ter um VS Code rodando direto no seu navegador.
+                      </p>
+                  </div>
+
+                  {/* Feature 3 */}
+                  <div className="p-8 rounded-3xl bg-[#0c0c0e] border border-[#1f1f22] hover:border-white/30 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6 text-white">
+                          <GithubIcon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Sincronização GitHub</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                          Importe repositórios existentes ou faça push de novos projetos com um clique. Controle de versão simplificado.
+                      </p>
+                  </div>
+
+                  {/* Feature 4 */}
+                  <div className="p-8 rounded-3xl bg-[#0c0c0e] border border-[#1f1f22] hover:border-green-500/30 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-6 text-green-400">
+                          <SupabaseIcon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Backend Integrado</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                          Conecte-se ao Supabase para banco de dados Postgres, autenticação e APIs em tempo real sem configurar servidores.
+                      </p>
+                  </div>
+
+                  {/* Feature 5 */}
+                  <div className="p-8 rounded-3xl bg-[#0c0c0e] border border-[#1f1f22] hover:border-pink-500/30 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center mb-6 text-pink-400">
+                          <DownloadIcon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Exportação Flexível</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                          Seus dados são seus. Baixe o código fonte completo como ZIP ou publique diretamente na web com um clique.
+                      </p>
+                  </div>
+
+                   {/* Feature 6 */}
+                   <div className="p-8 rounded-3xl bg-[#0c0c0e] border border-[#1f1f22] hover:border-yellow-500/30 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center mb-6 text-yellow-400">
+                          <GlobeIcon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Deploy em 1-Clique</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                          Do localhost para o mundo. Hospede seus projetos estáticos ou aplicações React instantaneamente.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+      {/* Tech Stack Banner */}
+      <section className="py-10 border-t border-b border-[#1f1f22] bg-[#050505] overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 flex flex-wrap justify-center gap-12 md:gap-20 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+              {['React', 'Vite', 'Tailwind', 'Supabase', 'Firebase', 'Stripe', 'OpenAI'].map((tech) => (
+                  <span key={tech} className="text-xl font-bold font-mono text-white">{tech}</span>
+              ))}
+          </div>
+      </section>
+
+      {/* Pricing Teaser */}
+      <section className="py-32 px-6 bg-[#080808]">
+          <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-3xl md:text-5xl font-semibold mb-6">Planos que escalam com você</h2>
+              <p className="text-gray-400 text-lg mb-12 max-w-2xl mx-auto">
+                  Comece gratuitamente e faça upgrade quando precisar de mais poder de computação e recursos de equipe.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 text-left">
+                  <div className="p-8 rounded-3xl border border-[#1f1f22] bg-[#0c0c0e]">
+                      <h3 className="text-xl font-bold text-white">Hobby</h3>
+                      <div className="text-3xl font-bold text-white mt-4 mb-2">Grátis</div>
+                      <p className="text-sm text-gray-500 mb-6">Para projetos pessoais e testes.</p>
+                      <ul className="space-y-3 mb-8">
+                          <li className="flex items-center gap-2 text-sm text-gray-300"><CheckCircleIcon className="w-4 h-4 text-green-500"/> 300 créditos diários</li>
+                          <li className="flex items-center gap-2 text-sm text-gray-300"><CheckCircleIcon className="w-4 h-4 text-green-500"/> Acesso ao Editor</li>
+                          <li className="flex items-center gap-2 text-sm text-gray-300"><CheckCircleIcon className="w-4 h-4 text-green-500"/> Download ZIP</li>
+                      </ul>
+                  </div>
+                  <div className="p-8 rounded-3xl border border-blue-500/20 bg-[#0c0c0e] relative overflow-hidden">
+                      <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl">POPULAR</div>
+                      <h3 className="text-xl font-bold text-white">Pro</h3>
+                      <div className="text-3xl font-bold text-white mt-4 mb-2">$20<span className="text-sm text-gray-500 font-normal">/mês</span></div>
+                      <p className="text-sm text-gray-500 mb-6">Para desenvolvedores sérios.</p>
+                      <ul className="space-y-3 mb-8">
+                          <li className="flex items-center gap-2 text-sm text-gray-300"><CheckCircleIcon className="w-4 h-4 text-blue-500"/> Todos os modelos de IA</li>
+                          <li className="flex items-center gap-2 text-sm text-gray-300"><CheckCircleIcon className="w-4 h-4 text-blue-500"/> Sync GitHub Ilimitado</li>
+                          <li className="flex items-center gap-2 text-sm text-gray-300"><CheckCircleIcon className="w-4 h-4 text-blue-500"/> Suporte Prioritário</li>
+                      </ul>
+                  </div>
+              </div>
+
+              <button 
+                  onClick={onShowPricing}
+                  className="px-8 py-4 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-gray-200 transition-all hover:scale-105"
+              >
+                  Ver Tabela Completa
+              </button>
+          </div>
+      </section>
+
       {/* Footer */}
-      <footer className="border-t border-[#1f1f22] bg-[#050505] py-12 text-center mt-20">
-            <p className="text-gray-600 text-sm">© {new Date().getFullYear()} Codegen Studio. All rights reserved.</p>
+      <footer className="border-t border-[#1f1f22] bg-[#050505] py-12 px-6">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="flex items-center gap-2 opacity-50">
+                    <AppLogo className="w-6 h-6 text-white" />
+                    <span className="font-bold text-sm tracking-tight">codegen studio</span>
+                </div>
+                <div className="flex gap-8 text-sm text-gray-500">
+                    <button onClick={onShowTerms} className="hover:text-white transition-colors">Termos</button>
+                    <button onClick={onShowPrivacy} className="hover:text-white transition-colors">Privacidade</button>
+                    <a href="mailto:support@codegen.studio" className="hover:text-white transition-colors">Contato</a>
+                </div>
+                <p className="text-gray-600 text-xs">© {new Date().getFullYear()} All rights reserved.</p>
+            </div>
       </footer>
     </div>
   );
