@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ProjectFile, Theme } from '../types';
-import { SandpackProvider, SandpackLayout, SandpackPreview } from '@codesandbox/sandpack-react';
+import { createPlayground, LiveCodes } from 'livecodes';
 
 interface CodePreviewProps {
   files: ProjectFile[];
@@ -12,81 +12,71 @@ interface CodePreviewProps {
 }
 
 export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme }) => {
-  
-  // 1. Normaliza arquivos e detecta o ponto de entrada correto
-  const { sandpackFiles, entryFile } = useMemo(() => {
-    const fileMap: Record<string, string> = {};
-    let detectedEntry = "";
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playgroundRef = useRef<LiveCodes | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
-    // Normaliza caminhos (adiciona / no início se faltar)
-    files.forEach(file => {
-      const path = file.name.startsWith('/') ? file.name : `/${file.name}`;
-      fileMap[path] = file.content;
-    });
+  // Efeito de Inicialização
+  useEffect(() => {
+    if (!containerRef.current || playgroundRef.current) return;
 
-    // Lista de possíveis pontos de entrada em ordem de prioridade
-    const entryCandidates = [
-      '/src/main.tsx', 
-      '/src/main.jsx', 
-      '/src/index.tsx', 
-      '/src/index.jsx',
-      '/main.tsx',     // Caso a IA coloque na raiz incorretamente
-      '/index.tsx'
-    ];
-
-    detectedEntry = entryCandidates.find(entry => fileMap[entry]) || "/src/main.tsx";
-
-    // 2. Garante que existe um index.html apontando para o entry point correto
-    if (!fileMap['/index.html']) {
-      // Se não existir, cria um padrão
-      fileMap['/index.html'] = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Preview</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="${detectedEntry}"></script>
-  </body>
-</html>`;
-    } else {
-      // Se existir, verifica se precisamos injetar o script correto (caso a IA tenha esquecido ou errado)
-      let htmlContent = fileMap['/index.html'];
-      if (!htmlContent.includes(detectedEntry)) {
-         // Tentativa simples de correção: se não tiver script module, injeta no final do body
-         if (!htmlContent.includes('<script type="module"')) {
-            htmlContent = htmlContent.replace('</body>', `<script type="module" src="${detectedEntry}"></script></body>`);
-            fileMap['/index.html'] = htmlContent;
-         }
-      }
-    }
-
-    // 3. Fallback de segurança para package.json
-    if (!fileMap['/package.json']) {
-      fileMap['/package.json'] = JSON.stringify({
-        name: "project",
-        main: detectedEntry,
-        dependencies: {
-          "react": "^18.3.1",
-          "react-dom": "^18.3.1",
-          "lucide-react": "^0.344.0",
-          "clsx": "^2.1.0",
-          "tailwind-merge": "^2.2.1"
+    const initPlayground = async () => {
+        try {
+            const playground = await createPlayground(containerRef.current!, {
+                params: {
+                    loading: 'eager',
+                    view: 'result', // Mostra apenas o resultado por padrão
+                    mode: 'result', // Modo focado no preview
+                },
+            });
+            playgroundRef.current = playground;
+            setIsReady(true);
+        } catch (err) {
+            console.error("Falha ao carregar LiveCodes:", err);
         }
-      }, null, 2);
-    }
+    };
 
-    return { sandpackFiles: fileMap, entryFile: detectedEntry };
-  }, [files]);
+    initPlayground();
 
-  // Detecta se é um projeto Vite/React ou Estático (para escolher o template base correto)
-  const projectType = useMemo(() => {
-    const hasTSX = files.some(f => f.name.endsWith('.tsx'));
-    const hasJSX = files.some(f => f.name.endsWith('.jsx'));
-    return (hasTSX || hasJSX) ? 'vite-react-ts' : 'static';
-  }, [files]);
+    return () => {
+        if (playgroundRef.current) {
+            playgroundRef.current.destroy();
+            playgroundRef.current = null;
+        }
+    };
+  }, []);
+
+  // Efeito de Atualização de Arquivos e Tema
+  useEffect(() => {
+    if (!playgroundRef.current || !isReady || files.length === 0) return;
+
+    const updatePlayground = async () => {
+        const formattedFiles: Record<string, { content: string }> = {};
+        
+        // Mapeia os arquivos para o formato do LiveCodes
+        files.forEach(file => {
+            // Remove a barra inicial se existir (LiveCodes prefere caminhos relativos na raiz)
+            const path = file.name.startsWith('/') ? file.name.slice(1) : file.name;
+            formattedFiles[path] = { content: file.content };
+        });
+
+        // Configuração para suportar projetos React/Vite gerados pela IA
+        await playgroundRef.current?.setConfig({
+            mode: "result",
+            template: "react", // Usa o template React como base
+            theme: theme,
+            files: formattedFiles,
+            settings: {
+                fontFamily: 'Inter',
+                ...((Object.keys(formattedFiles).length > 0) ? {} : {
+                    // Configurações básicas se não houver arquivos
+                })
+            }
+        });
+    };
+
+    updatePlayground();
+  }, [files, theme, isReady]);
 
   if (files.length === 0) {
     return (
@@ -98,33 +88,15 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme }) => {
   }
 
   return (
-    <div className="w-full h-full bg-[#09090b] overflow-hidden">
-      <SandpackProvider
-        template={projectType}
-        files={sandpackFiles}
-        theme={theme === 'dark' ? 'dark' : 'light'}
-        options={{
-          recompileMode: "immediate",
-          recompileDelay: 300,
-          // Define explicitamente os arquivos visíveis e ativos para forçar o contexto
-          activeFile: entryFile,
-          visibleFiles: files.map(f => f.name.startsWith('/') ? f.name : `/${f.name}`),
-          initMode: "immediate",
-          externalResources: ["https://cdn.tailwindcss.com"]
-        }}
-        customSetup={{
-          entry: entryFile, // Força o ponto de entrada detectado
-        }}
-      >
-        <SandpackLayout style={{ height: '100%', borderRadius: 0, border: 'none', background: 'transparent' }}>
-          <SandpackPreview 
-            style={{ height: '100%', background: 'white' }} 
-            showNavigator={false} 
-            showRefreshButton={true}
-            showOpenInCodeSandbox={false}
-          />
-        </SandpackLayout>
-      </SandpackProvider>
+    <div className="w-full h-full bg-[#09090b] overflow-hidden relative group">
+        <div id="livecodes-container" ref={containerRef} className="w-full h-full border-none" />
+        
+        {/* Loading Overlay discreto enquanto o LiveCodes processa */}
+        {!isReady && (
+            <div className="absolute inset-0 bg-[#09090b] flex items-center justify-center z-10">
+                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        )}
     </div>
   );
 };

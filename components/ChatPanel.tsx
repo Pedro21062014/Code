@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, PaperclipIcon, ChevronDownIcon, LoaderIcon, SupabaseIcon, GithubIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, ChevronDownIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -20,22 +20,52 @@ interface ChatPanelProps {
 }
 
 const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => {
+    const [fileLog, setFileLog] = useState<string[]>([]);
+    const lastFileRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (generatingFile && generatingFile !== lastFileRef.current) {
+            setFileLog(prev => {
+                if (prev.includes(generatingFile)) return prev;
+                return [...prev, generatingFile];
+            });
+            lastFileRef.current = generatingFile;
+        }
+    }, [generatingFile]);
+
     return (
-        <div className="w-full animate-fadeIn my-2">
-            <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5 animate-pulse">
-                <div className="relative flex items-center justify-center w-5 h-5">
-                    <LoaderIcon className="w-4 h-4 animate-spin text-blue-400" />
+        <div className="flex flex-col gap-3 py-2 animate-fadeIn select-none">
+            {/* Thinking Header */}
+            <div className="flex items-center gap-3">
+                <div className="relative flex items-center justify-center">
+                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur animate-pulse"></div>
+                    <SparklesIcon className="w-4 h-4 text-blue-400 relative z-10" />
                 </div>
-                <div className="flex flex-col">
-                    <span className="text-xs font-mono text-gray-300">
-                        {generatingFile ? (
-                            <>Escrevendo <span className="text-blue-400">{generatingFile}</span>...</>
-                        ) : (
-                            "Processando solicitação..."
-                        )}
-                    </span>
-                </div>
+                <span className="text-sm font-medium bg-gradient-to-r from-gray-400 via-white to-gray-400 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine">
+                    Pensando...
+                </span>
             </div>
+
+            {/* File Generation List */}
+            {fileLog.length > 0 && (
+                <div className="flex flex-col gap-2 pl-2 border-l border-white/10 ml-2 mt-1">
+                    {fileLog.map((file, index) => {
+                        const isCurrent = file === generatingFile;
+                        return (
+                            <div key={index} className={`flex items-center gap-2.5 text-xs font-mono transition-all duration-300 ${isCurrent ? 'opacity-100 translate-x-1' : 'opacity-50'}`}>
+                                {isCurrent ? (
+                                    <LoaderIcon className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                                ) : (
+                                    <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />
+                                )}
+                                <span className={isCurrent ? "text-blue-200" : "text-gray-400"}>
+                                    {file}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };
@@ -46,13 +76,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0]?.id || '');
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, generatingFile]);
+  }, [messages, generatingFile, isGenerating]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,13 +109,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-[#0d0d0d] border-r border-white/5 relative">
-      {/* Small top label */}
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-[#0d0d0d]">
-          <div className="flex items-center gap-2">
-              <SparklesIcon className="w-4 h-4 text-blue-500" />
-              <span className="text-xs font-black text-white/50 uppercase tracking-widest">Codegen Agent</span>
-          </div>
-          <div className="text-[10px] font-bold text-blue-400 px-2 py-0.5 bg-blue-500/10 rounded-full border border-blue-500/20">
+      {/* Minimal Header */}
+      <div className="px-6 py-4 flex items-center justify-end border-b border-white/5 bg-[#0d0d0d]">
+          <div className="text-[10px] font-bold text-blue-400 px-2 py-0.5 bg-blue-500/10 rounded-full border border-blue-500/20 flex items-center gap-1.5">
+              <SparklesIcon className="w-3 h-3" />
               {credits} CR
           </div>
       </div>
@@ -98,15 +123,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             msg.role !== 'system' && (
                 <div key={index} className={`flex flex-col gap-3 ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-fadeIn`}>
                     <div className="flex items-center gap-2 opacity-40">
-                        <span className="text-[10px] font-black uppercase tracking-tighter">{msg.role === 'user' ? 'You' : 'Codegen'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-tighter">{msg.role === 'user' ? 'You' : 'AI'}</span>
                     </div>
-                    <div className={`max-w-[90%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${
-                        msg.role === 'user' 
-                        ? 'bg-[#1a1a1a] text-white border border-white/5' 
-                        : 'text-gray-300 w-full'
-                    }`}>
-                        {msg.isThinking ? <ThinkingIndicator generatingFile={generatingFile} /> : <p className="whitespace-pre-wrap">{msg.content}</p>}
-                    </div>
+                    
+                    {msg.isThinking ? (
+                        <ThinkingIndicator generatingFile={generatingFile} />
+                    ) : (
+                        <div className={`max-w-[90%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed ${
+                            msg.role === 'user' 
+                            ? 'bg-[#1a1a1a] text-white border border-white/5' 
+                            : 'text-gray-300 w-full'
+                        }`}>
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
+                    )}
+
                     {msg.role === 'assistant' && !msg.isThinking && (
                         <div className="flex flex-wrap gap-2 mt-2">
                             {detectActions(msg.content)}
@@ -125,7 +156,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                placeholder="How can Codegen help you today?"
+                placeholder="Como posso ajudar você hoje?"
                 className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none resize-none min-h-[60px]"
                 rows={1}
               />
