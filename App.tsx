@@ -20,10 +20,10 @@ import { LandingPage } from './components/LandingPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { Toast } from './components/Toast';
-import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject } from './types';
+import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
-import { generateCodeStream } from './services/aiService';
+import { generateCodeStream, fetchAvailableModels } from './services/aiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -112,12 +112,33 @@ export const App: React.FC = () => {
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
   
+  const [availableModels, setAvailableModels] = useState<AIModel[]>(AI_MODELS);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
   const [isInitializing, setIsInitializing] = useState(false); 
   const [generatingFile, setGeneratingFile] = useState<string | null>(null);
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
   const [codeError, setCodeError] = useState<string | null>(null);
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch models whenever user key changes or on load
+  useEffect(() => {
+    const loadModels = async () => {
+        setIsLoadingModels(true);
+        try {
+            const models = await fetchAvailableModels(userSettings?.openrouter_api_key);
+            if (models.length > 0) {
+                setAvailableModels(models);
+            }
+        } catch (e) {
+            console.error("Failed to load models", e);
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
+    loadModels();
+  }, [userSettings?.openrouter_api_key]);
 
   useEffect(() => {
     if (!userSettings) return;
@@ -285,9 +306,6 @@ export const App: React.FC = () => {
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
     if (!sessionUser) { setAuthModalOpen(true); return; }
     
-    // Todas as requisições agora usam o backend OpenRouter, sem chave no frontend.
-    // Simplesmente prosseguimos. A validação da chave do servidor ocorrerá no backend.
-
     let activeProjectState = project;
     if (view === 'welcome') {
         activeProjectState = { ...initialProjectState };
@@ -308,7 +326,8 @@ export const App: React.FC = () => {
           activeProjectState.envVars, 
           (c) => {}, 
           modelId, 
-          attachments
+          attachments,
+          userSettings?.openrouter_api_key // Passa a chave do usuário se existir
       );
       
       let payload = fullResponse.trim();
@@ -397,7 +416,7 @@ export const App: React.FC = () => {
     <div className={theme}>
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
       
-      {/* Toast para Erros Globais (ex: Chave OpenRouter faltando) */}
+      {/* Toast para Erros Globais */}
       <Toast message={toastError} onClose={() => setToastError(null)} type="error" />
 
       {view === 'welcome' || (view === 'landing' && sessionUser) ? (
@@ -417,6 +436,7 @@ export const App: React.FC = () => {
             credits={userSettings?.credits || 0}
             userGeminiKey={userSettings?.gemini_api_key}
             currentPlan={userSettings?.plan || 'Hobby'}
+            availableModels={availableModels} // Passando modelos dinâmicos
           />
       ) : view === 'pricing' ? (
           <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
@@ -426,7 +446,16 @@ export const App: React.FC = () => {
           <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
               <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
-                <ChatPanel messages={chatMessages} onSendMessage={handleSendMessage} isProUser={userSettings?.plan === 'Pro'} projectName={projectName} credits={userSettings?.credits || 0} generatingFile={generatingFile} isGenerating={isInitializing} />
+                <ChatPanel 
+                    messages={chatMessages} 
+                    onSendMessage={handleSendMessage} 
+                    isProUser={userSettings?.plan === 'Pro'} 
+                    projectName={projectName} 
+                    credits={userSettings?.credits || 0} 
+                    generatingFile={generatingFile} 
+                    isGenerating={isInitializing}
+                    availableModels={availableModels} // Passando modelos dinâmicos
+                />
               </div>
               <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
                 <EditorView 

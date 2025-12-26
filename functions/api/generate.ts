@@ -50,16 +50,18 @@ ${envContent}
 
 export const onRequestPost = async (context: any) => {
   try {
-    const apiKey = context.env.OPENROUTER_API_KEY;
+    const req = context.request;
+    const body = await req.json();
+    
+    // Prioriza a chave enviada pelo usuário (body.apiKey), senão usa a do servidor
+    const apiKey = body.apiKey || context.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
         return new Response(JSON.stringify({ 
-            error: 'Variável de ambiente OPENROUTER_API_KEY não encontrada no servidor.' 
+            error: 'Nenhuma Chave API encontrada (Adicione nas configurações ou configure no servidor).' 
         }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const req = context.request;
-    const body = await req.json();
     const { model, prompt, existingFiles, envVars } = body;
     
     const systemPrompt = getSystemPrompt(existingFiles, envVars);

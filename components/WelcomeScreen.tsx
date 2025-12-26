@@ -1,8 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon, MenuIcon, LogInIcon } from './Icons';
-import { ProjectFile, SavedProject } from '../types';
-import { AI_MODELS } from '../constants';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon, MenuIcon, LogInIcon, CheckCircleIcon } from './Icons';
+import { ProjectFile, SavedProject, AIModel } from '../types';
 import { UserMenu } from './UserMenu';
 
 interface WelcomeScreenProps {
@@ -21,7 +20,16 @@ interface WelcomeScreenProps {
   credits: number;
   userGeminiKey?: string;
   currentPlan?: string;
+  availableModels?: AIModel[];
 }
+
+const FEATURED_MODEL_IDS = [
+  'google/gemini-2.0-flash-001',
+  'google/gemini-2.0-pro-exp-02-05:free',
+  'openai/gpt-4o',
+  'anthropic/claude-3.5-sonnet',
+  'deepseek/deepseek-r1'
+];
 
 const getFileLanguage = (fileName: string): string => {
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -73,12 +81,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onLoadProject = (_: number) => {},
     credits,
     userGeminiKey,
-    currentPlan = 'Hobby'
+    currentPlan = 'Hobby',
+    availableModels = []
 }) => {
   const [prompt, setPrompt] = useState('');
   /* Updated default model to gemini-3-flash-preview */
-  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-001');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [showAllModels, setShowAllModels] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
+  
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +104,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
             setIsModelDropdownOpen(false);
+            // Reset filters when closing
+            setTimeout(() => {
+                setShowAllModels(false);
+                setModelSearch('');
+            }, 200);
         }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -178,9 +195,21 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   const userName = session?.user?.email?.split('@')[0] || 'dev';
   const isLoggedIn = !!session?.user;
-  const selectedModelObj = AI_MODELS.find(m => m.id === selectedModel);
+  const selectedModelObj = availableModels.find(m => m.id === selectedModel) || availableModels[0];
   const isSelectedGemini = selectedModel.includes('gemini');
   const actualCreditCost = (isSelectedGemini && userGeminiKey) ? 0 : (selectedModelObj?.creditCost || 0);
+
+  // Filter models based on view state
+  const featuredModels = availableModels.filter(m => FEATURED_MODEL_IDS.includes(m.id));
+  // If no featured models match (e.g. loading or different IDs), use first 5
+  const initialDisplayModels = featuredModels.length > 0 ? featuredModels : availableModels.slice(0, 5);
+  
+  const allFilteredModels = availableModels.filter(m => 
+      m.name.toLowerCase().includes(modelSearch.toLowerCase()) || 
+      m.id.toLowerCase().includes(modelSearch.toLowerCase())
+  );
+
+  const displayedModels = showAllModels ? allFilteredModels : initialDisplayModels;
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#09090b] text-white overflow-x-hidden overflow-y-auto relative font-sans custom-scrollbar">
@@ -309,14 +338,28 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-[10px] md:text-xs font-medium text-gray-300 transition-colors border border-[#27272a] hover:border-gray-600"
                             >
                                 {getModelIcon(selectedModel)}
-                                <span className="truncate max-w-[80px] md:max-w-[120px]">{selectedModelObj?.name}</span>
+                                <span className="truncate max-w-[80px] md:max-w-[120px]">{selectedModelObj?.name || 'Modelo'}</span>
                                 <ChevronDownIcon className="w-3 h-3 text-gray-500" />
                             </button>
 
                             {isModelDropdownOpen && (
-                                <div className="absolute bottom-full mb-2 right-0 w-64 bg-[#18181b] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn">
-                                    <div className="p-1 max-h-80 overflow-y-auto custom-scrollbar">
-                                        {AI_MODELS.map(model => {
+                                <div className="absolute bottom-full mb-2 right-0 w-64 bg-[#18181b] border border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn flex flex-col">
+                                    
+                                    {showAllModels && (
+                                        <div className="p-2 border-b border-[#27272a]">
+                                            <input 
+                                                type="text" 
+                                                placeholder="Buscar modelo..." 
+                                                value={modelSearch}
+                                                onChange={(e) => setModelSearch(e.target.value)}
+                                                className="w-full bg-[#121214] text-xs text-white px-2 py-1.5 rounded-md border border-[#27272a] focus:outline-none focus:border-gray-600 placeholder-gray-600"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="p-1 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {displayedModels.map(model => {
                                             const isGeminiModel = model.id.includes('gemini');
                                             const modelCost = (isGeminiModel && userGeminiKey) ? 0 : model.creditCost;
                                             return (
@@ -332,17 +375,29 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                             : 'text-gray-400 hover:bg-[#27272a] hover:text-gray-200'
                                                     }`}
                                                 >
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-3 truncate">
                                                         {getModelIcon(model.id)}
-                                                        {model.name}
+                                                        <span className="truncate">{model.name}</span>
                                                     </div>
-                                                    <span className={`text-[10px] px-1.5 rounded ${modelCost === 0 ? 'bg-green-500/10 text-green-400' : 'bg-black/40 text-gray-500'}`}>
+                                                    <span className={`text-[10px] px-1.5 rounded flex-shrink-0 ${modelCost === 0 ? 'bg-green-500/10 text-green-400' : 'bg-black/40 text-gray-500'}`}>
                                                         {modelCost}c
                                                     </span>
                                                 </button>
                                             );
                                         })}
+                                        {displayedModels.length === 0 && <div className="p-2 text-xs text-gray-500 text-center">Nenhum modelo encontrado.</div>}
                                     </div>
+
+                                    {!showAllModels && (
+                                        <div className="p-1 border-t border-[#27272a]">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setShowAllModels(true); }}
+                                                className="w-full text-center py-1.5 text-[10px] text-gray-500 hover:text-white hover:bg-[#27272a] rounded-md transition-colors"
+                                            >
+                                                Ver todos os modelos
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
