@@ -39,6 +39,7 @@ export interface UserSettings {
   email?: string; // Adicionado para facilitar busca
   updated_at?: string;
   gemini_api_key?: string;
+  openrouter_api_key?: string; // Nova chave adicionada
   github_access_token?: string;
   supabase_project_url?: string;
   supabase_anon_key?: string;
