@@ -63,7 +63,6 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme }) => {
         // Configuração para suportar projetos React/Vite gerados pela IA
         await playgroundRef.current?.setConfig({
             mode: "result",
-            template: "react", // Usa o template React como base
             theme: theme,
             files: formattedFiles,
             settings: {
