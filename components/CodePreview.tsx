@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ProjectFile, Theme } from '../types';
-import { createPlayground, LiveCodes } from 'livecodes';
+import { createPlayground, type Playground } from 'livecodes';
 
 interface CodePreviewProps {
   files: ProjectFile[];
@@ -13,7 +13,7 @@ interface CodePreviewProps {
 
 export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playgroundRef = useRef<LiveCodes | null>(null);
+  const playgroundRef = useRef<Playground | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   // Efeito de Inicialização
