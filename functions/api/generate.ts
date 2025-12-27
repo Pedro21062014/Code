@@ -34,12 +34,17 @@ const getSystemPrompt = (files: any[], envVars = {}) => {
     4.  **User Instructions**: In the \`message\` field, explicitly tell the user to connect their Supabase account in the "Integrations" menu to make the app work.
     5.  **Frontend Logic**: Write React components that import \`supabase\` from \`../services/supabase\` and interact with the database directly.
 
+- SPECIAL COMMAND: If the user's prompt includes the word "ia" (Portuguese for "AI"), you must integrate a client-side Gemini AI feature into the project. To do this:
+  - 1. Create a new file 'services/gemini.ts'. This file should initialize the GoogleGenAI client and export a function to call the Gemini model.
+  - 2. The API key for this service MUST be read from an environment variable named 'GEMINI_API_KEY' (e.g., 'process.env.GEMINI_API_KEY').
+  - 3. In your JSON response, you MUST include the 'environmentVariables' field and create a key named 'GEMINI_API_KEY'. Set its value to an empty string (e.g., "GEMINI_API_KEY": ""). The application will automatically populate it with the user's key.
+  - 4. Update the application's UI and logic files to import and use the new Gemini service, creating the AI feature requested by the user.
 - You MUST respond with a single, valid JSON object and nothing else. Do not wrap the JSON in markdown backticks or any other text. The JSON object must contain the "message" and "files" keys, and can optionally contain "summary", "environmentVariables", and "supabaseAdminAction".
   - "message": (string) A friendly, conversational message to the user, in Portuguese.
   - "files": (array) An array of file objects. Each file object must have "name", "language", and "content".
   - "summary": (string, optional) A markdown string summarizing the files created or updated.
   - "environmentVariables": (object, optional) An object of environment variables to set. To delete a variable, set its value to null.
-  - "supabaseAdminAction": (object, optional) To execute a database modification (e.g., create a table), provide an object with a "query" key containing the SQL statement to execute.
+  - "supabaseAdminAction": (object, optional) To execute a database modification (e.g., create a table), provide an object with a "query" key containing the SQL statement to execute. Example: { "query": "CREATE TABLE posts (id bigint primary key, title text);" }. Use this ONLY for database schema or data manipulation.
 
 Current project files:
 ${fileContent || "Nenhum arquivo existe ainda."}
@@ -48,55 +53,90 @@ ${envContent}
 `;
 };
 
+async function handleOpenAI(body: any, apiKey: string) {
+  const { model, prompt, existingFiles, envVars } = body;
+  const systemPrompt = getSystemPrompt(existingFiles, envVars);
+  
+  return fetch("https://api.openai.com/v1/chat/completions", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1,
+      top_p: 0.9,
+      response_format: { type: "json_object" },
+      stream: true,
+    }),
+  });
+}
+
+async function handleDeepSeek(body: any, apiKey: string) {
+    const { model, prompt, existingFiles, envVars } = body;
+    const systemPrompt = getSystemPrompt(existingFiles, envVars);
+    
+    return fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.1,
+            top_p: 0.9,
+            response_format: { type: "json_object" },
+            stream: true,
+        }),
+    });
+}
+
 export const onRequestPost = async (context: any) => {
   try {
     const req = context.request;
     const body = await req.json();
-    
-    // Prioriza a chave enviada pelo usuário (body.apiKey), senão usa a do servidor
-    const apiKey = body.apiKey || context.env.OPENROUTER_API_KEY;
+    const { provider } = body;
+    let providerResponse;
 
-    if (!apiKey) {
-        return new Response(JSON.stringify({ 
-            error: 'Nenhuma Chave API encontrada (Adicione nas configurações ou configure no servidor).' 
-        }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    // Acessar variáveis de ambiente via context.env
+    const API_KEYS = {
+      OpenAI: context.env.OPENAI_API_KEY,
+      DeepSeek: context.env.DEEPSEEK_API_KEY,
+    };
+
+    switch (provider) {
+      case 'OpenAI':
+        if (!API_KEYS.OpenAI) throw new Error("A chave de API da OpenAI não está configurada no servidor (Variáveis de Ambiente do Cloudflare Pages).");
+        providerResponse = await handleOpenAI(body, API_KEYS.OpenAI);
+        break;
+      case 'DeepSeek':
+        if (!API_KEYS.DeepSeek) throw new Error("A chave de API do DeepSeek não está configurada no servidor (Variáveis de Ambiente do Cloudflare Pages).");
+        providerResponse = await handleDeepSeek(body, API_KEYS.DeepSeek);
+        break;
+      default:
+        return new Response(JSON.stringify({ error: `Provedor não suportado: ${provider}` }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+    
+    if (!providerResponse.ok) {
+        const errorBody = await providerResponse.text();
+        console.error(`Error from ${provider}:`, errorBody);
+        return new Response(`Erro da API ${provider}: ${errorBody}`, { status: providerResponse.status });
     }
 
-    const { model, prompt, existingFiles, envVars } = body;
-    
-    const systemPrompt = getSystemPrompt(existingFiles, envVars);
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: 'POST',
+    return new Response(providerResponse.body, {
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://codegen.studio',
-        'X-Title': 'Codegen Studio',
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.2,
-        top_p: 0.9,
-        response_format: { type: "json_object" },
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        return new Response(JSON.stringify({ error: `Erro OpenRouter: ${errorText}` }), { status: response.status });
-    }
-
-    return new Response(response.body, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
 

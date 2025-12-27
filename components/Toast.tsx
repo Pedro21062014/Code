@@ -1,43 +1,48 @@
 
-import React, { useEffect } from 'react';
-import { CloseIcon, ShieldIcon } from './Icons';
+import React, { useEffect, useState } from 'react';
+import { CloseIcon, CheckCircleIcon } from './Icons';
 
-interface ToastProps {
+export interface ToastProps {
   message: string | null;
   onClose: () => void;
-  type?: 'error' | 'success' | 'info';
+  type?: 'success' | 'error' | 'info';
+  duration?: number;
 }
 
-export const Toast: React.FC<ToastProps> = ({ message, onClose, type = 'error' }) => {
+export const Toast: React.FC<ToastProps> = ({ message, onClose, type = 'info', duration = 5000 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(onClose, 5000);
+      setIsVisible(true);
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+        setTimeout(onClose, 300); // Wait for animation
+      }, duration);
       return () => clearTimeout(timer);
     }
-  }, [message, onClose]);
+  }, [message, duration, onClose]);
 
-  if (!message) return null;
+  if (!message && !isVisible) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] animate-slideInUp">
-      <div className={`flex items-start gap-3 p-4 rounded-xl shadow-2xl border backdrop-blur-md max-w-sm ${
-        type === 'error' 
-          ? 'bg-red-950/80 border-red-500/30 text-red-200' 
-          : 'bg-[#18181b]/90 border-[#27272a] text-white'
+    <div className={`fixed bottom-6 right-6 z-[100] transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}>
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-md ${
+        type === 'error' ? 'bg-red-950/80 border-red-500/30 text-red-200' :
+        type === 'success' ? 'bg-green-950/80 border-green-500/30 text-green-200' :
+        'bg-zinc-900/90 border-white/10 text-white'
       }`}>
-        <div className={`mt-0.5 p-1 rounded-full ${type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-gray-800 text-gray-400'}`}>
-             <ShieldIcon className="w-4 h-4" />
-        </div>
-        <div className="flex-1">
-            <h4 className="text-sm font-bold mb-1">
-                {type === 'error' ? 'Erro de Sistema' : 'Notificação'}
-            </h4>
-            <p className="text-xs opacity-90 leading-relaxed font-mono">
-                {message}
-            </p>
-        </div>
-        <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
-          <CloseIcon className="w-4 h-4" />
+        {type === 'error' && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+        {type === 'success' && <CheckCircleIcon className="w-4 h-4 text-green-500" />}
+        {type === 'info' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+        
+        <span className="text-sm font-medium pr-2">{message}</span>
+        
+        <button 
+            onClick={() => setIsVisible(false)} 
+            className="p-1 hover:bg-white/10 rounded-full transition-colors opacity-70 hover:opacity-100"
+        >
+          <CloseIcon className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

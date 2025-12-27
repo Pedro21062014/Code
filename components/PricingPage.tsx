@@ -54,7 +54,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#09090b] text-white overflow-x-hidden overflow-y-auto relative font-sans">
+    <div className="flex flex-col h-full w-full bg-[#09090b] text-white overflow-x-hidden overflow-y-auto relative font-sans">
        
        {/* Background Gradient Mesh */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
@@ -63,19 +63,7 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onBack }) => {
          <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-       <header className="fixed top-0 left-0 right-0 z-20 p-6">
-        <div className="container mx-auto max-w-6xl flex justify-between items-center">
-          <button onClick={onBack} className="flex items-center gap-3 group">
-             <AppLogo className="w-8 h-8 text-white group-hover:scale-105 transition-transform" />
-             <span className="font-semibold tracking-tight text-lg">codegen<span className="font-light opacity-70">studio</span></span>
-          </button>
-          <button onClick={onBack} className="text-sm font-medium text-gray-400 hover:text-white transition-colors flex items-center gap-2">
-            &larr; Voltar
-          </button>
-        </div>
-      </header>
-
-       <main className="flex-1 flex flex-col items-center relative z-10 px-4 pt-32 pb-20 max-w-7xl mx-auto w-full">
+       <main className="flex-1 flex flex-col items-center relative z-10 px-4 pt-10 pb-20 max-w-7xl mx-auto w-full">
         <div className="text-center mb-16 animate-slideInUp">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20 mb-6">
                 <SparklesIcon className="w-3 h-3" />
