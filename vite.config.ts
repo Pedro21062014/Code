@@ -14,9 +14,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: false,
-    rollupOptions: {
-      external: ['livecodes'],
-    }
+    sourcemap: false
   }
 });

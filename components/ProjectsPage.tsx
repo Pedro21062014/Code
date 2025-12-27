@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppLogo, TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon, CloseIcon } from './Icons';
+import { TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon, CloseIcon } from './Icons';
 import { SavedProject } from '../types';
 
 interface ProjectsPageProps {
@@ -9,6 +9,7 @@ interface ProjectsPageProps {
   onDeleteProject: (projectId: number) => void;
   onBack: () => void;
   onNewProject: () => void;
+  title?: string;
 }
 
 const formatDate = (dateString: string) => {
@@ -16,7 +17,7 @@ const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
 };
 
-export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack, onNewProject }) => {
+export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack, onNewProject, title = "Meus Projetos" }) => {
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
 
   const confirmDelete = () => {
@@ -29,38 +30,22 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
   const sortedProjects = [...projects].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-[#09090b] text-white overflow-hidden relative font-sans">
+    <div className="flex flex-col h-full w-full bg-[#09090b] text-white overflow-hidden relative font-sans">
       
-      {/* Background Gradient Mesh (Idêntico à WelcomeScreen) */}
+      {/* Background Gradient Mesh */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] opacity-40 animate-pulse" style={{ animationDuration: '8s' }}></div>
          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] opacity-40 animate-pulse" style={{ animationDuration: '10s' }}></div>
          <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-20 p-6">
-        <div className="container mx-auto max-w-6xl flex justify-between items-center">
-          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity cursor-pointer group" onClick={onBack}>
-             <AppLogo className="w-8 h-8 text-white group-hover:scale-105 transition-transform" />
-             <span className="font-semibold tracking-tight text-lg">codegen<span className="font-light opacity-70">studio</span></span>
-          </div>
-          <button 
-            onClick={onBack} 
-            className="px-4 py-2 rounded-full bg-[#18181b] border border-[#27272a] text-sm text-gray-400 hover:text-white hover:border-gray-600 transition-all flex items-center gap-2"
-          >
-            <span className="text-lg leading-none">&larr;</span> Voltar ao Início
-          </button>
-        </div>
-      </header>
-
-      <main className="flex-1 flex flex-col items-center px-4 pt-32 pb-12 relative z-10 overflow-y-auto custom-scrollbar">
+      <main className="flex-1 flex flex-col items-center px-4 pt-10 pb-12 relative z-10 overflow-y-auto custom-scrollbar">
         <div className="w-full max-w-6xl animate-slideInUp">
             
             <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
                 <div>
                     <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-white mb-3">
-                        Meus Projetos
+                        {title}
                     </h1>
                     <p className="text-lg text-gray-400 max-w-2xl">
                         Gerencie seus projetos, continue de onde parou ou comece algo novo.
@@ -99,7 +84,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         
                         <div className="absolute top-5 left-5 right-5 flex justify-between items-start">
-                             {/* Icon based on content (randomized visual for now, or consistent Folder) */}
+                             {/* Icon based on content */}
                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-inner ${
                                  index % 3 === 0 ? 'bg-blue-900/30 text-blue-400' : 
                                  index % 3 === 1 ? 'bg-purple-900/30 text-purple-400' : 
@@ -138,9 +123,11 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                     <div className="w-16 h-16 rounded-full bg-[#18181b] border border-[#27272a] flex items-center justify-center mb-4">
                         <FolderIcon className="w-8 h-8 text-gray-600" />
                     </div>
-                    <h3 className="text-xl font-medium text-white mb-2">Ainda não há projetos</h3>
+                    <h3 className="text-xl font-medium text-white mb-2">Nenhum projeto encontrado</h3>
                     <p className="text-gray-500 max-w-md">
-                        Seus projetos salvos aparecerão aqui. Comece criando algo incrível com a ajuda da IA.
+                        {title === "Meus Projetos" && "Você ainda não criou nenhum projeto."}
+                        {title === "Projetos Compartilhados" && "Nenhum projeto foi compartilhado com você ainda."}
+                        {title === "Projetos Recentes" && "Seus projetos recentes aparecerão aqui."}
                     </p>
                 </div>
             )}

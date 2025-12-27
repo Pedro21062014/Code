@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
+import { AI_MODELS } from '../constants';
 import { SparklesIcon, PaperclipIcon, ChevronDownIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -16,7 +17,6 @@ interface ChatPanelProps {
   onOpenSupabase?: () => void;
   onOpenGithub?: () => void;
   onOpenSettings?: () => void;
-  availableModels?: AIModel[];
 }
 
 const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => {
@@ -72,22 +72,15 @@ const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, projectName, credits, generatingFile, isGenerating, 
-    userGeminiKey, onCloseMobile, onOpenSupabase, onOpenGithub, onOpenSettings, availableModels = []
+    userGeminiKey, onCloseMobile, onOpenSupabase, onOpenGithub, onOpenSettings 
 }) => {
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || 'google/gemini-2.0-flash-001');
+  const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0]?.id || '');
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, generatingFile, isGenerating]);
-
-  // Se availableModels mudar e o selecionado não existir, reseta
-  useEffect(() => {
-      if (availableModels.length > 0 && !availableModels.find(m => m.id === selectedModel)) {
-          setSelectedModel(availableModels[0].id);
-      }
-  }, [availableModels]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,9 +168,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       <select 
                         value={selectedModel}
                         onChange={e => setSelectedModel(e.target.value)}
-                        className="bg-transparent text-[10px] font-bold text-gray-600 uppercase tracking-widest focus:outline-none cursor-pointer max-w-[150px]"
+                        className="bg-transparent text-[10px] font-bold text-gray-600 uppercase tracking-widest focus:outline-none cursor-pointer"
                       >
-                          {availableModels.map(m => <option key={m.id} value={m.id} className="bg-[#141414]">{m.name}</option>)}
+                          {AI_MODELS.map(m => <option key={m.id} value={m.id} className="bg-[#141414]">{m.name}</option>)}
                       </select>
                   </div>
                   <button 

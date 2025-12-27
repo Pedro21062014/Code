@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
+import { NavigationSidebar } from './components/NavigationSidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { PricingPage } from './components/PricingPage';
@@ -22,13 +23,13 @@ import { TermsPage } from './components/TermsPage';
 import { Toast } from './components/Toast';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE, AI_MODELS, DAILY_CREDIT_LIMIT } from './constants';
-import { generateCodeStream, fetchAvailableModels } from './services/aiService';
+import { INITIAL_CHAT_MESSAGE, AI_MODELS, DAILY_CREDIT_LIMIT, DEFAULT_GEMINI_API_KEY } from './constants';
+import { generateCodeStream } from './services/aiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from "firebase/firestore";
-import { ChatIcon, TerminalIcon, LoaderIcon } from './components/Icons';
+import { LoaderIcon } from './components/Icons';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -85,7 +86,7 @@ export const App: React.FC = () => {
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
-  const [view, setView] = useState<'landing' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'public_preview' | 'privacy' | 'terms'>(() => {
+  const [view, setView] = useState<'landing' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
@@ -113,32 +114,14 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
   
   const [availableModels, setAvailableModels] = useState<AIModel[]>(AI_MODELS);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-
+  
   const [isInitializing, setIsInitializing] = useState(false); 
   const [generatingFile, setGeneratingFile] = useState<string | null>(null);
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [codeError, setCodeError] = useState<string | null>(null);
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Fetch models whenever user key changes or on load
-  useEffect(() => {
-    const loadModels = async () => {
-        setIsLoadingModels(true);
-        try {
-            const models = await fetchAvailableModels(userSettings?.openrouter_api_key);
-            if (models.length > 0) {
-                setAvailableModels(models);
-            }
-        } catch (e) {
-            console.error("Failed to load models", e);
-        } finally {
-            setIsLoadingModels(false);
-        }
-    };
-    loadModels();
-  }, [userSettings?.openrouter_api_key]);
 
   useEffect(() => {
     if (!userSettings) return;
@@ -318,16 +301,41 @@ export const App: React.FC = () => {
 
     if (view !== 'editor') setView('editor');
     setIsInitializing(true);
+    setAiSuggestions([]); 
     
+    let accumulatedResponse = "";
+
     try {
+      const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
+        ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
+        : userSettings?.openrouter_api_key;
+
       const fullResponse = await generateCodeStream(
           prompt, 
           activeProjectState.files, 
           activeProjectState.envVars, 
-          (c) => {}, 
+          (chunk) => {
+              accumulatedResponse += chunk;
+              if (aiSuggestions.length === 0) {
+                  const suggestionsMatch = accumulatedResponse.match(/"suggestions":\s*\[([\s\S]*?)\]/);
+                  if (suggestionsMatch && suggestionsMatch[1]) {
+                      try {
+                          const rawArray = `[${suggestionsMatch[1]}]`;
+                          if (rawArray.split('"').length % 2 !== 0) {
+                              const partial = rawArray.substring(0, rawArray.lastIndexOf('"') + 1) + ']';
+                              const parsed = JSON.parse(partial);
+                              if (Array.isArray(parsed) && parsed.length > 0) setAiSuggestions(parsed);
+                          } else {
+                              const parsed = JSON.parse(rawArray);
+                              if (Array.isArray(parsed) && parsed.length > 0) setAiSuggestions(parsed);
+                          }
+                      } catch (e) {}
+                  }
+              }
+          }, 
           modelId, 
           attachments,
-          userSettings?.openrouter_api_key // Passa a chave do usuário se existir
+          apiKey
       );
       
       let payload = fullResponse.trim();
@@ -336,6 +344,10 @@ export const App: React.FC = () => {
 
       const result = extractAndParseJson(payload);
       
+      if (result.suggestions && Array.isArray(result.suggestions)) {
+          setAiSuggestions(result.suggestions);
+      }
+
       setProject(p => {
             const map = new Map(p.files.map(f => [f.name, f]));
             if (result.files && Array.isArray(result.files)) {
@@ -353,7 +365,6 @@ export const App: React.FC = () => {
 
     } catch (e: any) { 
         console.error(e);
-        // Exibe o Toast com o erro
         setToastError(e.message || "Erro desconhecido na geração.");
         setProject(p => ({
             ...p,
@@ -362,7 +373,7 @@ export const App: React.FC = () => {
     } finally { 
         setIsInitializing(false); 
     }
-  }, [project, userSettings, sessionUser, view]);
+  }, [project, userSettings, sessionUser, view, aiSuggestions]);
 
   const handleLoadProject = useCallback((projectId: number) => {
     const p = savedProjects.find(x => x.id === projectId);
@@ -412,76 +423,119 @@ export const App: React.FC = () => {
   if (view === 'privacy') return <PrivacyPage onBack={() => setView(previousView)} />;
   if (view === 'terms') return <TermsPage onBack={() => setView(previousView)} />;
 
+  // Layout Logic: Determines if the Dashboard Sidebar should be visible
+  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing'].includes(view);
+
   return (
-    <div className={theme}>
+    <div className={`${theme} flex h-screen bg-[#09090b]`}>
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
-      
-      {/* Toast para Erros Globais */}
       <Toast message={toastError} onClose={() => setToastError(null)} type="error" />
 
-      {view === 'welcome' || (view === 'landing' && sessionUser) ? (
-          <WelcomeScreen 
-            session={sessionUser ? { user: sessionUser } : null}
-            onLoginClick={() => setAuthModalOpen(true)}
-            onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
-            onShowPricing={() => { setPreviousView('welcome'); setView('pricing'); }}
-            onShowProjects={() => setView('projects')}
-            onOpenGithubImport={() => setGithubModalOpen(true)}
-            onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
-            onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-            onLogout={() => signOut(auth)}
-            onOpenSettings={() => setSettingsOpen(true)}
-            recentProjects={savedProjects}
-            onLoadProject={handleLoadProject}
-            credits={userSettings?.credits || 0}
-            userGeminiKey={userSettings?.gemini_api_key}
-            currentPlan={userSettings?.plan || 'Hobby'}
-            availableModels={availableModels} // Passando modelos dinâmicos
+      {/* Render Sidebar only on Dashboard views */}
+      {isDashboardView && (
+          <NavigationSidebar 
+              activeView={view}
+              onNavigate={(v) => setView(v)}
+              session={sessionUser ? { user: sessionUser } : null}
+              onLogin={() => setAuthModalOpen(true)}
+              onLogout={() => signOut(auth)}
+              onOpenSettings={() => setSettingsOpen(true)}
+              credits={userSettings?.credits || 0}
+              currentPlan={userSettings?.plan || 'Hobby'}
           />
-      ) : view === 'pricing' ? (
-          <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
-      ) : view === 'projects' ? (
-          <ProjectsPage projects={savedProjects} onLoadProject={handleLoadProject} onDeleteProject={handleDeleteProject} onBack={() => setView('welcome')} onNewProject={() => {}} />
-      ) : (
-          <div className="flex flex-col h-screen bg-var-bg-default overflow-hidden">
-            <div className="flex flex-1 overflow-hidden relative">
-              <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
-                <ChatPanel 
-                    messages={chatMessages} 
-                    onSendMessage={handleSendMessage} 
-                    isProUser={userSettings?.plan === 'Pro'} 
-                    projectName={projectName} 
-                    credits={userSettings?.credits || 0} 
-                    generatingFile={generatingFile} 
-                    isGenerating={isInitializing}
-                    availableModels={availableModels} // Passando modelos dinâmicos
-                />
-              </div>
-              <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
-                <EditorView 
-                  files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                  onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={() => {}} 
-                  onRunLocally={() => setPublishModalOpen(true)}
-                  onSyncGithub={() => setGithubSyncModalOpen(true)}
-                  onShare={() => setShareModalOpen(true)}
-                  codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
-                  onDownload={() => downloadProjectAsZip(files, projectName)}
-                  onSave={handleSaveProject}
-                  onOpenProjects={() => setView('projects')}
-                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-                  onOpenImageStudio={() => setImageStudioOpen(true)}
-                  onLogout={() => signOut(auth)}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                  session={sessionUser}
-                  isGenerating={isInitializing}
-                  generatingFile={generatingFile}
-                  generatedFileNames={generatedFileNames}
-                />
-              </main>
-            </div>
-          </div>
       )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 h-full overflow-hidden flex flex-col relative">
+          
+          {view === 'welcome' && (
+              <WelcomeScreen 
+                session={sessionUser ? { user: sessionUser } : null}
+                onLoginClick={() => setAuthModalOpen(true)}
+                onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
+                onShowPricing={() => setView('pricing')}
+                onShowProjects={() => setView('projects')}
+                onOpenGithubImport={() => setGithubModalOpen(true)}
+                onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
+                onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                onLogout={() => signOut(auth)}
+                onOpenSettings={() => setSettingsOpen(true)}
+                recentProjects={savedProjects}
+                onLoadProject={handleLoadProject}
+                credits={userSettings?.credits || 0}
+                userGeminiKey={userSettings?.gemini_api_key}
+                currentPlan={userSettings?.plan || 'Hobby'}
+                availableModels={availableModels}
+              />
+          )}
+
+          {view === 'pricing' && (
+              <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
+          )}
+
+          {(view === 'projects' || view === 'shared' || view === 'recent') && (
+              <ProjectsPage 
+                projects={
+                  view === 'projects' 
+                    ? savedProjects.filter(p => p.ownerId === sessionUser?.uid)
+                    : view === 'shared' 
+                      ? savedProjects.filter(p => p.ownerId !== sessionUser?.uid)
+                      : savedProjects // recent = all
+                }
+                title={
+                  view === 'projects' ? 'Meus Projetos' : 
+                  view === 'shared' ? 'Projetos Compartilhados' : 'Projetos Recentes'
+                }
+                onLoadProject={handleLoadProject} 
+                onDeleteProject={handleDeleteProject} 
+                onBack={() => setView('welcome')} 
+                onNewProject={() => {}} 
+              />
+          )}
+
+          {view === 'editor' && (
+              <div className="flex flex-col h-full bg-var-bg-default overflow-hidden w-full">
+                <div className="flex flex-1 overflow-hidden relative">
+                  <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+                    <ChatPanel 
+                        messages={chatMessages} 
+                        onSendMessage={handleSendMessage} 
+                        isProUser={userSettings?.plan === 'Pro'} 
+                        projectName={projectName} 
+                        credits={userSettings?.credits || 0} 
+                        generatingFile={generatingFile} 
+                        isGenerating={isInitializing}
+                        availableModels={availableModels}
+                    />
+                  </div>
+                  <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
+                    <EditorView 
+                      files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
+                      onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={() => {}} 
+                      onRunLocally={() => setPublishModalOpen(true)}
+                      onSyncGithub={() => setGithubSyncModalOpen(true)}
+                      onShare={() => setShareModalOpen(true)}
+                      codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
+                      onDownload={() => downloadProjectAsZip(files, projectName)}
+                      onSave={handleSaveProject}
+                      onOpenProjects={() => setView('projects')}
+                      onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                      onOpenImageStudio={() => setImageStudioOpen(true)}
+                      onLogout={() => signOut(auth)}
+                      onOpenSettings={() => setSettingsOpen(true)}
+                      session={sessionUser}
+                      isGenerating={isInitializing}
+                      generatingFile={generatingFile}
+                      generatedFileNames={generatedFileNames}
+                      aiSuggestions={aiSuggestions}
+                    />
+                  </main>
+                </div>
+              </div>
+          )}
+      </div>
       
+      {/* Global Modals */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />

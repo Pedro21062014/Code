@@ -1,8 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ChatIcon, GeminiIcon, OpenAIIcon, DeepSeekIcon, ClockIcon, CloseIcon, MenuIcon, LogInIcon, CheckCircleIcon } from './Icons';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon } from './Icons';
 import { ProjectFile, SavedProject, AIModel } from '../types';
-import { UserMenu } from './UserMenu';
 
 interface WelcomeScreenProps {
   onPromptSubmit: (prompt: string, model: string, attachments: { data: string; mimeType: string }[]) => void;
@@ -24,11 +23,10 @@ interface WelcomeScreenProps {
 }
 
 const FEATURED_MODEL_IDS = [
-  'google/gemini-2.0-flash-001',
-  'google/gemini-2.0-pro-exp-02-05:free',
-  'openai/gpt-4o',
-  'anthropic/claude-3.5-sonnet',
-  'deepseek/deepseek-r1'
+  'z-ai/glm-4.5-air:free',
+  'google/gemini-2.0-flash-exp:free',
+  'kwaipilot/kat-coder-pro:free',
+  'openai/gpt-5.2'
 ];
 
 const getFileLanguage = (fileName: string): string => {
@@ -73,20 +71,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onFolderImport, 
     session, 
     onShowProjects,
-    onShowPricing,
     onLoginClick,
-    onLogout,
-    onOpenSettings = () => {},
     recentProjects = [],
     onLoadProject = (_: number) => {},
-    credits,
     userGeminiKey,
-    currentPlan = 'Hobby',
     availableModels = []
 }) => {
   const [prompt, setPrompt] = useState('');
-  /* Updated default model to gemini-3-flash-preview */
-  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-001');
+  /* Updated default model to one of the free defined models */
+  const [selectedModel, setSelectedModel] = useState('z-ai/glm-4.5-air:free');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
@@ -187,11 +180,39 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   const getModelIcon = (modelId: string) => {
-    if (modelId.includes('gemini')) return <GeminiIcon className="w-3.5 h-3.5" />;
-    if (modelId.includes('gpt')) return <OpenAIIcon className="w-3.5 h-3.5" />;
-    if (modelId.includes('deepseek')) return <DeepSeekIcon className="w-3.5 h-3.5" />;
-    return <SparklesIcon className="w-3.5 h-3.5" />;
+    let logoPath = '';
+    // Prioritize specific naming requested
+    if (modelId.includes('gemini') || modelId.includes('google')) {
+        logoPath = '/logos/gemini.png';
+    } else if (modelId.includes('glm') || modelId.includes('z-ai')) {
+        logoPath = '/logos/glm.ai.png';
+    } else if (modelId.includes('gpt') || modelId.includes('openai')) {
+        logoPath = '/logos/openai.png';
+    } else if (modelId.includes('kwaipilot') || modelId.includes('kat')) {
+        logoPath = '/logos/kwaipilot.png';
+    } else if (modelId.includes('deepseek')) {
+        logoPath = '/logos/deepseek.png';
+    } else {
+        logoPath = '/logos/sparkles.png'; // Fallback
+    }
+
+    return (
+        <img 
+            src={logoPath} 
+            alt={modelId} 
+            className="w-4 h-4 object-contain" 
+            onError={(e) => {
+                // Fallback visual se a imagem não carregar
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+        />
+    );
   };
+
+  const getFallbackIcon = (modelId: string) => {
+      return <SparklesIcon className="w-4 h-4 hidden" />;
+  }
 
   const userName = session?.user?.email?.split('@')[0] || 'dev';
   const isLoggedIn = !!session?.user;
@@ -212,7 +233,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const displayedModels = showAllModels ? allFilteredModels : initialDisplayModels;
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#09090b] text-white overflow-x-hidden overflow-y-auto relative font-sans custom-scrollbar">
+    <div className="flex flex-col h-full w-full bg-[#09090b] text-white overflow-x-hidden overflow-y-auto relative font-sans custom-scrollbar">
       
       {/* Background Gradient Mesh */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
@@ -221,48 +242,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
          <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] opacity-30 transform -translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
-      {/* Header com controles do usuário (Responsivo) */}
-      <header className="w-full p-4 md:p-6 flex justify-end items-center z-50 relative shrink-0">
-          <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex items-center gap-1.5 md:gap-3 bg-[#121214]/80 backdrop-blur-md border border-[#27272a] rounded-full pl-3 pr-1 py-1 shadow-2xl overflow-hidden">
-                  <div className="flex items-center gap-2">
-                      <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase border ${
-                          currentPlan === 'Pro' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
-                          'bg-gray-500/10 text-gray-400 border-gray-500/20'
-                      }`}>
-                          {currentPlan}
-                      </div>
-                      <div className="h-4 w-px bg-[#27272a]"></div>
-                      <div className="flex items-center gap-1.5 text-blue-400 text-[10px] md:text-xs font-bold">
-                          <SparklesIcon className="w-3 h-3 animate-pulse" />
-                          <span>{credits} créditos</span>
-                      </div>
-                  </div>
-                  
-                  {currentPlan !== 'Pro' && (
-                    <button 
-                        onClick={onShowPricing}
-                        className="relative group flex items-center gap-2 px-4 py-1.5 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] overflow-hidden border border-white/50"
-                    >
-                        <span className="relative z-10 flex items-center gap-1">
-                            <SparklesIcon className="w-3 h-3 text-yellow-500" />
-                            Upgrade
-                        </span>
-                        {/* Silver Shimmer Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-300/50 to-transparent skew-x-12 translate-x-[-150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-in-out" />
-                    </button>
-                  )}
-              </div>
-              <UserMenu 
-                  user={session?.user || null} 
-                  onLogin={onLoginClick} 
-                  onLogout={onLogout} 
-                  onOpenSettings={onOpenSettings}
-              />
-          </div>
-      </header>
-
-      <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 pb-12 w-full max-w-5xl mx-auto">
+      <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 pb-12 w-full max-w-5xl mx-auto h-full">
         
         {/* Hero Text */}
         <div className="mb-8 md:mb-12 text-center animate-slideInUp">
@@ -338,6 +318,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-[10px] md:text-xs font-medium text-gray-300 transition-colors border border-[#27272a] hover:border-gray-600"
                             >
                                 {getModelIcon(selectedModel)}
+                                {getFallbackIcon(selectedModel)}
                                 <span className="truncate max-w-[80px] md:max-w-[120px]">{selectedModelObj?.name || 'Modelo'}</span>
                                 <ChevronDownIcon className="w-3 h-3 text-gray-500" />
                             </button>
@@ -377,6 +358,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                 >
                                                     <div className="flex items-center gap-3 truncate">
                                                         {getModelIcon(model.id)}
+                                                        {getFallbackIcon(model.id)}
                                                         <span className="truncate">{model.name}</span>
                                                     </div>
                                                     <span className={`text-[10px] px-1.5 rounded flex-shrink-0 ${modelCost === 0 ? 'bg-green-500/10 text-green-400' : 'bg-black/40 text-gray-500'}`}>

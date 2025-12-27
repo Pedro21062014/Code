@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { CloseIcon, KeyIcon, GithubIcon, SparklesIcon } from './Icons';
+import { CloseIcon, KeyIcon, GithubIcon } from './Icons';
 import { UserSettings } from '../types';
 import { GoogleGenAI } from '@google/genai';
 
@@ -11,11 +11,13 @@ interface SettingsModalProps {
   onSave: (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => void;
 }
 
-const testGeminiKey = async (key: string): Promise<{ success: boolean; message: string }> => {
+const testApiKey = async (key: string): Promise<{ success: boolean; message: string }> => {
     if (!key) return { success: false, message: 'A chave não pode estar em branco.' };
     try {
         const ai = new GoogleGenAI({ apiKey: key });
+        /* Using gemini-3-flash-preview for the connectivity test as it's the standard basic model */
         const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: 'diga "ok"' });
+        // FIX: Safely check for response.text
         const text = response.text || "";
         if (text.trim().toLowerCase().includes('ok')) {
             return { success: true, message: 'Conexão bem-sucedida!' };
@@ -29,14 +31,12 @@ const testGeminiKey = async (key: string): Promise<{ success: boolean; message: 
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const [geminiKey, setGeminiKey] = useState(settings.gemini_api_key || '');
-  const [openRouterKey, setOpenRouterKey] = useState(settings.openrouter_api_key || '');
   const [githubToken, setGithubToken] = useState(settings.github_access_token || '');
   const [geminiTestStatus, setGeminiTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' });
   
   useEffect(() => {
     if (isOpen) {
         setGeminiKey(settings.gemini_api_key || '');
-        setOpenRouterKey(settings.openrouter_api_key || '');
         setGithubToken(settings.github_access_token || '');
         setGeminiTestStatus({ status: 'idle', message: '' });
     }
@@ -46,7 +46,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
 
   const handleGeminiTest = async () => {
     setGeminiTestStatus({ status: 'testing', message: 'Testando...' });
-    const result = await testGeminiKey(geminiKey);
+    const result = await testApiKey(geminiKey);
     if (result.success) {
       setGeminiTestStatus({ status: 'success', message: result.message });
     } else {
@@ -57,7 +57,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
   const handleSave = () => {
     onSave({ 
       gemini_api_key: geminiKey,
-      openrouter_api_key: openRouterKey,
       github_access_token: githubToken,
     });
     onClose();
@@ -69,7 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       onClick={onClose}
     >
       <div 
-        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-md p-6 border border-[#27272a] animate-slideInUp max-h-[90vh] overflow-y-auto custom-scrollbar"
+        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-md p-6 border border-[#27272a] animate-slideInUp"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
@@ -80,38 +79,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         </div>
         
         <div className="space-y-4 text-white">
-            
-            {/* OpenRouter Configuration */}
-            <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
-                <div className="flex items-center gap-3 mb-2">
-                    <SparklesIcon />
-                    <h3 className="font-semibold text-white">Chave API OpenRouter</h3>
-                </div>
-                <p className="text-xs text-gray-400 mb-3">
-                    Recomendado para acessar todos os modelos (GPT-4o, Claude, DeepSeek). Se não fornecida, a aplicação usará a chave do servidor (limitada).
-                </p>
-                <div className="flex items-center gap-2">
-                    <input
-                        type="password"
-                        value={openRouterKey}
-                        onChange={(e) => setOpenRouterKey(e.target.value)}
-                        placeholder="sk-or-..."
-                        className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                    />
-                </div>
-                 <p className="text-xs text-gray-500 mt-2">
-                   Ao salvar, a lista de modelos será recarregada automaticamente.
-                </p>
-            </div>
-
-            {/* Gemini Configuration */}
             <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
                 <div className="flex items-center gap-3 mb-2">
                     <KeyIcon />
-                    <h3 className="font-semibold text-white">Chave Google Gemini (Opcional)</h3>
+                    <h3 className="font-semibold text-white">Chave de API do Gemini</h3>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                    Usada para funções específicas de imagem ou modelos nativos do Google se preferir.
+                    Sua chave de API do Google Gemini é necessária. Ela é armazenada com segurança no seu perfil.
                 </p>
                 <div className="flex items-center gap-2">
                     <input
@@ -121,7 +95,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             setGeminiKey(e.target.value);
                             setGeminiTestStatus({ status: 'idle', message: '' });
                         }}
-                        placeholder="AIza..."
+                        placeholder="Cole sua chave de API aqui"
                         className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     />
                      <button
@@ -139,24 +113,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                 )}
             </div>
 
-            {/* GitHub Configuration */}
             <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
                 <div className="flex items-center gap-3 mb-2">
                     <GithubIcon />
-                    <h3 className="font-semibold text-white">GitHub Token</h3>
+                    <h3 className="font-semibold text-white">Token de Acesso do GitHub</h3>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                    Token para importar/sincronizar repositórios privados.
+                    Forneça um token para importar repositórios privados e aumentar os limites da API.
                 </p>
                 <div className="flex items-center gap-2">
                     <input
                         type="password"
                         value={githubToken}
                         onChange={(e) => setGithubToken(e.target.value)}
-                        placeholder="ghp_..."
+                        placeholder="Cole seu token aqui (ex: ghp_...)"
                         className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     />
                 </div>
+                 <p className="text-xs text-gray-400 mt-2">
+                   O token precisa ter escopo de <code className="bg-[#18181b] px-1 py-0.5 rounded-sm text-xs font-mono">repo</code>.
+                </p>
             </div>
         </div>
 
