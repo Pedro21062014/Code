@@ -20,7 +20,7 @@ interface EditorViewProps {
   onFileDelete: (fileName: string) => void;
   onRunLocally: () => void;
   onSyncGithub: () => void;
-  onShare: () => void; // Adicionado props de share
+  onShare: () => void;
   codeError: string | null;
   onFixCode: () => void;
   onClearError: () => void;
@@ -38,6 +38,7 @@ interface EditorViewProps {
   isGenerating: boolean;
   generatingFile: string | null;
   generatedFileNames: Set<string>;
+  aiSuggestions: string[]; // Corrigido: Prop adicionada
 }
 
 interface FileNode {
@@ -57,7 +58,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, 
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, onOpenImageStudio, 
-    onLogout, onOpenSettings, session, isGenerating, generatingFile, generatedFileNames
+    onLogout, onOpenSettings, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
