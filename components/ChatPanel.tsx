@@ -17,6 +17,7 @@ interface ChatPanelProps {
   onOpenSupabase?: () => void;
   onOpenGithub?: () => void;
   onOpenSettings?: () => void;
+  availableModels?: AIModel[]; // Corrigido: Prop adicionada
 }
 
 const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => {
@@ -72,10 +73,10 @@ const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, projectName, credits, generatingFile, isGenerating, 
-    userGeminiKey, onCloseMobile, onOpenSupabase, onOpenGithub, onOpenSettings 
+    userGeminiKey, onCloseMobile, onOpenSupabase, onOpenGithub, onOpenSettings, availableModels = AI_MODELS 
 }) => {
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0]?.id || '');
+  const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || AI_MODELS[0].id);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -168,9 +169,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       <select 
                         value={selectedModel}
                         onChange={e => setSelectedModel(e.target.value)}
-                        className="bg-transparent text-[10px] font-bold text-gray-600 uppercase tracking-widest focus:outline-none cursor-pointer"
+                        className="bg-transparent text-[10px] font-bold text-gray-600 uppercase tracking-widest focus:outline-none cursor-pointer max-w-[120px] truncate"
                       >
-                          {AI_MODELS.map(m => <option key={m.id} value={m.id} className="bg-[#141414]">{m.name}</option>)}
+                          {availableModels.map(m => <option key={m.id} value={m.id} className="bg-[#141414]">{m.name}</option>)}
                       </select>
                   </div>
                   <button 
