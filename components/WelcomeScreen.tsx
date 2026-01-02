@@ -16,7 +16,7 @@ interface WelcomeScreenProps {
   onOpenSettings?: () => void;
   recentProjects?: SavedProject[];
   onLoadProject?: (id: number) => void;
-  credits: number;
+  credits: number; // Ignorado
   userGeminiKey?: string;
   currentPlan?: string;
   availableModels?: AIModel[];
@@ -74,11 +74,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onLoginClick,
     recentProjects = [],
     onLoadProject = (_: number) => {},
-    userGeminiKey,
     availableModels = []
 }) => {
   const [prompt, setPrompt] = useState('');
-  /* Updated default model to one of the free defined models */
   const [selectedModel, setSelectedModel] = useState('z-ai/glm-4.5-air:free');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
@@ -217,12 +215,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const userName = session?.user?.email?.split('@')[0] || 'dev';
   const isLoggedIn = !!session?.user;
   const selectedModelObj = availableModels.find(m => m.id === selectedModel) || availableModels[0];
-  const isSelectedGemini = selectedModel.includes('gemini');
-  const actualCreditCost = (isSelectedGemini && userGeminiKey) ? 0 : (selectedModelObj?.creditCost || 0);
 
   // Filter models based on view state
   const featuredModels = availableModels.filter(m => FEATURED_MODEL_IDS.includes(m.id));
-  // If no featured models match (e.g. loading or different IDs), use first 5
   const initialDisplayModels = featuredModels.length > 0 ? featuredModels : availableModels.slice(0, 5);
   
   const allFilteredModels = availableModels.filter(m => 
@@ -341,8 +336,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
                                     <div className="p-1 max-h-60 overflow-y-auto custom-scrollbar">
                                         {displayedModels.map(model => {
-                                            const isGeminiModel = model.id.includes('gemini');
-                                            const modelCost = (isGeminiModel && userGeminiKey) ? 0 : model.creditCost;
                                             return (
                                                 <button
                                                     key={model.id}
@@ -361,9 +354,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                                         {getFallbackIcon(model.id)}
                                                         <span className="truncate">{model.name}</span>
                                                     </div>
-                                                    <span className={`text-[10px] px-1.5 rounded flex-shrink-0 ${modelCost === 0 ? 'bg-green-500/10 text-green-400' : 'bg-black/40 text-gray-500'}`}>
-                                                        {modelCost}c
-                                                    </span>
                                                 </button>
                                             );
                                         })}

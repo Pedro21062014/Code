@@ -21,9 +21,10 @@ import { LandingPage } from './components/LandingPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { Toast } from './components/Toast';
+import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE, AI_MODELS, DAILY_CREDIT_LIMIT, DEFAULT_GEMINI_API_KEY } from './constants';
+import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './constants';
 import { generateCodeStream } from './services/aiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
@@ -109,6 +110,7 @@ export const App: React.FC = () => {
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
@@ -206,7 +208,7 @@ export const App: React.FC = () => {
         }
         return mergedSettings;
       } else {
-        const initialData = { email: currentUserEmail, credits: DAILY_CREDIT_LIMIT, plan: 'Hobby' as const, last_credits_reset: new Date().toISOString().split('T')[0], hasSeenProWelcome: false };
+        const initialData = { email: currentUserEmail, plan: 'Hobby' as const, hasSeenProWelcome: false };
         await setDoc(docRef, initialData);
         return { id: userUid, ...initialData } as UserSettings;
       }
@@ -251,6 +253,11 @@ export const App: React.FC = () => {
       setSavedProjects(prev => [projectData, ...prev.filter(p => p.id !== projectId)]);
       await setDoc(doc(db, "projects", projectId.toString()), { ...projectData, updated_at: serverTimestamp() }, { merge: true });
       setProject(prev => ({ ...prev, currentProjectId: projectId }));
+      
+      // Trigger Success Animation
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 2500);
+
     } catch (error: any) { alert("Erro ao salvar projeto."); } finally { setIsSaving(false); }
   }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
 
@@ -394,7 +401,7 @@ export const App: React.FC = () => {
 
   if (view === 'public_preview') {
     return (
-      <div className="h-screen w-full bg-white relative">
+      <div className="h-screen w-full bg-white relative page-transition-enter">
         <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} />
         <div className="fixed bottom-4 right-4 z-50">
             <button onClick={() => window.location.href = window.location.origin} className="flex items-center gap-2 px-4 py-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/10 hover:bg-black transition-all shadow-2xl">
@@ -407,7 +414,7 @@ export const App: React.FC = () => {
 
   if (view === 'landing' && !sessionUser) {
     return (
-        <>
+        <div className="page-transition-enter w-full h-full">
             <LandingPage 
                 onGetStarted={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('welcome'); }}
                 onLogin={() => { localStorage.setItem('codegen-has-visited', 'true'); setAuthModalOpen(true); }}
@@ -416,18 +423,19 @@ export const App: React.FC = () => {
                 onShowTerms={() => { setPreviousView('landing'); setView('terms'); }}
             />
             <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-        </>
+        </div>
     );
   }
 
-  if (view === 'privacy') return <PrivacyPage onBack={() => setView(previousView)} />;
-  if (view === 'terms') return <TermsPage onBack={() => setView(previousView)} />;
+  if (view === 'privacy') return <div className="page-transition-enter w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
+  if (view === 'terms') return <div className="page-transition-enter w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
 
   // Layout Logic: Determines if the Dashboard Sidebar should be visible
   const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing'].includes(view);
 
   return (
     <div className={`${theme} flex h-screen bg-[#09090b]`}>
+      <SaveSuccessAnimation isVisible={showSaveSuccess} />
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
       <Toast message={toastError} onClose={() => setToastError(null)} type="error" />
 
@@ -440,7 +448,7 @@ export const App: React.FC = () => {
               onLogin={() => setAuthModalOpen(true)}
               onLogout={() => signOut(auth)}
               onOpenSettings={() => setSettingsOpen(true)}
-              credits={userSettings?.credits || 0}
+              credits={0} // No longer used
               currentPlan={userSettings?.plan || 'Hobby'}
           />
       )}
@@ -448,91 +456,96 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 h-full overflow-hidden flex flex-col relative">
           
-          {view === 'welcome' && (
-              <WelcomeScreen 
-                session={sessionUser ? { user: sessionUser } : null}
-                onLoginClick={() => setAuthModalOpen(true)}
-                onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
-                onShowPricing={() => setView('pricing')}
-                onShowProjects={() => setView('projects')}
-                onOpenGithubImport={() => setGithubModalOpen(true)}
-                onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
-                onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-                onLogout={() => signOut(auth)}
-                onOpenSettings={() => setSettingsOpen(true)}
-                recentProjects={savedProjects}
-                onLoadProject={handleLoadProject}
-                credits={userSettings?.credits || 0}
-                userGeminiKey={userSettings?.gemini_api_key}
-                currentPlan={userSettings?.plan || 'Hobby'}
-                availableModels={availableModels}
-              />
-          )}
+          <div key={view} className="w-full h-full flex flex-col page-transition-enter">
+            {view === 'welcome' && (
+                <WelcomeScreen 
+                  session={sessionUser ? { user: sessionUser } : null}
+                  onLoginClick={() => setAuthModalOpen(true)}
+                  onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
+                  onShowPricing={() => setView('pricing')}
+                  onShowProjects={() => setView('projects')}
+                  onOpenGithubImport={() => setGithubModalOpen(true)}
+                  onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
+                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                  onLogout={() => signOut(auth)}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  recentProjects={savedProjects}
+                  onLoadProject={handleLoadProject}
+                  credits={0}
+                  userGeminiKey={userSettings?.gemini_api_key}
+                  currentPlan={userSettings?.plan || 'Hobby'}
+                  availableModels={availableModels}
+                />
+            )}
 
-          {view === 'pricing' && (
-              <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
-          )}
+            {view === 'pricing' && (
+                <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
+            )}
 
-          {(view === 'projects' || view === 'shared' || view === 'recent') && (
-              <ProjectsPage 
-                projects={
-                  view === 'projects' 
-                    ? savedProjects.filter(p => p.ownerId === sessionUser?.uid)
-                    : view === 'shared' 
-                      ? savedProjects.filter(p => p.ownerId !== sessionUser?.uid)
-                      : savedProjects // recent = all
-                }
-                title={
-                  view === 'projects' ? 'Meus Projetos' : 
-                  view === 'shared' ? 'Projetos Compartilhados' : 'Projetos Recentes'
-                }
-                onLoadProject={handleLoadProject} 
-                onDeleteProject={handleDeleteProject} 
-                onBack={() => setView('welcome')} 
-                onNewProject={() => {}} 
-              />
-          )}
+            {(view === 'projects' || view === 'shared' || view === 'recent') && (
+                <ProjectsPage 
+                  projects={
+                    view === 'projects' 
+                      ? savedProjects.filter(p => p.ownerId === sessionUser?.uid)
+                      : view === 'shared' 
+                        ? savedProjects.filter(p => p.ownerId !== sessionUser?.uid)
+                        : savedProjects // recent = all
+                  }
+                  title={
+                    view === 'projects' ? 'Meus Projetos' : 
+                    view === 'shared' ? 'Projetos Compartilhados' : 'Projetos Recentes'
+                  }
+                  onLoadProject={handleLoadProject} 
+                  onDeleteProject={handleDeleteProject} 
+                  onBack={() => setView('welcome')} 
+                  onNewProject={() => {}} 
+                />
+            )}
 
-          {view === 'editor' && (
-              <div className="flex flex-col h-full bg-var-bg-default overflow-hidden w-full">
-                <div className="flex flex-1 overflow-hidden relative">
-                  <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
-                    <ChatPanel 
-                        messages={chatMessages} 
-                        onSendMessage={handleSendMessage} 
-                        isProUser={userSettings?.plan === 'Pro'} 
-                        projectName={projectName} 
-                        credits={userSettings?.credits || 0} 
-                        generatingFile={generatingFile} 
+            {view === 'editor' && (
+                <div className="flex flex-col h-full bg-var-bg-default overflow-hidden w-full">
+                  <div className="flex flex-1 overflow-hidden relative">
+                    <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+                      <ChatPanel 
+                          messages={chatMessages} 
+                          onSendMessage={handleSendMessage} 
+                          isProUser={userSettings?.plan === 'Pro'} 
+                          projectName={projectName} 
+                          credits={0}
+                          generatingFile={generatingFile} 
+                          isGenerating={isInitializing}
+                          availableModels={availableModels}
+                          onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
+                          onOpenGithub={() => setGithubSyncModalOpen(true)}
+                          onOpenSettings={() => setSettingsOpen(true)}
+                      />
+                    </div>
+                    <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
+                      <EditorView 
+                        files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
+                        onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={() => {}} 
+                        onRunLocally={() => setPublishModalOpen(true)}
+                        onSyncGithub={() => setGithubSyncModalOpen(true)}
+                        onShare={() => setShareModalOpen(true)}
+                        codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
+                        onDownload={() => downloadProjectAsZip(files, projectName)}
+                        onSave={handleSaveProject}
+                        onOpenProjects={() => setView('projects')}
+                        onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                        onOpenImageStudio={() => setImageStudioOpen(true)}
+                        onLogout={() => signOut(auth)}
+                        onOpenSettings={() => setSettingsOpen(true)}
+                        session={sessionUser}
                         isGenerating={isInitializing}
-                        availableModels={availableModels}
-                    />
+                        generatingFile={generatingFile}
+                        generatedFileNames={generatedFileNames}
+                        aiSuggestions={aiSuggestions}
+                      />
+                    </main>
                   </div>
-                  <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
-                    <EditorView 
-                      files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                      onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={() => {}} 
-                      onRunLocally={() => setPublishModalOpen(true)}
-                      onSyncGithub={() => setGithubSyncModalOpen(true)}
-                      onShare={() => setShareModalOpen(true)}
-                      codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
-                      onDownload={() => downloadProjectAsZip(files, projectName)}
-                      onSave={handleSaveProject}
-                      onOpenProjects={() => setView('projects')}
-                      onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-                      onOpenImageStudio={() => setImageStudioOpen(true)}
-                      onLogout={() => signOut(auth)}
-                      onOpenSettings={() => setSettingsOpen(true)}
-                      session={sessionUser}
-                      isGenerating={isInitializing}
-                      generatingFile={generatingFile}
-                      generatedFileNames={generatedFileNames}
-                      aiSuggestions={aiSuggestions}
-                    />
-                  </main>
                 </div>
-              </div>
-          )}
+            )}
+          </div>
       </div>
       
       {/* Global Modals */}
