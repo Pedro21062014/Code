@@ -17,7 +17,6 @@ export interface AIModel {
   id: string;
   name: string;
   provider: AIProvider;
-  creditCost: number;
 }
 
 export interface ProjectFile {
@@ -36,10 +35,10 @@ export interface ChatMessage {
 // UserSettings reflecting Firestore 'users' collection
 export interface UserSettings {
   id: string;
-  email?: string; // Adicionado para facilitar busca
+  email?: string;
   updated_at?: string;
   gemini_api_key?: string;
-  openrouter_api_key?: string; // Corrigido: Adicionado campo faltante
+  openrouter_api_key?: string;
   github_access_token?: string;
   supabase_project_url?: string;
   supabase_anon_key?: string;
@@ -47,8 +46,6 @@ export interface UserSettings {
   stripe_public_key?: string;
   stripe_secret_key?: string;
   neon_connection_string?: string;
-  credits?: number;
-  last_credits_reset?: string;
   plan?: 'Hobby' | 'Pro';
   hasSeenProWelcome?: boolean;
 }
@@ -57,8 +54,8 @@ export type Theme = 'light' | 'dark';
 
 export interface SavedProject {
   id: number;
-  ownerId?: string; // UID do usuário do Firebase
-  shared_with?: string[]; // Lista de emails ou UIDs com quem o projeto foi compartilhado
+  ownerId?: string;
+  shared_with?: string[];
   name: string;
   files: ProjectFile[];
   chat_history: ChatMessage[];

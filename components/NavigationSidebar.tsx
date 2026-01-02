@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
     AppLogo, HomeIcon, ProjectsIcon, UsersIcon, ClockIcon, SettingsIcon, 
-    SparklesIcon, LogInIcon, LogOutIcon, SidebarIcon
+    LogInIcon, LogOutIcon
 } from './Icons';
 
 interface NavigationSidebarProps {
@@ -12,7 +12,7 @@ interface NavigationSidebarProps {
   onLogin: () => void;
   onLogout: () => void;
   onOpenSettings: () => void;
-  credits: number;
+  credits: number; // Mantido na interface para compatibilidade, mas ignorado
   currentPlan: string;
 }
 
@@ -23,7 +23,6 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   onLogin,
   onLogout,
   onOpenSettings,
-  credits,
   currentPlan
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -75,7 +74,6 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
                 className={`group flex items-center gap-3 focus:outline-none ${isCollapsed ? 'justify-center' : 'w-full'}`}
             >
                 <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-[#121214] border border-[#27272a] group-hover:border-gray-600 group-hover:bg-[#1a1a1c] transition-all flex-shrink-0">
-                    {/* Logo fixo sem rotação */}
                     <AppLogo className="w-6 h-6 text-white" />
                 </div>
                 {!isCollapsed && (
@@ -112,28 +110,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
         <div className="p-4 border-t border-[#27272a] flex-shrink-0 bg-[#09090b]">
             {isLoggedIn ? (
                 <div className="flex flex-col gap-3">
-                    {/* Credits Badge */}
-                    {!isCollapsed ? (
-                        <div className="flex items-center justify-between px-3 py-2 bg-[#121214] rounded-lg border border-[#27272a] animate-fadeIn">
-                            <div className="flex items-center gap-2">
-                                <SparklesIcon className="w-3.5 h-3.5 text-blue-400" />
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Créditos</span>
-                                    <span className="text-xs font-mono text-white">{credits}</span>
-                                </div>
-                            </div>
-                            {currentPlan !== 'Pro' && (
-                                <button onClick={() => onNavigate('pricing')} className="text-[10px] bg-white text-black px-2 py-1 rounded font-bold hover:bg-gray-200">
-                                    PRO
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex justify-center mb-1 group relative">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                        </div>
-                    )}
-
+                    
                     {/* User Profile */}
                     <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
                         <div className="relative group cursor-pointer" onClick={onOpenSettings}>

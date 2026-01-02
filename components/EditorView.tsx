@@ -38,7 +38,7 @@ interface EditorViewProps {
   isGenerating: boolean;
   generatingFile: string | null;
   generatedFileNames: Set<string>;
-  aiSuggestions: string[]; // Corrigido: Prop adicionada
+  aiSuggestions: string[]; 
 }
 
 interface FileNode {
@@ -244,18 +244,43 @@ export const EditorView: React.FC<EditorViewProps> = ({
             ) : (
                 <div className="h-full bg-white relative">
                     <CodePreview files={files} onError={onError} theme={theme} envVars={envVars} />
+                    
+                    {/* Overlay de Geração (Codegen Studio Brand) */}
                     {isGenerating && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[4px] flex items-center justify-center z-20">
-                             <div className="bg-[#141414] border border-white/10 rounded-[2rem] px-8 py-5 flex items-center gap-5 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-slideInUp">
+                        <div className="absolute inset-0 bg-[#09090b]/80 backdrop-blur-[4px] flex items-center justify-center z-20">
+                             <div className="bg-[#141414] border border-white/10 rounded-[2rem] px-8 py-6 flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-slideInUp min-w-[300px]">
                                 <div className="relative">
                                     <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 animate-pulse"></div>
-                                    <LoaderIcon className="w-6 h-6 text-blue-500 animate-spin relative z-10" />
+                                    <AppLogo className="w-10 h-10 text-white relative z-10 animate-bounce" />
                                 </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1">Live Engine</span>
-                                    <span className="text-xs text-white font-mono tracking-tighter truncate max-w-[200px]">{generatingFile}</span>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-1">Codegen Studio</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-white font-medium">Construindo...</span>
+                                        {generatingFile && <span className="text-xs text-gray-500 font-mono">({generatingFile})</span>}
+                                    </div>
                                 </div>
                              </div>
+                        </div>
+                    )}
+
+                    {/* Sugestões da IA sobre o Preview (quando não estiver gerando) */}
+                    {!isGenerating && aiSuggestions.length > 0 && (
+                        <div className="absolute bottom-6 right-6 z-10 max-w-sm w-full animate-fadeIn">
+                            <div className="bg-[#141414]/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <SparklesIcon className="w-4 h-4 text-purple-400" />
+                                    <span className="text-xs font-bold text-white uppercase tracking-wider">Sugestões de IA</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {aiSuggestions.slice(0, 3).map((suggestion, idx) => (
+                                        <div key={idx} className="flex items-start gap-2 text-xs text-gray-300 bg-white/5 p-2 rounded-lg border border-white/5 hover:bg-white/10 transition-colors cursor-default">
+                                            <span className="mt-0.5 opacity-50">•</span>
+                                            <span>{suggestion}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
