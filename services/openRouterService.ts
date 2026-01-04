@@ -1,3 +1,4 @@
+
 import { ProjectFile } from '../types';
 
 const getSystemPrompt = (files: ProjectFile[], envVars: Record<string, string>): string => {
@@ -41,8 +42,8 @@ ${file.content}
   - "message": (string) A friendly, conversational message to the user, in Portuguese.
   - "files": (array) An array of file objects. Each file object must have "name", "language", and "content".
   - "summary": (string, optional) A markdown string summarizing the files created or updated.
-  - "environmentVariables": (object, optional) An object of environment variables to set.
-  - "supabaseAdminAction": (object, optional) To execute a database modification (e.g., create a table), provide an object with a "query" key containing the SQL statement. Example: { "query": "CREATE TABLE posts (id bigint primary key, title text);" }.
+  - "environmentVariables": (object, optional) An object of environment variables to set. To delete a variable, set its value to null.
+  - "supabaseAdminAction": (object, optional) To execute a database modification (e.g., create a table), provide an object with a "query" key containing the SQL statement to execute. Example: { "query": "CREATE TABLE posts (id bigint primary key, title text);" }. Use this ONLY for database schema or data manipulation.
 
 Current project files:
 ${fileContent.length > 0 ? fileContent : "Nenhum arquivo existe ainda."}
@@ -64,6 +65,7 @@ export const generateCodeStreamWithOpenRouter = async (
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST',
+      credentials: 'omit', // Fix for "No cookie auth credentials found" error
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
@@ -83,12 +85,28 @@ export const generateCodeStreamWithOpenRouter = async (
       }),
     });
 
-    if (!response.ok || !response.body) {
-      const errorText = await response.text();
-      const errorJson = JSON.parse(errorText);
-      throw new Error(errorJson.error?.message || `HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      // Try to read error body if possible
+      let errorText = "";
+      try {
+          errorText = await response.text();
+      } catch (e) {
+          errorText = response.statusText;
+      }
+      
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error?.message) errorMessage = errorJson.error.message;
+      } catch (e) {
+          // Use text if JSON parse fails
+          if (errorText) errorMessage = errorText;
+      }
+      throw new Error(errorMessage);
     }
     
+    if (!response.body) throw new Error("Response body is empty");
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullResponse = "";
@@ -126,7 +144,7 @@ export const generateCodeStreamWithOpenRouter = async (
     console.error("Error generating code with OpenRouter:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
-        message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique sua chave OpenRouter e a conexão com a internet.`,
+        message: `Erro no OpenRouter: ${errorMessage}. Verifique sua chave de API ou conexão.`,
         files: existingFiles
     });
     // Don't call onChunk here as it's handled in App.tsx

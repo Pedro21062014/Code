@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { auth } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
@@ -73,29 +74,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center animate-fadeIn" onClick={onClose}>
-      <div className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-sm p-8 border border-[#27272a] animate-slideInUp relative" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl w-full max-w-sm p-8 border border-gray-200 dark:border-[#27272a] animate-slideInUp relative transition-colors" onClick={e => e.stopPropagation()}>
         <div className="flex justify-center flex-col items-center mb-6">
-            <AppLogo className="w-10 h-10 text-white mb-2" />
-            <h2 className="text-2xl font-bold text-white">{isLoginView ? 'Bem-vindo de volta' : 'Crie sua conta'}</h2>
-            <p className="text-sm text-gray-400">
+            <AppLogo className="w-10 h-10 text-black dark:text-white mb-2" />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isLoginView ? 'Bem-vindo de volta' : 'Crie sua conta'}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isLoginView ? 'Faça login para continuar.' : 'Comece a construir seus projetos.'}
             </p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
             <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                <label htmlFor="email" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Email</label>
                 <input
                     id="email"
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    className="w-full p-2.5 bg-gray-50 dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
                 />
             </div>
             <div>
-                 <label htmlFor="password"className="block text-sm font-medium text-gray-400 mb-1">Senha</label>
+                 <label htmlFor="password"className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Senha</label>
                 <input
                     id="password"
                     type="password"
@@ -103,24 +104,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     onChange={e => setPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    className="w-full p-2.5 bg-gray-50 dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
                 />
             </div>
             
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            {message && <p className="text-sm text-green-400">{message}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {message && <p className="text-sm text-green-600 dark:text-green-400">{message}</p>}
 
-            <button type="submit" disabled={loading} className="w-full py-2.5 px-4 bg-white text-black font-semibold rounded-md hover:bg-gray-200 transition-opacity disabled:opacity-50 disabled:cursor-wait">
+            <button type="submit" disabled={loading} className="w-full py-2.5 px-4 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait">
                 {loading ? 'Processando...' : (isLoginView ? 'Login' : 'Registrar')}
             </button>
         </form>
 
-        <div className="relative my-4">
+        <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-[#27272a]"></span>
+            <span className="w-full border-t border-gray-200 dark:border-[#27272a]"></span>
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-[#18181b] px-2 text-gray-500">OU</span>
+            <span className="bg-white dark:bg-[#18181b] px-2 text-gray-500">OU</span>
           </div>
         </div>
 
@@ -128,23 +129,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           type="button" 
           onClick={handleGoogleLogin} 
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-[#27272a] border border-[#27272a] text-white font-semibold rounded-md hover:bg-[#3f3f46] transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-[#3f3f46] transition-colors disabled:opacity-50"
         >
           <GoogleIcon />
-          Continuar com Google
+          <span className="text-sm">Continuar com Google</span>
         </button>
 
 
          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isLoginView ? "Não tem uma conta?" : "Já tem uma conta?"}{' '}
-                <button onClick={() => { setIsLoginView(!isLoginView); setError(null); setMessage(null); }} className="font-semibold text-white hover:underline">
+                <button onClick={() => { setIsLoginView(!isLoginView); setError(null); setMessage(null); }} className="font-semibold text-gray-900 dark:text-white hover:underline">
                      {isLoginView ? "Registre-se" : "Faça Login"}
                 </button>
             </p>
         </div>
 
-        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md text-gray-400 hover:bg-gray-100 dark:hover:bg-[#27272a] hover:text-black dark:hover:text-white transition-colors">
           <CloseIcon />
         </button>
       </div>

@@ -7,6 +7,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Codegen Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              border: "hsl(var(--border))",
+              input: "hsl(var(--input))",
+              ring: "hsl(var(--ring))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
+            }
+          }
+        }
+      }
+    </script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,8 +30,7 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0a0a0a;
-        color: #ededed;
+        /* Default base styles handled by tailwind classes on body/html in App */
         margin: 0;
         overflow: hidden;
       }
@@ -52,8 +67,8 @@
       
       .custom-scrollbar::-webkit-scrollbar { width: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
       
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -75,7 +90,7 @@
 }
 </script>
 </head>
-  <body class="dark">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

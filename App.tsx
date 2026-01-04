@@ -12,8 +12,8 @@ import { GithubImportModal } from './components/GithubImportModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
 import { ShareModal } from './components/ShareModal';
 import { PublishModal } from './components/PublishModal';
-import { AuthModal } from './components/AuthModal';
-import { ImageStudioModal } from './components/ImageStudioModal';
+import { AuthModal } from './components/AuthModal'; 
+import { AuthPage } from './components/AuthPage'; 
 import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProWelcomeOnboarding } from './components/ProWelcomeOnboarding';
 import { CodePreview } from './components/CodePreview';
@@ -87,7 +87,7 @@ export const App: React.FC = () => {
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
-  const [view, setView] = useState<'landing' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms'>(() => {
+  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
@@ -105,7 +105,6 @@ export const App: React.FC = () => {
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
-  const [isImageStudioOpen, setImageStudioOpen] = useState(false);
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
@@ -284,7 +283,8 @@ export const App: React.FC = () => {
         setUserSettings(settings);
         fetchUserProjects(user.uid);
         localStorage.setItem('codegen-has-visited', 'true');
-        setView(current => current === 'landing' ? 'welcome' : current);
+        // Se estava na auth page, vai para welcome. Se estava na landing, vai pra welcome.
+        setView(current => (current === 'landing' || current === 'auth') ? 'welcome' : current);
       } else {
         setSessionUser(null);
         setUserSettings(null);
@@ -294,7 +294,7 @@ export const App: React.FC = () => {
   }, [fetchUserSettings, fetchUserProjects]);
 
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
-    if (!sessionUser) { setAuthModalOpen(true); return; }
+    if (!sessionUser) { setView('auth'); return; }
     
     let activeProjectState = project;
     if (view === 'welcome') {
@@ -412,19 +412,45 @@ export const App: React.FC = () => {
     );
   }
 
-  if (view === 'landing' && !sessionUser) {
-    return (
-        <div className="page-transition-enter w-full h-full">
-            <LandingPage 
-                onGetStarted={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('welcome'); }}
-                onLogin={() => { localStorage.setItem('codegen-has-visited', 'true'); setAuthModalOpen(true); }}
-                onShowPricing={() => { setPreviousView('landing'); setView('pricing'); }}
-                onShowPrivacy={() => { setPreviousView('landing'); setView('privacy'); }}
-                onShowTerms={() => { setPreviousView('landing'); setView('terms'); }}
-            />
-            <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
-        </div>
-    );
+  // Se não estiver logado, gerencia Landing e AuthPage
+  if (!sessionUser) {
+    if (view === 'auth') {
+        return (
+            <div className="page-transition-enter w-full h-full">
+                <AuthPage 
+                    onBack={() => setView('landing')} 
+                    theme={theme}
+                    onThemeChange={setTheme}
+                />
+            </div>
+        );
+    }
+    
+    // Landing padrão para usuários não autenticados que não estão na tela de login
+    if (view === 'landing' || view === 'pricing' || view === 'privacy' || view === 'terms') {
+        if (view === 'privacy') return <div className="page-transition-enter w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
+        if (view === 'terms') return <div className="page-transition-enter w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
+        
+        return (
+            <div className="page-transition-enter w-full h-full">
+                {view === 'pricing' ? (
+                    <PricingPage onBack={() => setView('landing')} onNewProject={() => {}} />
+                ) : (
+                    <LandingPage 
+                        onGetStarted={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('auth'); }}
+                        onLogin={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('auth'); }}
+                        onShowPricing={() => { setPreviousView('landing'); setView('pricing'); }}
+                        onShowPrivacy={() => { setPreviousView('landing'); setView('privacy'); }}
+                        onShowTerms={() => { setPreviousView('landing'); setView('terms'); }}
+                        theme={theme}
+                        onThemeChange={setTheme}
+                    />
+                )}
+                {/* Fallback modal, just in case code tries to open it */}
+                <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} />
+            </div>
+        );
+    }
   }
 
   if (view === 'privacy') return <div className="page-transition-enter w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
@@ -445,7 +471,7 @@ export const App: React.FC = () => {
               activeView={view}
               onNavigate={(v) => setView(v)}
               session={sessionUser ? { user: sessionUser } : null}
-              onLogin={() => setAuthModalOpen(true)}
+              onLogin={() => setView('auth')}
               onLogout={() => signOut(auth)}
               onOpenSettings={() => setSettingsOpen(true)}
               credits={0} // No longer used
@@ -460,7 +486,7 @@ export const App: React.FC = () => {
             {view === 'welcome' && (
                 <WelcomeScreen 
                   session={sessionUser ? { user: sessionUser } : null}
-                  onLoginClick={() => setAuthModalOpen(true)}
+                  onLoginClick={() => setView('auth')}
                   onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
                   onShowPricing={() => setView('pricing')}
                   onShowProjects={() => setView('projects')}
@@ -475,6 +501,8 @@ export const App: React.FC = () => {
                   userGeminiKey={userSettings?.gemini_api_key}
                   currentPlan={userSettings?.plan || 'Hobby'}
                   availableModels={availableModels}
+                  theme={theme}
+                  onThemeChange={setTheme}
                 />
             )}
 
@@ -532,7 +560,6 @@ export const App: React.FC = () => {
                         onSave={handleSaveProject}
                         onOpenProjects={() => setView('projects')}
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-                        onOpenImageStudio={() => setImageStudioOpen(true)}
                         onLogout={() => signOut(auth)}
                         onOpenSettings={() => setSettingsOpen(true)}
                         session={sessionUser}
@@ -555,7 +582,6 @@ export const App: React.FC = () => {
       <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} projectName={projectName} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
       <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
       <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} onSaveRequired={handleSaveProject} />
-      <ImageStudioModal isOpen={isImageStudioOpen} onClose={() => setImageStudioOpen(false)} onSaveImage={() => {}} apiKey={""} onOpenApiKeyModal={() => {}} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
     </div>
   );
