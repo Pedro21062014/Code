@@ -37,25 +37,17 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
     setRuntimeError(null);
 
     // 1. Create a map of "standardized paths" to blob URLs
-    // Standardized path = path relative to project root, e.g., "src/components/Header"
-    // We strip extensions for matching logic if needed, but import map keys usually keep them or use clean names.
     const blobs: Record<string, string> = {};
-    const processedFiles: { name: string; content: string; blobUrl: string }[] = [];
-
-    // Helper: clean name for import map keys (e.g., "src/App.tsx" -> "./src/App")
-    const getImportMapKey = (fileName: string) => {
-        // Ensure it starts with ./ for import map
-        let clean = fileName.startsWith('./') ? fileName : `./${fileName}`;
-        // Remove extension for matching imports without extension
-        return clean.replace(/\.(tsx|ts|js|jsx|css)$/, '');
-    };
-
-    // First pass: Create blobs for all files 'as is' to get URLs (placeholder)
-    // Actually, we need to rewrite content BEFORE creating blobs to fix imports.
     
     // We need to map "Standard Paths" -> "Original Content" first.
     const fileMap = new Map<string, string>();
     files.forEach(f => fileMap.set(f.name, f.content));
+
+    // Helper: clean name for import map keys
+    const getImportMapKey = (fileName: string) => {
+        let clean = fileName.startsWith('./') ? fileName : `./${fileName}`;
+        return clean.replace(/\.(tsx|ts|js|jsx|css)$/, '');
+    };
 
     // Rewrite imports in all JS/TS files
     files.forEach(file => {
@@ -63,7 +55,6 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
              const blob = new Blob([file.content], { type: file.name.endsWith('.css') ? 'text/css' : 'text/html' });
              const url = URL.createObjectURL(blob);
              blobs[getImportMapKey(file.name)] = url;
-             // Also add full name mapping
              blobs[`./${file.name}`] = url;
              return;
         }
@@ -71,14 +62,10 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
         let content = file.content;
         
         // Regex to find import ... from '...'
-        // This is a basic regex, might not cover all edge cases (like dynamic imports or comments)
-        // matches: import ... from "path"; import "path"; export ... from "path";
         content = content.replace(/(import|export)\s+(?:(?:[\w*\s{},]*)\s+from\s+)?['"]([^'"]+)['"]/g, (match, keyword, importPath) => {
             if (importPath.startsWith('.')) {
-                // Resolve relative path to absolute standardized path (e.g. src/components/Header)
                 const resolved = resolvePath(file.name, importPath);
                 
-                // Check if file exists with extensions
                 let targetFile = files.find(f => 
                     f.name === resolved || 
                     f.name === `${resolved}.tsx` || 
@@ -88,10 +75,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
                 );
 
                 if (targetFile) {
-                    // Rewrite import to the absolute key we will use in importmap
-                    // e.g., "./src/components/Header"
                     const newImport = `./${targetFile.name.replace(/\.(tsx|ts|js|jsx)$/, '')}`;
-                    // Reconstruct the import statement
                     const parts = match.split(/['"]/);
                     return `${parts[0]}'${newImport}'${parts[2] || ''}`;
                 }
@@ -99,16 +83,12 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
             return match;
         });
 
-        // Inject Environment Variables manually at the top of file if needed?
-        // Actually, we can inject `process.env` in the main HTML.
-
         const blob = new Blob([content], { type: 'text/tsx' });
         const url = URL.createObjectURL(blob);
         
-        // Map multiple variants to ensure resolution hits
         const keyBase = getImportMapKey(file.name);
         blobs[keyBase] = url;
-        blobs[`./${file.name}`] = url; // Full name
+        blobs[`./${file.name}`] = url; 
     });
 
     const imports = {
@@ -123,14 +103,12 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
         ...blobs
     };
 
-    // Construct Environment Variables Script
     const envScript = `
       window.process = {
         env: ${JSON.stringify(envVars)}
       };
     `;
 
-    // Find Entry Point
     const entryFile = files.find(f => 
         f.name === 'src/main.tsx' || 
         f.name === 'src/index.tsx' || 
@@ -220,12 +198,12 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
 
   if (files.length === 0) {
     return (
-      <div className="w-full h-full bg-[#09090b] flex flex-col items-center justify-center gap-6 animate-fadeIn">
+      <div className="w-full h-full bg-gray-50 dark:bg-[#09090b] flex flex-col items-center justify-center gap-6 animate-fadeIn transition-colors duration-300">
          <div className="relative group">
              <div className="absolute inset-0 bg-blue-500 blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity duration-1000"></div>
-             <AppLogo className="w-16 h-16 text-gray-800 relative z-10" />
+             <AppLogo className="w-16 h-16 text-gray-400 dark:text-gray-800 relative z-10" />
          </div>
-         <p className="text-gray-600 font-mono text-xs tracking-widest uppercase">Aguardando Código</p>
+         <p className="text-gray-500 dark:text-gray-600 font-mono text-xs tracking-widest uppercase">Aguardando Código</p>
       </div>
     );
   }
@@ -255,11 +233,11 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, theme, envVars 
       )}
 
       {/* Modern Minimalist Loading Overlay */}
-      <div className={`absolute inset-0 bg-[#09090b]/90 backdrop-blur-md flex items-center justify-center z-10 transition-opacity duration-700 pointer-events-none ${isLoading ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute inset-0 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md flex items-center justify-center z-10 transition-opacity duration-700 pointer-events-none ${isLoading ? 'opacity-100' : 'opacity-0'}`}>
            <div className="flex flex-col items-center gap-4">
               <div className="relative">
-                  <div className="absolute inset-0 bg-white blur-xl opacity-20 animate-pulse"></div>
-                  <AppLogo className="w-10 h-10 text-white relative z-10 animate-bounce" />
+                  <div className="absolute inset-0 bg-black dark:bg-white blur-xl opacity-20 animate-pulse"></div>
+                  <AppLogo className="w-10 h-10 text-black dark:text-white relative z-10 animate-bounce" />
               </div>
            </div>
       </div>

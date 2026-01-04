@@ -68,23 +68,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       onClick={onClose}
     >
       <div 
-        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-md p-6 border border-[#27272a] animate-slideInUp"
+        className="bg-white dark:bg-[#18181b] rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-200 dark:border-[#27272a] animate-slideInUp transition-colors"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white">Configurações</h2>
-          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Configurações</h2>
+          <button onClick={onClose} className="p-1 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-[#27272a] hover:text-black dark:hover:text-white transition-colors">
             <CloseIcon />
           </button>
         </div>
         
-        <div className="space-y-4 text-white">
-            <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
-                <div className="flex items-center gap-3 mb-2">
-                    <KeyIcon />
-                    <h3 className="font-semibold text-white">Chave de API do Gemini</h3>
+        <div className="space-y-4">
+            <div className="p-4 bg-gray-50 dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-[#3f3f46]">
+                <div className="flex items-center gap-3 mb-2 text-gray-900 dark:text-white">
+                    <KeyIcon className="w-5 h-5" />
+                    <h3 className="font-semibold">Chave de API do Gemini</h3>
                 </div>
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
                     Sua chave de API do Google Gemini é necessária. Ela é armazenada com segurança no seu perfil.
                 </p>
                 <div className="flex items-center gap-2">
@@ -96,29 +96,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             setGeminiTestStatus({ status: 'idle', message: '' });
                         }}
                         placeholder="Cole sua chave de API aqui"
-                        className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        className="w-full p-2 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#3f3f46] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
                     />
                      <button
                         onClick={handleGeminiTest}
                         disabled={geminiTestStatus.status === 'testing' || !geminiKey}
-                        className="px-3 py-2 text-xs font-medium text-white bg-[#18181b] border border-[#3f3f46] rounded-md hover:bg-[#3f3f46] disabled:opacity-50 disabled:cursor-wait"
+                        className="px-3 py-2 text-xs font-medium text-gray-700 dark:text-white bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#3f3f46] rounded-lg hover:bg-gray-50 dark:hover:bg-[#3f3f46] disabled:opacity-50 disabled:cursor-wait transition-colors"
                      >
                          {geminiTestStatus.status === 'testing' ? '...' : 'Testar'}
                     </button>
                 </div>
                  {geminiTestStatus.message && (
-                    <p className={`text-xs mt-2 ${geminiTestStatus.status === 'success' ? 'text-green-400' : geminiTestStatus.status === 'error' ? 'text-red-400' : 'text-gray-400'}`}>
+                    <p className={`text-xs mt-2 ${geminiTestStatus.status === 'success' ? 'text-green-600 dark:text-green-400' : geminiTestStatus.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>
                         {geminiTestStatus.message}
                     </p>
                 )}
             </div>
 
-            <div className="p-4 bg-[#27272a] rounded-lg border border-[#3f3f46]">
-                <div className="flex items-center gap-3 mb-2">
-                    <GithubIcon />
-                    <h3 className="font-semibold text-white">Token de Acesso do GitHub</h3>
+            <div className="p-4 bg-gray-50 dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-[#3f3f46]">
+                <div className="flex items-center gap-3 mb-2 text-gray-900 dark:text-white">
+                    <GithubIcon className="w-5 h-5" />
+                    <h3 className="font-semibold">Token de Acesso do GitHub</h3>
                 </div>
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
                     Forneça um token para importar repositórios privados e aumentar os limites da API.
                 </p>
                 <div className="flex items-center gap-2">
@@ -127,11 +127,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         value={githubToken}
                         onChange={(e) => setGithubToken(e.target.value)}
                         placeholder="Cole seu token aqui (ex: ghp_...)"
-                        className="w-full p-2 bg-[#18181b] border border-[#3f3f46] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        className="w-full p-2 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#3f3f46] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
                     />
                 </div>
-                 <p className="text-xs text-gray-400 mt-2">
-                   O token precisa ter escopo de <code className="bg-[#18181b] px-1 py-0.5 rounded-sm text-xs font-mono">repo</code>.
+                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                   O token precisa ter escopo de <code className="bg-gray-200 dark:bg-[#18181b] px-1 py-0.5 rounded-sm text-xs font-mono text-gray-800 dark:text-gray-300 border border-gray-300 dark:border-[#3f3f46]">repo</code>.
                 </p>
             </div>
         </div>
@@ -139,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-md text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors focus:outline-none"
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:opacity-90 transition-opacity focus:outline-none shadow-lg"
           >
             Salvar e Fechar
           </button>

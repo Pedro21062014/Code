@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 /* Added FolderIcon to the imports list to resolve the "Cannot find name 'FolderIcon'" error */
-import { AppLogo, FileIcon, FolderIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ImageIcon, ShieldIcon, TrashIcon, EditIcon, StripeIcon, MapIcon, DatabaseIcon, LoaderIcon, CheckCircleIcon, ChevronDownIcon } from './Icons';
+import { AppLogo, FileIcon, FolderIcon, CubeIcon, SettingsIcon, DownloadIcon, CloseIcon, GithubIcon, SupabaseIcon, LogInIcon, LogOutIcon, SaveIcon, ProjectsIcon, ShieldIcon, TrashIcon, EditIcon, StripeIcon, DatabaseIcon, LoaderIcon, CheckCircleIcon, ChevronDownIcon } from './Icons';
 import { ProjectFile } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -17,7 +17,6 @@ interface SidebarProps {
   onNewProject: () => void;
   onSaveProject: () => void;
   onOpenProjects: () => void;
-  onOpenImageStudio: () => void;
   onRenameFile: (oldName: string, newName: string) => void;
   onDeleteFile: (fileName: string) => void;
   onOpenStripeModal: () => void;
@@ -83,7 +82,7 @@ const ContextMenu: React.FC<{
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
-    files, envVars, onEnvVarChange, onFileSelect, onDownload, onOpenSettings, onOpenGithubImport, onOpenSupabaseAdmin, onNewProject, onSaveProject, onOpenProjects, onOpenImageStudio, onRenameFile, onDeleteFile, onOpenStripeModal, onOpenNeonModal, onOpenOSMModal, activeFile, onClose, session, onLogin, onLogout, isOfflineMode, generatingFile, isGenerating, generatedFileNames
+    files, envVars, onEnvVarChange, onFileSelect, onDownload, onOpenSettings, onOpenGithubImport, onOpenSupabaseAdmin, onNewProject, onSaveProject, onOpenProjects, onRenameFile, onDeleteFile, onOpenStripeModal, onOpenNeonModal, onOpenOSMModal, activeFile, onClose, session, onLogin, onLogout, isOfflineMode, generatingFile, isGenerating, generatedFileNames
 }) => {
   const [activeTab, setActiveTab] = React.useState('files');
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['src', 'components', 'styles']));
@@ -210,8 +209,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <NavButton onClick={() => setActiveTab('environment')} active={activeTab === 'environment'} icon={<ShieldIcon />} label="Env Vars" />
             </div>
             <div className="mt-auto flex flex-col gap-3 w-full items-center">
-                 <NavButton onClick={onOpenImageStudio} icon={<ImageIcon />} label="Image Studio" />
-                 {/* Save button removed from here */}
                  <NavButton onClick={onOpenProjects} icon={<ProjectsIcon />} label="My Projects" />
                  <div className="h-px w-8 bg-[#27272a] my-1"></div>
                  {session ? <NavButton onClick={onLogout} icon={<LogOutIcon />} label="Logout" /> : <NavButton onClick={onLogin} icon={<LogInIcon />} label="Login" />}

@@ -53,17 +53,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
-      <div className="bg-[#09090b] border border-[#27272a] rounded-2xl w-full max-w-sm overflow-hidden animate-slideInUp shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] rounded-2xl w-full max-w-sm overflow-hidden animate-slideInUp shadow-2xl transition-colors" onClick={e => e.stopPropagation()}>
         
-        <div className="px-6 py-5 border-b border-[#27272a] flex justify-between items-center bg-[#0c0c0e]">
-            <h2 className="text-sm font-semibold text-white uppercase tracking-widest">Colaboração</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors"><CloseIcon className="w-4 h-4"/></button>
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-[#27272a] flex justify-between items-center bg-gray-50 dark:bg-[#0c0c0e]">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Colaboração</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-black dark:hover:text-white transition-colors"><CloseIcon className="w-4 h-4"/></button>
         </div>
 
         <form onSubmit={handleShare} className="p-6 space-y-6">
             <div className="space-y-1">
                 <p className="text-xs text-gray-500 font-mono">PROJETO</p>
-                <p className="text-white font-medium text-sm truncate">{projectName}</p>
+                <p className="text-gray-900 dark:text-white font-medium text-sm truncate">{projectName}</p>
             </div>
 
             <div className="space-y-2">
@@ -74,16 +74,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
                     placeholder="email@exemplo.com"
                     required
                     autoFocus
-                    className="w-full bg-[#121214] border border-[#27272a] rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-white/20 transition-all placeholder-gray-600 font-mono"
+                    className="w-full bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-lg px-4 py-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500/50 dark:focus:border-white/20 transition-all placeholder-gray-400 dark:placeholder-gray-600 font-mono"
                 />
             </div>
 
-            {error && <p className="text-[10px] text-red-400 text-center">{error}</p>}
-            {success && <div className="flex items-center justify-center gap-2 text-green-400 text-[10px]"><CheckCircleIcon className="w-3 h-3"/> {success}</div>}
+            {error && <p className="text-[10px] text-red-500 dark:text-red-400 text-center">{error}</p>}
+            {success && <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 text-[10px]"><CheckCircleIcon className="w-3 h-3"/> {success}</div>}
 
             <button 
                 disabled={isChecking || !email.trim()}
-                className="w-full bg-white text-black h-10 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full bg-black dark:bg-white text-white dark:text-black h-10 rounded-lg font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
                 {isChecking && <LoaderIcon className="w-3 h-3 animate-spin" />}
                 {isChecking ? 'Verificando...' : 'Convidar'}
