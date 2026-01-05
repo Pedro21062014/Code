@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { CloseIcon, AppLogo, GoogleIcon } from './Icons';
@@ -17,11 +17,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Apenas checkbox de termos
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
+
+    if (!isLoginView && !termsAccepted) {
+        setError("Você precisa aceitar os termos.");
+        setLoading(false);
+        return;
+    }
     
     try {
       if (isLoginView) {
@@ -30,7 +39,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
         setMessage('Conta criada com sucesso!');
-        // Firebase automatically signs in after creation
         setTimeout(onClose, 1000);
       }
     } catch (err: any) {
@@ -46,6 +54,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
   
   const handleGoogleLogin = async () => {
+    if (!isLoginView && !termsAccepted) {
+        setError("Você precisa aceitar os termos.");
+        return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -67,6 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setMessage(null);
         setLoading(false);
         setIsLoginView(true);
+        setTermsAccepted(false);
     }
   }, [isOpen]);
 
@@ -107,9 +121,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     className="w-full p-2.5 bg-gray-50 dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
                 />
             </div>
+
+            {/* Checkbox Termos */}
+            {!isLoginView && (
+                <div className="flex items-start gap-2 py-1 animate-fadeIn">
+                    <input
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 dark:border-[#3f3f46] bg-white dark:bg-[#18181b] cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
+                        Aceito os <a href="#" className="underline">Termos</a> e <a href="#" className="underline">Privacidade</a>.
+                    </span>
+                </div>
+            )}
             
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-            {message && <p className="text-sm text-green-600 dark:text-green-400">{message}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400 text-center bg-red-50 dark:bg-red-900/10 p-2 rounded-lg border border-red-100 dark:border-red-900/20">{error}</p>}
+            {message && <p className="text-sm text-green-600 dark:text-green-400 text-center">{message}</p>}
 
             <button type="submit" disabled={loading} className="w-full py-2.5 px-4 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-wait">
                 {loading ? 'Processando...' : (isLoginView ? 'Login' : 'Registrar')}
@@ -139,7 +168,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
          <div className="mt-6 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isLoginView ? "Não tem uma conta?" : "Já tem uma conta?"}{' '}
-                <button onClick={() => { setIsLoginView(!isLoginView); setError(null); setMessage(null); }} className="font-semibold text-gray-900 dark:text-white hover:underline">
+                <button onClick={() => { 
+                    setIsLoginView(!isLoginView); 
+                    setError(null); 
+                    setMessage(null); 
+                }} className="font-semibold text-gray-900 dark:text-white hover:underline">
                      {isLoginView ? "Registre-se" : "Faça Login"}
                 </button>
             </p>

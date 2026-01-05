@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { AppLogo, SparklesIcon, TerminalIcon, GithubIcon, CheckCircleIcon, DatabaseIcon, SupabaseIcon, ChevronDownIcon, GlobeIcon, DownloadIcon, SunIcon, MoonIcon } from './Icons';
 import { Theme } from '../types';
 
@@ -12,6 +12,56 @@ interface LandingPageProps {
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
 }
+
+const CookieBanner = ({ onShowPrivacy }: { onShowPrivacy: () => void }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem('cookie-consent');
+    if (!consent) {
+      // Pequeno delay para não aparecer instantaneamente e ser intrusivo
+      const timer = setTimeout(() => setIsVisible(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleAccept = () => {
+    localStorage.setItem('cookie-consent', 'true');
+    setIsVisible(false);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6 animate-slideInUp">
+      <div className="max-w-4xl mx-auto bg-white/90 dark:bg-[#121214]/90 backdrop-blur-xl border border-gray-200 dark:border-[#27272a] rounded-2xl shadow-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+             <span className="text-xl">🍪</span>
+             <h3 className="text-sm font-bold text-gray-900 dark:text-white">Este site usa cookies</h3>
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+            Utilizamos cookies essenciais para garantir que você tenha a melhor experiência em nossa plataforma, lembrando suas preferências e configurações. Ao continuar, você concorda com nossa <button onClick={onShowPrivacy} className="underline text-black dark:text-white hover:opacity-80 transition-opacity">Política de Privacidade</button>.
+          </p>
+        </div>
+        <div className="flex gap-3 flex-shrink-0 w-full md:w-auto">
+          <button 
+            onClick={() => setIsVisible(false)}
+            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          >
+            Agora não
+          </button>
+          <button 
+            onClick={handleAccept}
+            className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-bold uppercase tracking-wide hover:opacity-90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            Aceitar Cookies
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onShowPricing, onShowPrivacy, onShowTerms, theme, onThemeChange }) => {
   const featuresRef = useRef<HTMLElement>(null);
@@ -27,6 +77,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
   return (
     <div className="h-screen w-full bg-white dark:bg-[#050505] text-gray-900 dark:text-white overflow-y-auto overflow-x-hidden font-sans selection:bg-blue-500/30 custom-scrollbar scroll-smooth transition-colors duration-300">
       
+      <CookieBanner onShowPrivacy={onShowPrivacy} />
+
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] animate-pulse"></div>
