@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { auth } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { AppLogo, GoogleIcon, SparklesIcon, ChevronDownIcon, SunIcon, MoonIcon } from './Icons';
+import { AppLogo, GoogleIcon, SparklesIcon, SunIcon, MoonIcon } from './Icons';
 import { Theme } from '../types';
 
 interface AuthPageProps {
@@ -17,6 +17,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Apenas checkbox de termos
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const toggleTheme = () => {
     onThemeChange(theme === 'dark' ? 'light' : 'dark');
@@ -24,8 +27,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!isLoginView && !termsAccepted) {
+        setError("Você precisa aceitar os Termos de Uso e a Política de Privacidade para criar uma conta.");
+        return;
+    }
+
+    setLoading(true);
     
     try {
       if (isLoginView) {
@@ -47,6 +56,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
   };
   
   const handleGoogleLogin = async () => {
+    if (!isLoginView && !termsAccepted) {
+        setError("Você precisa aceitar os Termos de Uso para continuar.");
+        return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -65,7 +79,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
       <div className="w-full lg:w-1/2 flex flex-col p-8 lg:p-12 relative z-10">
         
         {/* Header Simples */}
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center justify-between mb-8 lg:mb-12">
             <div className="flex items-center gap-2 cursor-pointer group" onClick={onBack}>
                 <AppLogo className="w-8 h-8 text-gray-900 dark:text-white group-hover:scale-105 transition-transform" />
                 <span className="font-bold text-lg tracking-tight">codegen<span className="font-light opacity-50">studio</span></span>
@@ -139,11 +153,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
                         className="w-full px-4 py-3 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all shadow-sm dark:shadow-none"
                     />
                 </div>
+
+                {/* Checkbox Termos (Apenas Registro) */}
+                {!isLoginView && (
+                    <div className="flex items-start gap-3 py-1 animate-fadeIn">
+                        <div className="flex items-center h-5">
+                            <input
+                                id="terms"
+                                type="checkbox"
+                                checked={termsAccepted}
+                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                className="w-4 h-4 border border-gray-300 dark:border-[#3f3f46] rounded bg-white dark:bg-[#18181b] text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 dark:focus:ring-offset-[#09090b] cursor-pointer"
+                            />
+                        </div>
+                        <label htmlFor="terms" className="text-xs text-gray-600 dark:text-gray-400 leading-snug select-none cursor-pointer">
+                            Eu li e aceito os <a href="#" className="underline hover:text-black dark:hover:text-white transition-colors">Termos de Serviço</a> e a <a href="#" className="underline hover:text-black dark:hover:text-white transition-colors">Política de Privacidade</a> do Codegen Studio.
+                        </label>
+                    </div>
+                )}
                 
                 {error && (
                     <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2 animate-fadeIn">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        {error}
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>{error}</span>
                     </div>
                 )}
 
@@ -167,7 +199,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     {isLoginView ? "Não tem uma conta?" : "Já tem uma conta?"}{' '}
                     <button 
-                        onClick={() => { setIsLoginView(!isLoginView); setError(null); }} 
+                        onClick={() => { 
+                            setIsLoginView(!isLoginView); 
+                            setError(null); 
+                        }} 
                         className="font-semibold text-gray-900 dark:text-white hover:underline transition-all"
                     >
                         {isLoginView ? "Inscreva-se" : "Faça Login"}
