@@ -33,7 +33,7 @@ const CookieBanner = ({ onShowPrivacy }: { onShowPrivacy: () => void }) => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6 animate-slideInUp">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6">
       <div className="max-w-4xl mx-auto bg-white/90 dark:bg-[#121214]/90 backdrop-blur-xl border border-gray-200 dark:border-[#27272a] rounded-2xl shadow-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -114,21 +114,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
       {/* Hero Section */}
       <main className="relative z-10 pt-20 pb-20 px-6 flex flex-col items-center text-center">
         
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-8 animate-fadeIn">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-8">
             <SparklesIcon className="w-3 h-3" />
             Nova Geração de IA
         </div>
 
-        <h1 className="text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tighter leading-[0.95] mb-8 max-w-5xl mx-auto animate-slideInUp text-gray-900 dark:text-white">
+        <h1 className="text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tighter leading-[0.95] mb-8 max-w-5xl mx-auto text-gray-900 dark:text-white">
           Construa software na <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-gray-900 dark:from-blue-400 dark:via-purple-400 dark:to-white animate-shine">velocidade do pensamento.</span>
         </h1>
 
-        <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-slideInUp" style={{ animationDelay: '100ms' }}>
+        <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
           Codegen Studio é seu engenheiro de IA pessoal. Descreva sua ideia, veja o código ser gerado em tempo real e faça o deploy em segundos.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 animate-slideInUp" style={{ animationDelay: '200ms' }}>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
             <button 
                 onClick={onGetStarted}
                 className="px-8 py-4 rounded-full bg-black dark:bg-white text-white dark:text-black font-bold text-sm uppercase tracking-widest hover:opacity-90 transition-all transform hover:-translate-y-1 shadow-lg"
@@ -144,7 +144,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
         </div>
 
         {/* Interface Mockup */}
-        <div className="mt-24 w-full max-w-6xl mx-auto relative group animate-slideInUp" style={{ animationDelay: '300ms' }}>
+        <div className="mt-24 w-full max-w-6xl mx-auto relative group">
             <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 to-purple-500/20 rounded-xl blur-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-700"></div>
             <div className="relative bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                 {/* Mockup Header */}
@@ -200,7 +200,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
                             <div className="flex"><span className="text-gray-900 dark:text-white">{`}`}</span></div>
                         </div>
                         {/* Overlay Card */}
-                        <div className="absolute bottom-8 right-8 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] p-4 rounded-xl shadow-2xl flex items-center gap-4 animate-[slideInUp_1s_ease-out_0.5s_both]">
+                        <div className="absolute bottom-8 right-8 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] p-4 rounded-xl shadow-2xl flex items-center gap-4">
                             <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/30">
                                 <CheckCircleIcon className="w-5 h-5 text-green-500 dark:text-green-400" />
                             </div>

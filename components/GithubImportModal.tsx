@@ -170,16 +170,16 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
       onClick={isLoading ? undefined : onClose}
     >
       <div 
-        className="bg-[#09090b] w-full max-w-2xl border border-[#27272a] shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[70vh] animate-slideInUp"
+        className="bg-white dark:bg-[#09090b] w-full max-w-2xl border border-gray-200 dark:border-[#27272a] shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[70vh] animate-slideInUp transition-colors"
         onClick={e => e.stopPropagation()}
       >
         {/* Header Compacto */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272a] bg-[#0c0c0e]">
-          <div className="flex items-center gap-2 text-white/90">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#0c0c0e]">
+          <div className="flex items-center gap-2 text-gray-900 dark:text-white/90">
              <GithubIcon className="w-4 h-4" />
              <span className="text-sm font-medium">Clonar Repositório</span>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-black dark:hover:text-white transition-colors">
              <CloseIcon className="w-4 h-4" />
           </button>
         </div>
@@ -187,32 +187,32 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         {/* Content */}
         {!githubToken ? (
            <div className="flex flex-col items-center justify-center p-12 text-center space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center border border-[#27272a]">
-                 <KeyIcon className="w-8 h-8 text-gray-500" />
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-[#18181b] flex items-center justify-center border border-gray-200 dark:border-[#27272a]">
+                 <KeyIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
               </div>
               <div>
-                  <h3 className="text-white font-medium text-lg">Conexão Necessária</h3>
+                  <h3 className="text-gray-900 dark:text-white font-medium text-lg">Conexão Necessária</h3>
                   <p className="text-gray-500 text-sm mt-2 max-w-xs mx-auto">
                       Para acessar seus repositórios privados e públicos, precisamos do seu Token de Acesso Pessoal do GitHub.
                   </p>
               </div>
               <button 
                 onClick={onOpenSettings}
-                className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:opacity-80 transition-opacity"
               >
                 Configurar Token
               </button>
            </div>
         ) : (
            <div className="flex flex-col h-full overflow-hidden">
-               <div className="p-2 border-b border-[#27272a]">
+               <div className="p-2 border-b border-gray-200 dark:border-[#27272a]">
                   <input
                     type="text"
                     autoFocus
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Filtrar por nome..."
-                    className="w-full bg-[#121214] text-white text-sm px-3 py-2 rounded-lg border border-transparent focus:border-[#3f3f46] focus:outline-none placeholder-gray-600 font-mono"
+                    className="w-full bg-gray-50 dark:bg-[#121214] text-gray-900 dark:text-white text-sm px-3 py-2 rounded-lg border border-transparent focus:border-blue-500/50 dark:focus:border-[#3f3f46] focus:outline-none placeholder-gray-500 dark:placeholder-gray-600 font-mono"
                   />
                </div>
 
@@ -230,24 +230,24 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
                                    key={repo.id}
                                    onClick={() => handleImport(repo)}
                                    disabled={isLoading}
-                                   className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[#27272a] rounded-md group transition-colors disabled:opacity-50"
+                                   className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-[#27272a] rounded-md group transition-colors disabled:opacity-50"
                                >
                                    <div className="flex items-center gap-3 overflow-hidden">
-                                       <span className="text-gray-400 group-hover:text-white transition-colors">
+                                       <span className="text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors">
                                             {repo.private ? (
                                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                                             ) : (
                                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 
                                             )}
                                        </span>
-                                       <span className="text-sm text-gray-300 font-mono group-hover:text-white truncate">
+                                       <span className="text-sm text-gray-700 dark:text-gray-300 font-mono group-hover:text-black dark:group-hover:text-white truncate">
                                            {repo.full_name}
                                        </span>
                                    </div>
                                    {importingRepoName === repo.full_name ? (
-                                       <LoaderIcon className="w-3.5 h-3.5 animate-spin text-white" />
+                                       <LoaderIcon className="w-3.5 h-3.5 animate-spin text-black dark:text-white" />
                                    ) : (
-                                       <span className="text-[10px] text-gray-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <span className="text-[10px] text-gray-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                                            Clonar
                                        </span>
                                    )}
@@ -258,7 +258,7 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
                </div>
                
                {importError && (
-                   <div className="p-3 bg-red-900/20 border-t border-red-900/30 text-red-400 text-xs text-center">
+                   <div className="p-3 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 text-xs text-center">
                        {importError}
                    </div>
                )}

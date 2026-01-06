@@ -40,7 +40,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
       </div>
 
       <main className="flex-1 flex flex-col items-center px-4 pt-10 pb-12 relative z-10 overflow-y-auto custom-scrollbar">
-        <div className="w-full max-w-6xl animate-slideInUp">
+        <div className="w-full max-w-6xl">
             
             <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
                 <div>
@@ -77,8 +77,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                     <div 
                         key={project.id} 
                         onClick={() => onLoadProject(project.id)}
-                        className="group relative h-48 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] overflow-hidden hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-xl dark:hover:shadow-purple-900/10 transition-all cursor-pointer animate-fadeIn"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                        className="group relative h-48 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] overflow-hidden hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-xl dark:hover:shadow-purple-900/10 transition-all cursor-pointer"
                     >
                         {/* Gradient Overlay on Hover */}
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -119,7 +118,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
             </div>
 
             {projects.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
+                <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] flex items-center justify-center mb-4">
                         <FolderIcon className="w-8 h-8 text-gray-400 dark:text-gray-600" />
                     </div>
@@ -135,9 +134,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
 
         {/* Delete Confirmation Modal */}
         {projectToDelete !== null && (
-            <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setProjectToDelete(null)}>
+            <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setProjectToDelete(null)}>
                 <div 
-                    className="bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-2xl w-full max-w-md overflow-hidden animate-slideInUp shadow-2xl relative"
+                    className="bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative"
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="p-6">

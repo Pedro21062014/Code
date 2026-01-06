@@ -38,6 +38,7 @@ export interface UserSettings {
   email?: string;
   updated_at?: string;
   gemini_api_key?: string;
+  openai_api_key?: string;
   openrouter_api_key?: string;
   github_access_token?: string;
   supabase_project_url?: string;

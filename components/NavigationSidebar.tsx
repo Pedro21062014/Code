@@ -2,12 +2,12 @@
 import React, { useState } from 'react';
 import { 
     AppLogo, HomeIcon, ProjectsIcon, UsersIcon, ClockIcon, SettingsIcon, 
-    LogInIcon, LogOutIcon
+    LogInIcon, LogOutIcon, CubeIcon
 } from './Icons';
 
 interface NavigationSidebarProps {
   activeView: string;
-  onNavigate: (view: 'welcome' | 'projects' | 'shared' | 'recent' | 'pricing') => void;
+  onNavigate: (view: 'welcome' | 'projects' | 'shared' | 'recent' | 'pricing' | 'integrations') => void;
   session: any | null;
   onLogin: () => void;
   onLogout: () => void;
@@ -93,6 +93,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
             <NavItem view="projects" icon={<ProjectsIcon className="w-5 h-5" />} label="Meus Projetos" onClick={isLoggedIn ? undefined : onLogin} />
             <NavItem view="shared" icon={<UsersIcon className="w-5 h-5" />} label="Compartilhados" onClick={isLoggedIn ? undefined : onLogin} />
             <NavItem view="recent" icon={<ClockIcon className="w-5 h-5" />} label="Recentes" onClick={isLoggedIn ? undefined : onLogin} />
+            <NavItem view="integrations" icon={<CubeIcon className="w-5 h-5" />} label="Integrações" />
             
             <div className="h-px bg-gray-200 dark:bg-[#27272a] mx-4 my-2 opacity-50"></div>
             

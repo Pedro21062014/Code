@@ -24,14 +24,6 @@ interface WelcomeScreenProps {
   onThemeChange: (theme: Theme) => void;
 }
 
-// Ensure these IDs match available models or generic ones that route correctly
-const FEATURED_MODEL_IDS = [
-  'gemini-3-flash-preview',
-  'gemini-3-pro-preview',
-  'google/gemini-2.0-flash-exp:free', // OpenRouter style
-  'openai/gpt-4o'
-];
-
 const getFileLanguage = (fileName: string): string => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     switch (extension) {
@@ -220,7 +212,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const isLoggedIn = !!session?.user;
   const selectedModelObj = availableModels.find(m => m.id === selectedModel) || { name: selectedModel, id: selectedModel };
 
-  // Prioritize Gemini models in the featured list to ensure good first experience
   const allFilteredModels = availableModels.filter(m => 
       m.name.toLowerCase().includes(modelSearch.toLowerCase()) || 
       m.id.toLowerCase().includes(modelSearch.toLowerCase())
@@ -256,7 +247,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-4 pb-12 w-full max-w-5xl mx-auto h-full">
         
         {/* Hero Text */}
-        <div className="mb-8 md:mb-12 text-center animate-slideInUp">
+        <div className="mb-8 md:mb-12 text-center">
             <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-gray-900 dark:text-white mb-2 px-4">
                 {isLoggedIn ? `Hora de lançar, ${userName}` : 'Faça login para continuar'}
             </h1>
@@ -266,7 +257,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </div>
 
         {/* Main Input Area */}
-        <div className="w-full max-w-3xl animate-slideInUp" style={{ animationDelay: '100ms' }}>
+        <div className="w-full max-w-3xl">
             <div className="relative group rounded-2xl md:rounded-3xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] shadow-2xl transition-all focus-within:ring-1 focus-within:ring-blue-500/20 focus-within:border-blue-500/30">
                 <textarea
                     value={prompt}
@@ -335,7 +326,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             </button>
 
                             {isModelDropdownOpen && (
-                                <div className="absolute bottom-full mb-2 right-0 w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn flex flex-col">
+                                <div className="absolute bottom-full mb-2 right-0 w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 flex flex-col">
                                     
                                     {showAllModels && (
                                         <div className="p-2 border-b border-gray-200 dark:border-[#27272a]">
@@ -405,7 +396,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </div>
 
         {/* Bottom Cards */}
-        <div className="w-full max-w-3xl mt-12 md:mt-16 animate-slideInUp px-2" style={{ animationDelay: '200ms' }}>
+        <div className="w-full max-w-3xl mt-12 md:mt-16 px-2">
             <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                 <div className="flex gap-2 md:gap-4 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
                     {isLoggedIn && (

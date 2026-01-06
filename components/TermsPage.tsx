@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AppLogo } from './Icons';
 
 interface TermsPageProps {
@@ -27,7 +27,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
 
       {/* Content */}
       <main className="pt-32 pb-20 px-6">
-        <div className="max-w-3xl mx-auto animate-fadeIn">
+        <div className="max-w-3xl mx-auto">
           <h1 className="text-4xl font-bold mb-2 tracking-tight text-gray-900 dark:text-white">Termos de Uso</h1>
           <p className="text-gray-500 dark:text-gray-500 mb-12 text-sm">Última atualização: {new Date().toLocaleDateString('pt-BR')}</p>
 

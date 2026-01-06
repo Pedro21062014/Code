@@ -58,6 +58,18 @@ export const DeepSeekIcon = ({ className = "w-5 h-5" }: IconProps) => (
     </svg>
 );
 
+export const DriveIcon = ({ className = "w-5 h-5" }: IconProps) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8.228 12.915L5.657 17.371H18.343L20.914 12.915H8.228ZM6.8 19.371H19.2L12 6.857L6.8 19.371ZM13.143 4.886L22.628 21.371H1.371L13.143 4.886Z" fill="currentColor" fillOpacity="0"/>
+        <path d="M8.66663 12.6667L5.3333 18.4389H18.6666L21.9999 12.6667H8.66663Z" fill="#0066DA"/>
+        <path d="M13.3333 4.58331L18.6666 12.6666L12 24.2178L6.66663 16.1344L13.3333 4.58331Z" fill="#00AC47"/>
+        <path d="M21.9999 12.6667L15.3333 24.2178H1.99993L8.66659 12.6667H21.9999Z" fill="#EA4335"/>
+        <path d="M13.3333 4.58331L6.66663 16.1344L2.00002 12.6666L10.3889 4.58331H13.3333Z" fill="#00832D"/>
+        <path d="M21.9999 12.6667H8.66663L5.3333 18.4389L6.66663 16.1344L18.6666 12.6667H21.9999Z" fill="#2684FC"/>
+        <path d="M12 24.2178L18.6666 12.6666L15.3333 24.2178H12Z" fill="#FFBA00"/>
+    </svg>
+);
+
 export const LinkedInIcon = ({ className = "w-5 h-5" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
         <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
