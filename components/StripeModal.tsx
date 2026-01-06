@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CloseIcon, StripeIcon } from './Icons';
 import { UserSettings } from '../types';
@@ -36,36 +37,36 @@ export const StripeModal: React.FC<StripeModalProps> = ({ isOpen, onClose, setti
       onClick={onClose}
     >
       <div 
-        className="bg-[#18181b] rounded-lg shadow-xl w-full max-w-lg p-6 border border-[#27272a] animate-slideInUp"
+        className="bg-white dark:bg-[#18181b] rounded-lg shadow-xl w-full max-w-lg p-6 border border-gray-200 dark:border-[#27272a] animate-slideInUp transition-colors"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <StripeIcon /> Gerenciar Integração Stripe
           </h2>
-          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-[#27272a] hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-[#27272a] hover:text-black dark:hover:text-white transition-colors">
             <CloseIcon />
           </button>
         </div>
         
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
           Forneça suas chaves de API do Stripe para permitir que a IA gere funcionalidades de pagamento. Você pode encontrá-las em seu Painel do Stripe para Desenvolvedores &gt; Chaves de API.
         </p>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-white mb-1">Chave Publicável</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-white mb-1">Chave Publicável</label>
             <input
               type="text"
               value={publicKey}
               onChange={(e) => setPublicKey(e.target.value)}
               placeholder="pk_test_..."
-              className="w-full p-2 bg-[#27272a] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/50"
+              className="w-full p-2 bg-gray-50 dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] rounded-md text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/50"
             />
           </div>
-           <div className="p-3 bg-red-900/50 border border-red-700/50 rounded-lg">
-            <label className="block text-sm font-medium text-red-200 mb-1">Chave Secreta</label>
-             <p className="text-xs text-red-300/80 mb-2">
+           <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700/50 rounded-lg">
+            <label className="block text-sm font-medium text-red-600 dark:text-red-200 mb-1">Chave Secreta</label>
+             <p className="text-xs text-red-500 dark:text-red-300/80 mb-2">
                 Esta chave concede acesso total à sua conta Stripe. Manuseie com cuidado. Ela será armazenada com segurança em seu perfil.
             </p>
             <input
@@ -73,7 +74,7 @@ export const StripeModal: React.FC<StripeModalProps> = ({ isOpen, onClose, setti
               value={secretKey}
               onChange={(e) => setSecretKey(e.target.value)}
               placeholder="sk_test_..."
-              className="w-full p-2 bg-[#121214] border border-[#27272a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              className="w-full p-2 bg-white dark:bg-[#121214] border border-red-200 dark:border-[#27272a] rounded-md text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
             />
           </div>
         </div>
@@ -81,7 +82,7 @@ export const StripeModal: React.FC<StripeModalProps> = ({ isOpen, onClose, setti
         <div className="mt-6 flex justify-end">
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-md text-sm font-medium text-white bg-[#635BFF] hover:opacity-90 focus:outline-none flex items-center gap-2"
+            className="px-4 py-2 rounded-md text-sm font-medium text-white bg-[#635BFF] hover:opacity-90 focus:outline-none flex items-center gap-2 shadow-lg"
           >
             Salvar Chaves do Stripe
           </button>

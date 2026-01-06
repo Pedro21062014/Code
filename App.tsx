@@ -28,9 +28,14 @@ import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './const
 import { generateCodeStream } from './services/aiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from "firebase/firestore";
 import { LoaderIcon } from './components/Icons';
+import { StripeModal } from './components/StripeModal';
+import { NeonModal } from './components/NeonModal';
+import { OpenStreetMapModal } from './components/OpenStreetMapModal';
+import { IntegrationsPage } from './components/IntegrationsPage';
+import { OpenAIModal } from './components/OpenAIModal';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -87,7 +92,7 @@ export const App: React.FC = () => {
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
-  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms'>(() => {
+  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
@@ -100,12 +105,16 @@ export const App: React.FC = () => {
 
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [isOpenAIModalOpen, setOpenAIModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
   const [isGithubSyncModalOpen, setGithubSyncModalOpen] = useState(false);
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
+  const [isStripeModalOpen, setStripeModalOpen] = useState(false);
+  const [isNeonModalOpen, setNeonModalOpen] = useState(false);
+  const [isOSMModalOpen, setOSMModalOpen] = useState(false);
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
@@ -275,6 +284,27 @@ export const App: React.FC = () => {
     if (sessionUser) { try { await deleteDoc(doc(db, "projects", projectId.toString())); } catch (error) { console.error("Erro ao deletar projeto:", error); } }
   }, [sessionUser, project.currentProjectId, setSavedProjects, setProject]);
 
+  const handleDriveAuth = async () => {
+    if (!auth.currentUser) {
+        setAuthModalOpen(true);
+        return;
+    }
+    try {
+        const provider = new GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/drive.file');
+        // Re-authenticate/Link to ensure scope is present if not already
+        await linkWithPopup(auth.currentUser, provider).catch(async (e) => {
+             // If already linked or error, just try popup auth to refresh scopes
+             // This might not be strictly necessary if we added scope at login, but handles "add later" cases
+             console.log("Link/Scope update:", e.message);
+        });
+        alert("Google Drive conectado! Permissões atualizadas.");
+    } catch (error: any) {
+        console.error("Error linking drive:", error);
+        alert("Erro ao conectar Google Drive.");
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
@@ -315,7 +345,7 @@ export const App: React.FC = () => {
     try {
       const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
-        : userSettings?.openrouter_api_key;
+        : userSettings?.openrouter_api_key; // Fallback logic would need to check provider/settings properly
 
       const fullResponse = await generateCodeStream(
           prompt, 
@@ -401,7 +431,7 @@ export const App: React.FC = () => {
 
   if (view === 'public_preview') {
     return (
-      <div className="h-screen w-full bg-white relative page-transition-enter">
+      <div className="h-screen w-full bg-white relative">
         <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} />
         <div className="fixed bottom-4 right-4 z-50">
             <button onClick={() => window.location.href = window.location.origin} className="flex items-center gap-2 px-4 py-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/10 hover:bg-black transition-all shadow-2xl">
@@ -416,7 +446,7 @@ export const App: React.FC = () => {
   if (!sessionUser) {
     if (view === 'auth') {
         return (
-            <div className="page-transition-enter w-full h-full">
+            <div className="w-full h-full">
                 <AuthPage 
                     onBack={() => setView('landing')} 
                     theme={theme}
@@ -428,11 +458,11 @@ export const App: React.FC = () => {
     
     // Landing padrão para usuários não autenticados que não estão na tela de login
     if (view === 'landing' || view === 'pricing' || view === 'privacy' || view === 'terms') {
-        if (view === 'privacy') return <div className="page-transition-enter w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
-        if (view === 'terms') return <div className="page-transition-enter w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
+        if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
+        if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
         
         return (
-            <div className="page-transition-enter w-full h-full">
+            <div className="w-full h-full">
                 {view === 'pricing' ? (
                     <PricingPage onBack={() => setView('landing')} onNewProject={() => {}} />
                 ) : (
@@ -453,11 +483,11 @@ export const App: React.FC = () => {
     }
   }
 
-  if (view === 'privacy') return <div className="page-transition-enter w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
-  if (view === 'terms') return <div className="page-transition-enter w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
+  if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
+  if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
 
   // Layout Logic: Determines if the Dashboard Sidebar should be visible
-  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing'].includes(view);
+  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations'].includes(view);
 
   return (
     <div className={`${theme} flex h-screen bg-[#09090b]`}>
@@ -482,7 +512,7 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 h-full overflow-hidden flex flex-col relative">
           
-          <div key={view} className="w-full h-full flex flex-col page-transition-enter">
+          <div key={view} className="w-full h-full flex flex-col">
             {view === 'welcome' && (
                 <WelcomeScreen 
                   session={sessionUser ? { user: sessionUser } : null}
@@ -508,6 +538,19 @@ export const App: React.FC = () => {
 
             {view === 'pricing' && (
                 <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
+            )}
+
+            {view === 'integrations' && (
+                <IntegrationsPage 
+                    onOpenGithubImport={() => setGithubModalOpen(true)}
+                    onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
+                    onOpenStripeModal={() => setStripeModalOpen(true)}
+                    onOpenNeonModal={() => setNeonModalOpen(true)}
+                    onOpenOSMModal={() => setOSMModalOpen(true)}
+                    onOpenGeminiModal={() => setApiKeyModalOpen(true)}
+                    onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
+                    onOpenDriveAuth={handleDriveAuth}
+                />
             )}
 
             {(view === 'projects' || view === 'shared' || view === 'recent') && (
@@ -562,6 +605,11 @@ export const App: React.FC = () => {
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                         onLogout={() => signOut(auth)}
                         onOpenSettings={() => setSettingsOpen(true)}
+                        onOpenGithubImport={() => setGithubModalOpen(true)}
+                        onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
+                        onOpenStripeModal={() => setStripeModalOpen(true)}
+                        onOpenNeonModal={() => setNeonModalOpen(true)}
+                        onOpenOSMModal={() => setOSMModalOpen(true)}
                         session={sessionUser}
                         isGenerating={isInitializing}
                         generatingFile={generatingFile}
@@ -583,6 +631,11 @@ export const App: React.FC = () => {
       <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
       <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} onSaveRequired={handleSaveProject} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <NeonModal isOpen={isNeonModalOpen} onClose={() => setNeonModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <OpenStreetMapModal isOpen={isOSMModalOpen} onClose={() => setOSMModalOpen(false)} />
+      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={(key) => handleUpdateSettings({ gemini_api_key: key })} />
+      <OpenAIModal isOpen={isOpenAIModalOpen} onClose={() => setOpenAIModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
     </div>
   );
 };

@@ -65,6 +65,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
     setError(null);
     try {
         const provider = new GoogleAuthProvider();
+        // Add Drive Scope
+        provider.addScope('https://www.googleapis.com/auth/drive.file');
         await signInWithPopup(auth, provider);
     } catch (err: any) {
       setError(err.message);
@@ -73,7 +75,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-[#09090b] text-gray-900 dark:text-white flex animate-fadeIn transition-colors duration-300">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-[#09090b] text-gray-900 dark:text-white flex transition-colors duration-300">
       
       {/* Lado Esquerdo - Formulário */}
       <div className="w-full lg:w-1/2 flex flex-col p-8 lg:p-12 relative z-10">
@@ -156,7 +158,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
 
                 {/* Checkbox Termos (Apenas Registro) */}
                 {!isLoginView && (
-                    <div className="flex items-start gap-3 py-1 animate-fadeIn">
+                    <div className="flex items-start gap-3 py-1">
                         <div className="flex items-center h-5">
                             <input
                                 id="terms"
@@ -173,7 +175,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
                 )}
                 
                 {error && (
-                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2 animate-fadeIn">
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
                         <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         <span>{error}</span>
                     </div>
@@ -225,7 +227,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
          <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-500/10 dark:bg-purple-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
          
          <div className="relative z-10 p-12 max-w-lg">
-            <div className="bg-white/60 dark:bg-[#121214]/50 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-2xl animate-slideInUp">
+            <div className="bg-white/60 dark:bg-[#121214]/50 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
                     <SparklesIcon className="w-6 h-6 text-white" />
                 </div>

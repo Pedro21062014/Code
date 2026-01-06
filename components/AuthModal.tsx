@@ -63,6 +63,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setError(null);
     try {
         const provider = new GoogleAuthProvider();
+        // Add Google Drive scope
+        provider.addScope('https://www.googleapis.com/auth/drive.file');
         await signInWithPopup(auth, provider);
         onClose();
     } catch (err: any) {
