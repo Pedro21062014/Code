@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { auth } from '../services/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { AppLogo, GoogleIcon, SparklesIcon, SunIcon, MoonIcon } from './Icons';
+import { auth, db } from '../services/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { AppLogo, GoogleIcon, GithubIcon, SparklesIcon, SunIcon, MoonIcon } from './Icons';
 import { Theme } from '../types';
 
 interface AuthPageProps {
@@ -74,6 +75,39 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
     }
   };
 
+  const handleGithubLogin = async () => {
+    if (!isLoginView && !termsAccepted) {
+        setError("Você precisa aceitar os Termos de Uso para continuar.");
+        return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+        const provider = new GithubAuthProvider();
+        // Solicita escopo de repositório para permitir sincronização automática
+        provider.addScope('repo');
+        
+        const result = await signInWithPopup(auth, provider);
+        
+        // Extrai o token de acesso
+        const credential = GithubAuthProvider.credentialFromResult(result);
+        const token = credential?.accessToken;
+
+        if (token && result.user) {
+            // Salva o token no banco de dados para ser usado pelas integrações
+            await setDoc(doc(db, "users", result.user.uid), {
+                github_access_token: token,
+                email: result.user.email
+            }, { merge: true });
+        }
+        // App.tsx redirecionará automaticamente
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-[#09090b] text-gray-900 dark:text-white flex transition-colors duration-300">
       
@@ -109,16 +143,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
                 </p>
             </div>
 
-            {/* Google Button */}
-            <button 
-                type="button" 
-                onClick={handleGoogleLogin} 
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white dark:bg-white text-gray-900 font-semibold rounded-xl border border-gray-200 dark:border-transparent hover:bg-gray-50 dark:hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait mb-6 shadow-sm"
-            >
-                <GoogleIcon className="w-5 h-5" />
-                <span>{isLoginView ? 'Entrar com Google' : 'Registrar com Google'}</span>
-            </button>
+            {/* Social Buttons */}
+            <div className="flex flex-col gap-3 mb-6">
+                <button 
+                    type="button" 
+                    onClick={handleGoogleLogin} 
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white dark:bg-white text-gray-900 font-semibold rounded-xl border border-gray-200 dark:border-transparent hover:bg-gray-50 dark:hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait shadow-sm"
+                >
+                    <GoogleIcon className="w-5 h-5" />
+                    <span>{isLoginView ? 'Entrar com Google' : 'Registrar com Google'}</span>
+                </button>
+
+                <button 
+                    type="button" 
+                    onClick={handleGithubLogin} 
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[#24292e] text-white font-semibold rounded-xl border border-transparent hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait shadow-sm"
+                >
+                    <GithubIcon className="w-5 h-5 text-white" />
+                    <span>{isLoginView ? 'Entrar com GitHub' : 'Registrar com GitHub'}</span>
+                </button>
+            </div>
 
             <div className="relative mb-6">
                 <div className="absolute inset-0 flex items-center">

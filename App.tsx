@@ -293,7 +293,7 @@ export const App: React.FC = () => {
         const provider = new GoogleAuthProvider();
         provider.addScope('https://www.googleapis.com/auth/drive.file');
         // Re-authenticate/Link to ensure scope is present if not already
-        await linkWithPopup(auth.currentUser, provider).catch(async (e) => {
+        await linkWithPopup(auth.currentUser, provider).catch(async (e: any) => {
              // If already linked or error, just try popup auth to refresh scopes
              // This might not be strictly necessary if we added scope at login, but handles "add later" cases
              console.log("Link/Scope update:", e.message);
@@ -605,11 +605,6 @@ export const App: React.FC = () => {
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                         onLogout={() => signOut(auth)}
                         onOpenSettings={() => setSettingsOpen(true)}
-                        onOpenGithubImport={() => setGithubModalOpen(true)}
-                        onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
-                        onOpenStripeModal={() => setStripeModalOpen(true)}
-                        onOpenNeonModal={() => setNeonModalOpen(true)}
-                        onOpenOSMModal={() => setOSMModalOpen(true)}
                         session={sessionUser}
                         isGenerating={isInitializing}
                         generatingFile={generatingFile}
