@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { auth } from '../services/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { CloseIcon, AppLogo, GoogleIcon } from './Icons';
+import { auth, db } from '../services/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { CloseIcon, AppLogo, GoogleIcon, GithubIcon } from './Icons';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -66,6 +67,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         // Add Google Drive scope
         provider.addScope('https://www.googleapis.com/auth/drive.file');
         await signInWithPopup(auth, provider);
+        onClose();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleGithubLogin = async () => {
+    if (!isLoginView && !termsAccepted) {
+        setError("Você precisa aceitar os termos.");
+        return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+        const provider = new GithubAuthProvider();
+        // Solicita acesso aos repositórios para que o sync funcione automaticamente
+        provider.addScope('repo');
+        
+        const result = await signInWithPopup(auth, provider);
+        
+        // Captura o token de acesso do GitHub
+        const credential = GithubAuthProvider.credentialFromResult(result);
+        const token = credential?.accessToken;
+
+        if (token && result.user) {
+            // Salva o token no perfil do usuário para uso no GithubSyncModal e GithubImportModal
+            await setDoc(doc(db, "users", result.user.uid), {
+                github_access_token: token,
+                email: result.user.email
+            }, { merge: true });
+        }
+
         onClose();
     } catch (err: any) {
       setError(err.message);
@@ -156,16 +192,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        <button 
-          type="button" 
-          onClick={handleGoogleLogin} 
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-[#3f3f46] transition-colors disabled:opacity-50"
-        >
-          <GoogleIcon />
-          <span className="text-sm">Continuar com Google</span>
-        </button>
+        <div className="flex flex-col gap-3">
+            <button 
+              type="button" 
+              onClick={handleGoogleLogin} 
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-[#27272a] border border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-[#3f3f46] transition-colors disabled:opacity-50"
+            >
+              <GoogleIcon />
+              <span className="text-sm">Continuar com Google</span>
+            </button>
 
+            <button 
+              type="button" 
+              onClick={handleGithubLogin} 
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-[#24292e] dark:bg-[#24292e] border border-transparent text-white font-semibold rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
+            >
+              <GithubIcon className="w-5 h-5 text-white" />
+              <span className="text-sm">Continuar com GitHub</span>
+            </button>
+        </div>
 
          <div className="mt-6 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
