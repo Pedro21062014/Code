@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { AppLogo, GoogleIcon, GithubIcon, SparklesIcon, SunIcon, MoonIcon } from './Icons';
+import { AppLogo, GoogleIcon, GithubIcon, SunIcon, MoonIcon } from './Icons';
 import { Theme } from '../types';
 import Turnstile from 'react-turnstile';
 
@@ -301,9 +301,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
          
          <div className="relative z-10 p-12 max-w-lg">
             <div className="bg-white/60 dark:bg-[#121214]/50 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-2xl">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
-                    <SparklesIcon className="w-6 h-6 text-white" />
-                </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
                     "Transforme suas ideias em aplicações reais na velocidade do pensamento."
                 </h2>
