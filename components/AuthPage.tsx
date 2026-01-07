@@ -241,7 +241,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
                     <div className="flex justify-center my-2">
                         <Turnstile
                             sitekey="0x4AAAAAAACLHAa5iRa3ivhDh"
-                            onVerify={(token) => setCaptchaToken(token)}
+                            onVerify={(token: string) => setCaptchaToken(token)}
                             theme={theme}
                         />
                     </div>
