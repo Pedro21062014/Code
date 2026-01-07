@@ -42,7 +42,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
     return (
       <div className="group relative flex justify-center w-full">
         {children}
-        <span className="absolute left-14 p-2 text-xs w-max max-w-xs bg-black text-white rounded-md scale-0 transition-all group-hover:scale-100 origin-left z-50 shadow-lg border border-gray-800 font-medium pointer-events-none">
+        <span className="absolute left-14 p-2 text-xs w-max max-w-xs bg-black text-white rounded-md scale-0 transition-all group-hover:scale-100 origin-left z-50 shadow-lg border border-gray-800 font-medium pointer-events-none font-sans">
           {text}
         </span>
       </div>
@@ -59,7 +59,7 @@ const ContextMenu: React.FC<{
         <div className="fixed inset-0 z-50" onClick={onClose}>
             <div
                 style={{ top: y, left: x }}
-                className="absolute bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl w-48 py-1.5 text-sm"
+                className="absolute bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl w-48 py-1.5 text-xs font-sans"
                 onClick={(e) => e.stopPropagation()}
             >
                 {actions.map((action, index) => (
@@ -157,11 +157,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => toggleFolder(node.path)}
               onContextMenu={(e) => handleContextMenu(e, node.path, true)}
-              className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-400 hover:text-gray-200 hover:bg-[#18181b] rounded-md transition-colors group"
+              className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-gray-400 hover:text-gray-200 hover:bg-[#18181b] rounded-md transition-colors group font-sans"
               style={{ paddingLeft: `${(level * 12) + 8}px` }}
             >
               <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`} />
-              <FolderIcon className="w-4 h-4 opacity-60" />
+              <FolderIcon className="w-3.5 h-3.5 opacity-60" />
               <span className="truncate">{node.name}</span>
             </button>
             {isOpen && node.children && (
@@ -178,22 +178,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           key={node.path}
           onClick={() => !isGenerating && onFileSelect(node.path)}
           onContextMenu={(e) => handleContextMenu(e, node.path, false)}
-          className={`flex items-center gap-2.5 px-2 py-1.5 text-sm rounded-md transition-all border border-transparent ${
-            isSelected ? 'bg-[#27272a] text-white border-[#3f3f46]' : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'
+          className={`flex items-center gap-2.5 px-2 py-1.5 text-[11px] rounded-md transition-all border border-transparent font-sans ${
+            isSelected 
+            ? 'bg-[#27272a] text-white border-[#3f3f46]' 
+            : 'text-gray-400 hover:bg-[#18181b] hover:text-gray-200'
           }`}
           style={{ paddingLeft: `${(level * 12) + 24}px` }}
         >
-          <FileIcon className="w-4 h-4 opacity-60 flex-shrink-0" />
+          <FileIcon className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
           <span className="truncate flex-1 text-left">{node.name}</span>
-          {isBeingGenerated && <LoaderIcon className="w-3.5 h-3.5 animate-spin text-blue-400" />}
-          {isCompleted && <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />}
+          {isBeingGenerated && <LoaderIcon className="w-3 h-3 animate-spin text-blue-400" />}
+          {isCompleted && <CheckCircleIcon className="w-3 h-3 text-green-500" />}
         </button>
       );
     });
   };
 
   return (
-    <div className="bg-[#09090b] flex h-full border-r border-[#27272a] select-none w-full">
+    <div className="bg-[#09090b] flex h-full border-r border-[#27272a] select-none w-full font-sans">
         {/* Activity Bar (Icons Left) */}
         <div className="w-[60px] flex flex-col items-center py-4 gap-6 border-r border-[#27272a] bg-[#09090b] flex-shrink-0 z-10">
             <div className="mb-2 relative">
@@ -220,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Sidebar Content (Expandable) */}
         <div className="flex-1 bg-[#121214] flex flex-col h-full overflow-hidden">
             <div className="h-14 flex items-center justify-between px-4 border-b border-[#27272a] flex-shrink-0 bg-[#121214]">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                     {activeTab === 'files' ? 'Explorer' : activeTab === 'environment' ? 'Environment' : 'Integrations'}
                 </span>
                 {onClose && <button onClick={onClose} className="p-1 rounded text-gray-500 hover:text-white"><CloseIcon /></button>}
@@ -239,23 +241,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 )}
 
-                {/* INTEGRATIONS TAB */}
+                {/* INTEGRATIONS TAB - REDESIGNED */}
                 {activeTab === 'integrations' && (
-                    <div className="p-4 space-y-4">
-                        <div className="text-xs text-gray-500 mb-2">Conecte-se a serviços externos para turbinar seu projeto.</div>
+                    <div className="p-2 space-y-1">
+                        <div className="text-[10px] font-bold text-gray-500 mb-2 px-2 uppercase tracking-widest opacity-50 pt-2">Conectores</div>
                         {[
-                            { icon: <GithubIcon />, title: "GitHub", desc: "Sincronize repositórios", onClick: onOpenGithubImport, color: "hover:border-white/40" },
-                            { icon: <SupabaseIcon />, title: "Supabase", desc: "Database & Auth", onClick: onOpenSupabaseAdmin, color: "hover:border-green-500/50" },
-                            { icon: <StripeIcon />, title: "Stripe", desc: "Pagamentos", onClick: onOpenStripeModal, color: "hover:border-indigo-500/50" },
-                            { icon: <DatabaseIcon />, title: "Neon", desc: "Postgres Serverless", onClick: onOpenNeonModal, color: "hover:border-emerald-500/50" },
-                            { icon: <MapIcon />, title: "OpenStreetMap", desc: "Mapas Interativos", onClick: onOpenOSMModal, color: "hover:border-blue-500/50" },
+                            { icon: <GithubIcon className="w-4 h-4"/>, title: "GitHub", desc: "Sync & Deploy", onClick: onOpenGithubImport },
+                            { icon: <SupabaseIcon className="w-4 h-4 text-emerald-500"/>, title: "Supabase", desc: "Database", onClick: onOpenSupabaseAdmin },
+                            { icon: <StripeIcon className="w-4 h-4 text-indigo-500"/>, title: "Stripe", desc: "Payments", onClick: onOpenStripeModal },
+                            { icon: <DatabaseIcon className="w-4 h-4 text-green-400"/>, title: "Neon", desc: "Postgres", onClick: onOpenNeonModal },
+                            { icon: <MapIcon className="w-4 h-4 text-blue-400"/>, title: "Maps", desc: "OpenStreetMap", onClick: onOpenOSMModal },
                         ].map((item, idx) => (
-                            <div key={idx} className={`bg-[#18181b] p-3 rounded-lg border border-[#27272a] transition-all group cursor-pointer ${item.color} hover:bg-[#202023] shadow-sm hover:shadow-md`} onClick={item.onClick}>
-                                <div className="flex items-center gap-2 mb-1 text-gray-200 group-hover:text-white">
-                                    <div className="p-1.5 bg-[#27272a] rounded-md">{item.icon}</div>
-                                    <h3 className="font-medium text-sm">{item.title}</h3>
+                            <div 
+                                key={idx} 
+                                className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#1a1a1c] cursor-pointer transition-colors group border border-transparent hover:border-[#27272a]" 
+                                onClick={item.onClick}
+                            >
+                                <div className="flex-shrink-0 text-gray-400 group-hover:text-white transition-colors">
+                                    {item.icon}
                                 </div>
-                                <p className="text-[11px] text-gray-500 pl-9 group-hover:text-gray-400">{item.desc}</p>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-xs font-medium text-gray-300 group-hover:text-white truncate">{item.title}</h3>
+                                    <p className="text-[10px] text-gray-500 truncate">{item.desc}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -310,19 +318,19 @@ const EnvironmentPanel: React.FC<{ vars: Record<string, string>, onSave: (vars: 
   
     return (
       <div className="p-3 space-y-3 flex flex-col h-full">
-        <div className="text-xs text-gray-500 mb-2 px-1">Variáveis de ambiente disponíveis para a aplicação (process.env).</div>
+        <div className="text-[10px] font-bold text-gray-500 mb-2 px-2 uppercase tracking-widest opacity-50">Variables</div>
         <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
             {localVars.map(([key, value], index) => (
             <div key={index} className="flex items-center gap-2 group">
-                <input type="text" placeholder="KEY" value={key} onChange={(e) => handleChange(index, 'key', e.target.value)} className="w-1/3 p-2 bg-[#18181b] border border-[#27272a] rounded text-gray-300 text-[11px] font-mono focus:outline-none focus:border-blue-500/50" />
-                <input type="password" placeholder="VALUE" value={value} onChange={(e) => handleChange(index, 'value', e.target.value)} className="w-full p-2 bg-[#18181b] border border-[#27272a] rounded text-gray-300 text-[11px] font-mono focus:outline-none focus:border-blue-500/50" />
+                <input type="text" placeholder="KEY" value={key} onChange={(e) => handleChange(index, 'key', e.target.value)} className="w-1/3 p-2 bg-[#18181b] border border-[#27272a] rounded text-gray-300 text-[10px] font-mono focus:outline-none focus:border-blue-500/50" />
+                <input type="password" placeholder="VALUE" value={value} onChange={(e) => handleChange(index, 'value', e.target.value)} className="w-full p-2 bg-[#18181b] border border-[#27272a] rounded text-gray-300 text-[10px] font-mono focus:outline-none focus:border-blue-500/50" />
                 <button onClick={() => handleRemove(index)} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded transition-all"><TrashIcon className="w-3.5 h-3.5" /></button>
             </div>
             ))}
             {localVars.length === 0 && <div className="text-center text-gray-600 text-xs py-4">Nenhuma variável definida.</div>}
         </div>
         <div className="flex-shrink-0 pt-3 border-t border-[#27272a] space-y-2 mt-auto">
-            <button onClick={handleAdd} className="w-full text-[11px] py-2 border border-dashed border-[#27272a] rounded text-gray-400 hover:text-white hover:border-gray-500 transition-colors">+ Add Variable</button>
+            <button onClick={handleAdd} className="w-full text-[10px] py-2 border border-dashed border-[#27272a] rounded text-gray-400 hover:text-white hover:border-gray-500 transition-colors">+ Add Variable</button>
             <button onClick={() => { onSave(localVars.reduce((acc, [k,v]) => (k ? (acc[k]=v,acc) : acc), {} as any)); setHasChanges(false); }} disabled={!hasChanges} className="w-full bg-white text-black text-[11px] font-bold py-2 rounded disabled:opacity-50 hover:bg-gray-200 transition-colors">Save Changes</button>
         </div>
       </div>
