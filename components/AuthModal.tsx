@@ -4,19 +4,23 @@ import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { CloseIcon, AppLogo, GoogleIcon, GithubIcon } from './Icons';
+import { Theme } from '../types';
+import Turnstile from 'react-turnstile';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  theme?: Theme;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = 'dark' }) => {
   const [isLoginView, setIsLoginView] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   // Apenas checkbox de termos
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -26,6 +30,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
     setError(null);
     setMessage(null);
+
+    if (!captchaToken) {
+        setError("Por favor, complete a verificação de segurança.");
+        setLoading(false);
+        return;
+    }
 
     if (!isLoginView && !termsAccepted) {
         setError("Você precisa aceitar os termos.");
@@ -55,6 +65,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
   
   const handleGoogleLogin = async () => {
+    if (!captchaToken) {
+        setError("Por favor, complete a verificação de segurança.");
+        return;
+    }
     if (!isLoginView && !termsAccepted) {
         setError("Você precisa aceitar os termos.");
         return;
@@ -76,6 +90,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleGithubLogin = async () => {
+    if (!captchaToken) {
+        setError("Por favor, complete a verificação de segurança.");
+        return;
+    }
     if (!isLoginView && !termsAccepted) {
         setError("Você precisa aceitar os termos.");
         return;
@@ -119,6 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setLoading(false);
         setIsLoginView(true);
         setTermsAccepted(false);
+        setCaptchaToken(null);
     }
   }, [isOpen]);
 
@@ -126,7 +145,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center animate-fadeIn" onClick={onClose}>
-      <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl w-full max-w-sm p-8 border border-gray-200 dark:border-[#27272a] animate-slideInUp relative transition-colors" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#18181b] rounded-2xl shadow-xl w-full max-w-sm p-8 border border-gray-200 dark:border-[#27272a] animate-slideInUp relative transition-colors max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
         <div className="flex justify-center flex-col items-center mb-6">
             <AppLogo className="w-10 h-10 text-black dark:text-white mb-2" />
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isLoginView ? 'Bem-vindo de volta' : 'Crie sua conta'}</h2>
@@ -175,6 +194,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </div>
             )}
             
+            <div className="flex justify-center my-2">
+                <Turnstile
+                    sitekey="0x4AAAAAAACLHAa5iRa3ivhDh"
+                    onVerify={(token) => setCaptchaToken(token)}
+                    theme={theme}
+                />
+            </div>
+
             {error && <p className="text-sm text-red-600 dark:text-red-400 text-center bg-red-50 dark:bg-red-900/10 p-2 rounded-lg border border-red-100 dark:border-red-900/20">{error}</p>}
             {message && <p className="text-sm text-green-600 dark:text-green-400 text-center">{message}</p>}
 
