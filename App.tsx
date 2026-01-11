@@ -36,6 +36,7 @@ import { NeonModal } from './components/NeonModal';
 import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { OpenAIModal } from './components/OpenAIModal';
+import { NetlifyModal } from './components/NetlifyModal';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -116,6 +117,7 @@ export const App: React.FC = () => {
   const [isStripeModalOpen, setStripeModalOpen] = useState(false);
   const [isNeonModalOpen, setNeonModalOpen] = useState(false);
   const [isOSMModalOpen, setOSMModalOpen] = useState(false);
+  const [isNetlifyModalOpen, setNetlifyModalOpen] = useState(false);
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
@@ -610,6 +612,7 @@ export const App: React.FC = () => {
                     onOpenGeminiModal={() => setApiKeyModalOpen(true)}
                     onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
                     onOpenDriveAuth={handleDriveAuth}
+                    onOpenNetlifyModal={() => setNetlifyModalOpen(true)}
                 />
             )}
 
@@ -695,13 +698,14 @@ export const App: React.FC = () => {
         projectName={projectName} 
         projectId={currentProjectId}
       />
-      <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} files={files} onSaveRequired={handleSaveProject} />
+      <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} files={files} onSaveRequired={handleSaveProject} netlifyToken={userSettings?.netlify_access_token} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <NeonModal isOpen={isNeonModalOpen} onClose={() => setNeonModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <OpenStreetMapModal isOpen={isOSMModalOpen} onClose={() => setOSMModalOpen(false)} />
       <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={(key) => handleUpdateSettings({ gemini_api_key: key })} />
       <OpenAIModal isOpen={isOpenAIModalOpen} onClose={() => setOpenAIModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <NetlifyModal isOpen={isNetlifyModalOpen} onClose={() => setNetlifyModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
     </div>
   );
 };
