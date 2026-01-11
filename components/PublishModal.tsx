@@ -17,9 +17,13 @@ interface PublishModalProps {
   netlifyToken?: string; // Token vindo das settings
   existingSiteId?: string; // ID do site já deployado
   onSaveToken?: (token: string) => void; // Nova prop para salvar o token
+  onProjectUpdate?: (projectId: number, updates: any) => void; // Callback para atualizar o estado local
 }
 
-export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onDownload, projectName, projectId, files = [], onSaveRequired, netlifyToken, existingSiteId, onSaveToken }) => {
+export const PublishModal: React.FC<PublishModalProps> = ({ 
+    isOpen, onClose, onDownload, projectName, projectId, files = [], 
+    onSaveRequired, netlifyToken, existingSiteId, onSaveToken, onProjectUpdate 
+}) => {
   const [deployStatus, setDeployStatus] = useState<'idle' | 'compressing' | 'uploading' | 'success' | 'error'>('idle');
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -90,18 +94,22 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
             onSaveToken(manualToken);
         }
 
-        // Atualizar o projeto no Firestore com a URL do deploy e o ID do Site para futuros updates
+        // Atualizar o projeto no Firestore E no estado local
         if (projectId && data.url) {
+            const updates = {
+                deployedUrl: data.url,
+                updated_at: new Date().toISOString(),
+                ...(data.siteId ? { netlifySiteId: data.siteId } : {})
+            };
+
+            // Atualiza estado local imediatamente (importante para redeploy funcionar sem recarregar)
+            if (onProjectUpdate) {
+                onProjectUpdate(projectId, updates);
+            }
+
             try {
                 const projectRef = doc(db, "projects", projectId.toString());
-                const updateData: any = {
-                    deployedUrl: data.url,
-                    updated_at: new Date().toISOString()
-                };
-                if (data.siteId) {
-                    updateData.netlifySiteId = data.siteId;
-                }
-                await updateDoc(projectRef, updateData);
+                await updateDoc(projectRef, updates);
             } catch (dbError) {
                 console.error("Erro ao salvar URL do deploy no banco:", dbError);
             }

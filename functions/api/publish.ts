@@ -24,9 +24,9 @@ export const onRequestPost = async (context: any) => {
     let siteId = existingSiteId;
     let siteUrl = "";
 
-    // 1. Verificar se o site existe ou criar um novo
+    // 1. Verificar se o site existe para atualização
     if (siteId) {
-        // Verifica se o site ainda existe/tem permissão
+        console.log(`Tentando atualizar site existente: ${siteId}`);
         const checkSite = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}` }
@@ -35,13 +35,16 @@ export const onRequestPost = async (context: any) => {
         if (checkSite.ok) {
             const siteInfo = await checkSite.json();
             siteUrl = siteInfo.ssl_url;
+            console.log(`Site encontrado: ${siteUrl}`);
         } else {
-            // Se o site não existir (ex: foi deletado), limpa o ID e cria um novo
-            siteId = null;
+            console.log("Site existente não encontrado ou sem permissão. Criando novo.");
+            siteId = null; // Reset para criar novo se falhar
         }
     }
 
+    // 2. Se não tem siteId (ou falhou ao encontrar), cria um novo
     if (!siteId) {
+        console.log("Criando novo site no Netlify...");
         const createSiteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
           method: 'POST',
           headers: {
@@ -65,7 +68,8 @@ export const onRequestPost = async (context: any) => {
         siteUrl = siteData.ssl_url;
     }
 
-    // 2. Fazer Deploy do ZIP
+    // 3. Fazer Deploy do ZIP
+    console.log(`Iniciando deploy para siteId: ${siteId}`);
     const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
       method: 'POST',
       headers: {
