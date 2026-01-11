@@ -29,7 +29,7 @@ import { generateCodeStream } from './services/aiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, orderBy } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, orderBy, increment, arrayRemove } from "firebase/firestore";
 import { LoaderIcon } from './components/Icons';
 import { StripeModal } from './components/StripeModal';
 import { NeonModal } from './components/NeonModal';
@@ -281,6 +281,9 @@ export const App: React.FC = () => {
     // Maintain existing gallery status if saving an existing project
     const existingProject = savedProjects.find(p => p.id === projectId);
     const isPublic = existingProject?.is_public_in_gallery || false;
+    const existingLikes = existingProject?.likes || 0;
+    const existingLikedBy = existingProject?.likedBy || [];
+    const existingSiteId = existingProject?.netlifySiteId; // Preserve siteId
 
     const projectData: SavedProject = {
       id: projectId,
@@ -291,6 +294,10 @@ export const App: React.FC = () => {
       files: files,
       chat_history: chatMessages,
       env_vars: envVars,
+      likes: existingLikes,
+      likedBy: existingLikedBy,
+      netlifySiteId: existingSiteId, // Persist
+      deployedUrl: existingProject?.deployedUrl, // Persist
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -340,6 +347,55 @@ export const App: React.FC = () => {
           } catch (error: any) { throw new Error(error.message); }
       }
   }, [currentProjectId, handleSaveProject]);
+
+  // Função para curtir projetos
+  const handleToggleLike = useCallback(async (projectId: number) => {
+      if (!sessionUser) {
+          setAuthModalOpen(true);
+          return;
+      }
+
+      // Check both lists
+      let targetProject = galleryProjects.find(p => p.id === projectId) || savedProjects.find(p => p.id === projectId);
+      
+      if (!targetProject) return;
+
+      const isLiked = targetProject.likedBy?.includes(sessionUser.uid);
+      const newLikesCount = (targetProject.likes || 0) + (isLiked ? -1 : 1);
+      
+      // Update Local State Optimistically
+      const updater = (prev: SavedProject[]) => prev.map(p => {
+          if (p.id === projectId) {
+              const currentLikedBy = p.likedBy || [];
+              const newLikedBy = isLiked 
+                  ? currentLikedBy.filter(id => id !== sessionUser.uid)
+                  : [...currentLikedBy, sessionUser.uid];
+              return { ...p, likes: Math.max(0, newLikesCount), likedBy: newLikedBy };
+          }
+          return p;
+      });
+
+      setGalleryProjects(updater);
+      setSavedProjects(updater);
+
+      try {
+          const projectRef = doc(db, "projects", projectId.toString());
+          if (isLiked) {
+              await updateDoc(projectRef, {
+                  likes: increment(-1),
+                  likedBy: arrayRemove(sessionUser.uid)
+              });
+          } else {
+              await updateDoc(projectRef, {
+                  likes: increment(1),
+                  likedBy: arrayUnion(sessionUser.uid)
+              });
+          }
+      } catch (error) {
+          console.error("Failed to toggle like:", error);
+          // Revert on error (could implement if needed, but keeping simple for now)
+      }
+  }, [sessionUser, galleryProjects, savedProjects]);
 
   const handleDeleteProject = useCallback(async (projectId: number) => {
     setSavedProjects(prev => prev.filter(p => p.id !== projectId));
@@ -553,6 +609,9 @@ export const App: React.FC = () => {
 
   const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations', 'gallery'].includes(view);
 
+  // Get existing site ID for current project
+  const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
+
   return (
     <div className={`${theme} flex h-screen bg-[#09090b]`}>
       <SaveSuccessAnimation isVisible={showSaveSuccess} />
@@ -631,6 +690,8 @@ export const App: React.FC = () => {
                     view === 'projects' ? 'Meus Projetos' : 
                     view === 'shared' ? 'Projetos Compartilhados' : 'Projetos Recentes'
                   }
+                  currentUserId={sessionUser?.uid}
+                  onLikeProject={handleToggleLike}
                   onLoadProject={handleLoadProject} 
                   onDeleteProject={handleDeleteProject} 
                   onBack={() => setView('welcome')} 
@@ -688,8 +749,26 @@ export const App: React.FC = () => {
       {/* Global Modals */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-      <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
-      <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} projectName={projectName} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
+      
+      <GithubImportModal 
+        isOpen={isGithubModalOpen} 
+        onClose={() => setGithubModalOpen(false)} 
+        onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} 
+        githubToken={userSettings?.github_access_token} 
+        onOpenSettings={() => setSettingsOpen(true)} 
+        onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
+      />
+      
+      <GithubSyncModal 
+        isOpen={isGithubSyncModalOpen} 
+        onClose={() => setGithubSyncModalOpen(false)} 
+        files={files} 
+        projectName={projectName} 
+        githubToken={userSettings?.github_access_token} 
+        onOpenSettings={() => setSettingsOpen(true)} 
+        onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
+      />
+      
       <ShareModal 
         isOpen={isShareModalOpen} 
         onClose={() => setShareModalOpen(false)} 
@@ -698,7 +777,20 @@ export const App: React.FC = () => {
         projectName={projectName} 
         projectId={currentProjectId}
       />
-      <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} files={files} onSaveRequired={handleSaveProject} netlifyToken={userSettings?.netlify_access_token} />
+      
+      <PublishModal 
+        isOpen={isPublishModalOpen} 
+        onClose={() => setPublishModalOpen(false)} 
+        onDownload={() => downloadProjectAsZip(files, projectName)} 
+        projectName={projectName} 
+        projectId={currentProjectId} 
+        files={files} 
+        onSaveRequired={handleSaveProject} 
+        netlifyToken={userSettings?.netlify_access_token} 
+        existingSiteId={currentSavedProject?.netlifySiteId}
+        onSaveToken={(token) => handleUpdateSettings({ netlify_access_token: token })}
+      />
+      
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <NeonModal isOpen={isNeonModalOpen} onClose={() => setNeonModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />

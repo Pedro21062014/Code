@@ -15,10 +15,12 @@ interface PublishModalProps {
   files?: ProjectFile[];
   onSaveRequired: () => Promise<void>;
   netlifyToken?: string; // Token vindo das settings
+  existingSiteId?: string; // ID do site já deployado
+  onSaveToken?: (token: string) => void; // Nova prop para salvar o token
 }
 
-export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onDownload, projectName, projectId, files = [], onSaveRequired, netlifyToken }) => {
-  const [deployStatus, setDeployStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle');
+export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onDownload, projectName, projectId, files = [], onSaveRequired, netlifyToken, existingSiteId, onSaveToken }) => {
+  const [deployStatus, setDeployStatus] = useState<'idle' | 'compressing' | 'uploading' | 'success' | 'error'>('idle');
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTarget, setActiveTarget] = useState<'netlify' | 'cloudflare' | 'codegen' | null>(null);
@@ -45,21 +47,32 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
         return;
     }
 
-    setDeployStatus('deploying');
     setErrorMessage(null);
 
     try {
         if (!projectId) await onSaveRequired();
         
+        setDeployStatus('compressing');
+        // Pequeno delay para a UI atualizar
+        await new Promise(r => setTimeout(r, 100));
+
         const zipBlob = await createProjectZip(files);
         const arrayBuffer = await zipBlob.arrayBuffer();
 
+        setDeployStatus('uploading');
+
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/zip',
+            'X-Netlify-Token': tokenToUse
+        };
+
+        if (existingSiteId) {
+            headers['X-Netlify-Site-Id'] = existingSiteId;
+        }
+
         const response = await fetch('/api/publish', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/zip',
-                'X-Netlify-Token': tokenToUse
-            },
+            headers: headers,
             body: arrayBuffer
         });
 
@@ -72,14 +85,23 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
         setDeployUrl(data.url);
         setDeployStatus('success');
 
-        // Atualizar o projeto no Firestore com a URL do deploy
+        // Se o deploy foi bem sucedido e usamos um token manual, salvamos ele no perfil do usuário
+        if (manualToken && onSaveToken) {
+            onSaveToken(manualToken);
+        }
+
+        // Atualizar o projeto no Firestore com a URL do deploy e o ID do Site para futuros updates
         if (projectId && data.url) {
             try {
                 const projectRef = doc(db, "projects", projectId.toString());
-                await updateDoc(projectRef, {
+                const updateData: any = {
                     deployedUrl: data.url,
                     updated_at: new Date().toISOString()
-                });
+                };
+                if (data.siteId) {
+                    updateData.netlifySiteId = data.siteId;
+                }
+                await updateDoc(projectRef, updateData);
             } catch (dbError) {
                 console.error("Erro ao salvar URL do deploy no banco:", dbError);
             }
@@ -97,6 +119,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
       alert("Para publicar no Cloudflare Pages: \n1. O ZIP do projeto foi baixado.\n2. Vá para dash.cloudflare.com > Pages > Upload Assets.");
       onClose();
   };
+
+  const isLoading = deployStatus === 'compressing' || deployStatus === 'uploading';
 
   return (
      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
@@ -143,22 +167,24 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Option 1: Netlify */}
                         <button 
-                            onClick={() => setActiveTarget('netlify')}
-                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${activeTarget === 'netlify' ? 'bg-[#1a1a1c] border-[#00C7B7]' : 'bg-[#121214] border-[#27272a] hover:border-[#00C7B7]/50 hover:bg-[#1a1a1c]'}`}
+                            onClick={() => !isLoading && setActiveTarget('netlify')}
+                            disabled={isLoading}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${activeTarget === 'netlify' ? 'bg-[#1a1a1c] border-[#00C7B7]' : 'bg-[#121214] border-[#27272a] hover:border-[#00C7B7]/50 hover:bg-[#1a1a1c]'} ${isLoading && activeTarget !== 'netlify' ? 'opacity-30' : ''}`}
                         >
                             <div className="w-14 h-14 bg-[#00C7B7]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <NetlifyIcon className="w-8 h-8 text-[#00C7B7]" />
                             </div>
                             <div className="text-center">
                                 <h3 className="font-bold text-white mb-1">Netlify</h3>
-                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Instant Deploy</p>
+                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{existingSiteId ? 'Atualizar Deploy' : 'Instant Deploy'}</p>
                             </div>
                         </button>
 
                         {/* Option 2: Cloudflare */}
                         <button 
                             onClick={handleCloudflareClick}
-                            className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214] border border-[#27272a] hover:border-[#F38020]/50 hover:bg-[#1a1a1c] transition-all group gap-4"
+                            disabled={isLoading}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214] border border-[#27272a] hover:border-[#F38020]/50 hover:bg-[#1a1a1c] transition-all group gap-4 ${isLoading ? 'opacity-30' : ''}`}
                         >
                             <div className="w-14 h-14 bg-[#F38020]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <CloudflareIcon className="w-8 h-8 text-[#F38020]" />
@@ -195,24 +221,26 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
                                         value={manualToken}
                                         onChange={(e) => setManualToken(e.target.value)}
                                         placeholder="Cole seu token 'nfp_...' aqui"
-                                        className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#00C7B7]"
+                                        disabled={isLoading}
+                                        className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#00C7B7] disabled:opacity-50"
                                     />
                                     <p className="text-[10px] text-gray-500 mt-2">
-                                        Recomendado: Configure isso permanentemente na aba Integrações.
+                                        Seu token será salvo automaticamente para futuros deploys.
                                     </p>
                                 </div>
                             )}
                             
                             <button 
                                 onClick={handleNetlifyDeploy}
-                                disabled={deployStatus === 'deploying' || (!netlifyToken && !manualToken)}
+                                disabled={isLoading || (!netlifyToken && !manualToken)}
                                 className="w-full bg-[#00C7B7] hover:bg-[#00b3a6] text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {deployStatus === 'deploying' ? (
+                                {isLoading ? (
                                     <>
-                                        <LoaderIcon className="w-4 h-4 animate-spin" /> Publicando...
+                                        <LoaderIcon className="w-4 h-4 animate-spin" /> 
+                                        {deployStatus === 'compressing' ? 'Comprimindo...' : 'Enviando ao Netlify...'}
                                     </>
-                                ) : 'Confirmar Deploy'}
+                                ) : existingSiteId ? 'Atualizar Aplicação Existente' : 'Confirmar Deploy'}
                             </button>
                         </div>
                     )}

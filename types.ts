@@ -61,7 +61,9 @@ export interface SavedProject {
   shared_with?: string[];
   is_public_in_gallery?: boolean;
   deployedUrl?: string; // Link do Netlify
+  netlifySiteId?: string; // ID do site no Netlify para atualizações
   likes?: number;
+  likedBy?: string[]; // IDs dos usuários que curtiram
   category?: string; // Categoria do projeto
   name: string;
   files: ProjectFile[];
