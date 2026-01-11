@@ -7,13 +7,13 @@ export const onRequestPost = async (context: any) => {
   
   // Tentar pegar do header primeiro (enviado pelo frontend)
   const headerToken = req.headers.get('X-Netlify-Token');
+  const existingSiteId = req.headers.get('X-Netlify-Site-Id');
   
   // Fallback para variável de ambiente se não houver header
   const NETLIFY_ACCESS_TOKEN = headerToken || context.env.NETLIFY_ACCESS_TOKEN;
 
   if (!NETLIFY_ACCESS_TOKEN) {
-    console.error('Netlify access token is not configured.');
-    return new Response(JSON.stringify({ error: 'Token de acesso do Netlify não encontrado. Por favor, configure nas integrações ou forneça manualmente.' }), {
+    return new Response(JSON.stringify({ error: 'Token de acesso do Netlify não encontrado.' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -21,50 +21,67 @@ export const onRequestPost = async (context: any) => {
 
   try {
     const zipBuffer = await req.arrayBuffer();
+    let siteId = existingSiteId;
+    let siteUrl = "";
 
-    const createSiteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    });
-
-    const siteData = await createSiteResponse.json();
-
-    if (!createSiteResponse.ok) {
-      const errorMessage = siteData?.message || `Netlify API error (create site): ${createSiteResponse.statusText}`;
-      if (createSiteResponse.status === 401) {
-          throw new Error("Token do Netlify inválido ou expirado.");
-      }
-      throw new Error(errorMessage);
+    // 1. Verificar se o site existe ou criar um novo
+    if (siteId) {
+        // Verifica se o site ainda existe/tem permissão
+        const checkSite = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}` }
+        });
+        
+        if (checkSite.ok) {
+            const siteInfo = await checkSite.json();
+            siteUrl = siteInfo.ssl_url;
+        } else {
+            // Se o site não existir (ex: foi deletado), limpa o ID e cria um novo
+            siteId = null;
+        }
     }
-    
-    const siteId = siteData.id;
-    const siteUrl = siteData.ssl_url;
 
+    if (!siteId) {
+        const createSiteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'CodegenStudio/1.0'
+          },
+          body: JSON.stringify({}), // Cria site com nome aleatório
+        });
+
+        if (!createSiteResponse.ok) {
+          if (createSiteResponse.status === 401) {
+              throw new Error("Token do Netlify inválido. Verifique suas configurações.");
+          }
+          const errText = await createSiteResponse.text();
+          throw new Error(`Erro ao criar site no Netlify: ${createSiteResponse.status} - ${errText}`);
+        }
+
+        const siteData = await createSiteResponse.json();
+        siteId = siteData.id;
+        siteUrl = siteData.ssl_url;
+    }
+
+    // 2. Fazer Deploy do ZIP
     const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/deploys`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}`,
         'Content-Type': 'application/zip',
+        'User-Agent': 'CodegenStudio/1.0'
       },
       body: zipBuffer,
     });
     
     if (!deployResponse.ok) {
-        const errorBody = await deployResponse.json();
-        const errorMessage = errorBody?.message || `Netlify API error (deploy): ${deployResponse.statusText}`;
-        // Tenta limpar o site criado se o deploy falhar
-        await fetch(`https://api.netlify.com/api/v1/sites/${siteId}`, { 
-            method: 'DELETE', 
-            headers: { 'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}` }
-        });
-        throw new Error(errorMessage);
+        const errorText = await deployResponse.text();
+        throw new Error(`Erro no upload do deploy: ${deployResponse.status} - ${errorText}`);
     }
 
-    return new Response(JSON.stringify({ url: siteUrl }), {
+    return new Response(JSON.stringify({ url: siteUrl, siteId: siteId }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

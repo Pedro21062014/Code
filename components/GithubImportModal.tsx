@@ -21,6 +21,7 @@ interface GithubImportModalProps {
   onImport: (files: ProjectFile[]) => void;
   githubToken: string | undefined;
   onOpenSettings: () => void;
+  onSaveToken?: (token: string) => void;
 }
 
 const getFileLanguage = (fileName: string): string => {
@@ -37,7 +38,7 @@ const getFileLanguage = (fileName: string): string => {
     }
 }
 
-export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, onClose, onImport, githubToken, onOpenSettings }) => {
+export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, onClose, onImport, githubToken, onOpenSettings, onSaveToken }) => {
   const [repositories, setRepositories] = useState<GithubRepo[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingRepos, setLoadingRepos] = useState(false);
@@ -46,6 +47,7 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
   const [isLoading, setIsLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importingRepoName, setImportingRepoName] = useState<string | null>(null);
+  const [manualToken, setManualToken] = useState('');
 
   useEffect(() => {
     const fetchRepositories = async () => {
@@ -87,6 +89,11 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
     }
   }, [isOpen, githubToken]);
 
+  const handleSaveToken = () => {
+      if (manualToken.trim() && onSaveToken) {
+          onSaveToken(manualToken.trim());
+      }
+  };
 
   const handleImport = async (repo: GithubRepo) => {
     setImportError(null);
@@ -193,15 +200,26 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
               <div>
                   <h3 className="text-gray-900 dark:text-white font-medium text-lg">Conexão Necessária</h3>
                   <p className="text-gray-500 text-sm mt-2 max-w-xs mx-auto">
-                      Para acessar seus repositórios privados e públicos, precisamos do seu Token de Acesso Pessoal do GitHub.
+                      Para acessar seus repositórios, insira seu Token de Acesso Pessoal do GitHub (escopo: repo).
                   </p>
               </div>
-              <button 
-                onClick={onOpenSettings}
-                className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:opacity-80 transition-opacity"
-              >
-                Configurar Token
-              </button>
+              
+              <div className="w-full max-w-sm flex flex-col gap-2">
+                  <input
+                    type="password"
+                    placeholder="ghp_..."
+                    value={manualToken}
+                    onChange={(e) => setManualToken(e.target.value)}
+                    className="w-full p-2 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  <button 
+                    onClick={handleSaveToken}
+                    disabled={!manualToken.trim()}
+                    className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                  >
+                    Salvar e Continuar
+                  </button>
+              </div>
            </div>
         ) : (
            <div className="flex flex-col h-full overflow-hidden">

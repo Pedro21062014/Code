@@ -10,6 +10,8 @@ interface ProjectsPageProps {
   onBack: () => void;
   onNewProject: () => void;
   title?: string;
+  onLikeProject?: (projectId: number) => void;
+  currentUserId?: string;
 }
 
 const getTimeAgo = (dateString: string) => {
@@ -31,7 +33,12 @@ const getTimeAgo = (dateString: string) => {
 };
 
 // Card estilo Comunidade/Lovable (Escuro, Imagem no topo, Texto embaixo)
-const GalleryCard: React.FC<{ project: SavedProject; onClick: () => void }> = ({ project, onClick }) => {
+const GalleryCard: React.FC<{ 
+    project: SavedProject; 
+    onClick: () => void; 
+    onLike?: (id: number) => void; 
+    currentUserId?: string 
+}> = ({ project, onClick, onLike, currentUserId }) => {
     const gradients = [
         "from-blue-600/20 to-purple-600/20",
         "from-emerald-600/20 to-teal-600/20",
@@ -43,21 +50,24 @@ const GalleryCard: React.FC<{ project: SavedProject; onClick: () => void }> = ({
     const gradient = gradients[project.id % gradients.length];
     const authorInitial = project.author ? project.author.charAt(0).toUpperCase() : "U";
     
+    const isLiked = project.likedBy?.includes(currentUserId || '');
+    const likesCount = project.likes || 0;
+
     return (
         <div onClick={onClick} className="group flex flex-col gap-0 cursor-pointer">
             {/* Image Preview Container */}
-            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-[#121214] border border-[#27272a] group-hover:border-gray-600 transition-all shadow-sm">
+            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-gray-200 dark:bg-[#121214] border border-gray-300 dark:border-[#27272a] group-hover:border-gray-400 dark:group-hover:border-gray-600 transition-all shadow-sm">
                 <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50 group-hover:opacity-70 transition-opacity`}></div>
                 
                 {/* Abstract Content Representation */}
                 <div className="absolute inset-0 flex items-center justify-center p-6">
-                    <div className="w-full h-full bg-[#000]/20 backdrop-blur-sm rounded-lg flex flex-col gap-2 p-3 border border-white/5">
-                        <div className="h-2 w-1/3 bg-white/20 rounded-full"></div>
-                        <div className="h-2 w-1/2 bg-white/20 rounded-full"></div>
+                    <div className="w-full h-full bg-white/20 dark:bg-[#000]/20 backdrop-blur-sm rounded-lg flex flex-col gap-2 p-3 border border-white/20 dark:border-white/5">
+                        <div className="h-2 w-1/3 bg-black/10 dark:bg-white/20 rounded-full"></div>
+                        <div className="h-2 w-1/2 bg-black/10 dark:bg-white/20 rounded-full"></div>
                         <div className="flex-1"></div>
                         <div className="flex gap-2">
-                            <div className="h-6 w-full bg-white/10 rounded-md"></div>
-                            <div className="h-6 w-1/4 bg-white/10 rounded-md"></div>
+                            <div className="h-6 w-full bg-black/5 dark:bg-white/10 rounded-md"></div>
+                            <div className="h-6 w-1/4 bg-black/5 dark:bg-white/10 rounded-md"></div>
                         </div>
                     </div>
                 </div>
@@ -72,10 +82,10 @@ const GalleryCard: React.FC<{ project: SavedProject; onClick: () => void }> = ({
 
             {/* Meta Info Below */}
             <div className="pt-3 px-1">
-                <h3 className="font-semibold text-white text-sm leading-tight mb-1 truncate">
+                <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-tight mb-1 truncate">
                     {project.name}
                 </h3>
-                <p className="text-xs text-gray-400 line-clamp-1 mb-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
                     {project.files.length > 5 ? 'A full-stack application built with React & Supabase.' : 'A simple tool for developers.'}
                 </p>
                 <div className="flex items-center justify-between">
@@ -85,10 +95,16 @@ const GalleryCard: React.FC<{ project: SavedProject; onClick: () => void }> = ({
                         </div>
                         <span className="text-[10px] text-gray-500">{project.author || "Community"}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                        <HeartIcon className="w-3 h-3 text-gray-600 group-hover:text-red-500 transition-colors" />
-                        <span>{project.likes || Math.floor(Math.random() * 500) + 50}</span>
-                    </div>
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onLike) onLike(project.id);
+                        }}
+                        className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-red-500 transition-colors group/heart"
+                    >
+                        <HeartIcon className={`w-3.5 h-3.5 transition-all ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-600 group-hover/heart:text-red-500'}`} />
+                        <span className={`${isLiked ? 'text-red-500' : ''}`}>{likesCount}</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -96,43 +112,62 @@ const GalleryCard: React.FC<{ project: SavedProject; onClick: () => void }> = ({
 };
 
 // Card de Destaque (Featured) - Maior
-const FeaturedGalleryCard: React.FC<{ project: SavedProject; onClick: () => void }> = ({ project, onClick }) => {
+const FeaturedGalleryCard: React.FC<{ 
+    project: SavedProject; 
+    onClick: () => void;
+    onLike?: (id: number) => void;
+    currentUserId?: string; 
+}> = ({ project, onClick, onLike, currentUserId }) => {
     const gradients = ["from-purple-900/40 via-black to-black", "from-blue-900/40 via-black to-black"];
     const bgGradient = gradients[project.id % 2];
+    
+    const isLiked = project.likedBy?.includes(currentUserId || '');
+    const likesCount = project.likes || 0;
 
     return (
-        <div onClick={onClick} className="group relative overflow-hidden rounded-2xl border border-[#27272a] hover:border-gray-500 transition-all cursor-pointer h-[280px] bg-[#121214]">
-            <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient}`}></div>
+        <div onClick={onClick} className="group relative overflow-hidden rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-gray-400 dark:hover:border-gray-500 transition-all cursor-pointer h-[280px] bg-white dark:bg-[#121214]">
+            <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient} opacity-10 dark:opacity-100`}></div>
             
             {/* Content Content - Simulação de UI */}
             <div className="absolute inset-0 p-8 flex flex-col justify-between z-10">
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-white text-black flex items-center justify-center font-bold text-xs">
+                        <div className="w-6 h-6 rounded-md bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-xs">
                             {project.name.charAt(0)}
                         </div>
-                        <h3 className="text-xl font-bold text-white tracking-tight">{project.name}</h3>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{project.name}</h3>
                     </div>
-                    <p className="text-gray-400 text-sm max-w-xs leading-relaxed line-clamp-3">
+                    <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs leading-relaxed line-clamp-3">
                        Uma aplicação em destaque criada com Codegen Studio. Explore o código fonte ou veja a demo ao vivo.
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 mt-auto">
-                    <span className="px-4 py-2 bg-white text-black text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                <div className="flex items-center justify-between mt-auto">
+                    <span className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
                         Visit Project
                     </span>
+                    
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onLike) onLike(project.id);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 dark:bg-black/40 backdrop-blur-sm border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <HeartIcon className={`w-4 h-4 transition-all ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-900 dark:text-white'}`} />
+                        <span className="text-xs font-bold text-gray-900 dark:text-white">{likesCount}</span>
+                    </button>
                 </div>
             </div>
 
             {/* Right Side Visual Decoration */}
-            <div className="absolute right-[-20px] top-[40px] w-[60%] h-[90%] bg-[#1a1a1c] rounded-tl-xl border-l border-t border-white/10 shadow-2xl transform rotate-[-2deg] transition-transform group-hover:rotate-0 group-hover:translate-x-2">
+            <div className="absolute right-[-20px] top-[40px] w-[60%] h-[90%] bg-gray-100 dark:bg-[#1a1a1c] rounded-tl-xl border-l border-t border-gray-200 dark:border-white/10 shadow-2xl transform rotate-[-2deg] transition-transform group-hover:rotate-0 group-hover:translate-x-2">
                 <div className="p-4 space-y-3">
-                    <div className="h-8 w-1/3 bg-white/10 rounded"></div>
-                    <div className="h-32 w-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded border border-white/5"></div>
+                    <div className="h-8 w-1/3 bg-gray-300 dark:bg-white/10 rounded"></div>
+                    <div className="h-32 w-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded border border-gray-300 dark:border-white/5"></div>
                     <div className="flex gap-2">
-                        <div className="h-10 w-1/2 bg-white/5 rounded"></div>
-                        <div className="h-10 w-1/2 bg-white/5 rounded"></div>
+                        <div className="h-10 w-1/2 bg-gray-300 dark:bg-white/5 rounded"></div>
+                        <div className="h-10 w-1/2 bg-gray-300 dark:bg-white/5 rounded"></div>
                     </div>
                 </div>
             </div>
@@ -206,7 +241,7 @@ const DashboardProjectCard: React.FC<{ project: SavedProject; onClick: () => voi
     );
 }
 
-export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack, onNewProject, title = "Meus Projetos" }) => {
+export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProject, onDeleteProject, onBack, onNewProject, title = "Meus Projetos", onLikeProject, currentUserId }) => {
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const isGallery = title === "Galeria da Comunidade";
 
@@ -228,14 +263,14 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
       const personal = sortedProjects.filter((_, i) => i % 3 === 2);
 
       return (
-        <div className="flex flex-col h-full w-full bg-[#09090b] text-white overflow-hidden font-sans">
+        <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-[#09090b] text-gray-900 dark:text-white overflow-hidden font-sans transition-colors duration-300">
             <main className="flex-1 overflow-y-auto custom-scrollbar pb-20">
                 
                 {/* Hero Section */}
                 <div className="pt-12 pb-8 px-6 md:px-12">
                     <div className="max-w-7xl mx-auto">
-                        <h2 className="text-lg font-semibold text-white mb-1">Descobrir</h2>
-                        <p className="text-gray-400 text-sm">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Descobrir</h2>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">
                             Explore aplicativos construídos por criadores talentosos com Codegen Studio
                         </p>
                     </div>
@@ -246,10 +281,16 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                     {/* Featured Apps Section */}
                     {featured.length > 0 && (
                         <section>
-                            <h3 className="text-base font-semibold text-white mb-4">Apps em Destaque</h3>
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Apps em Destaque</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {featured.map(p => (
-                                    <FeaturedGalleryCard key={p.id} project={p} onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} />
+                                    <FeaturedGalleryCard 
+                                        key={p.id} 
+                                        project={p} 
+                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onLike={onLikeProject}
+                                        currentUserId={currentUserId}
+                                    />
                                 ))}
                             </div>
                         </section>
@@ -258,10 +299,16 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                     {/* Apps for builders */}
                     {builders.length > 0 && (
                         <section>
-                            <h3 className="text-base font-semibold text-white mb-4">Ferramentas para Devs</h3>
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Ferramentas para Devs</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {builders.map(p => (
-                                    <GalleryCard key={p.id} project={p} onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} />
+                                    <GalleryCard 
+                                        key={p.id} 
+                                        project={p} 
+                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onLike={onLikeProject}
+                                        currentUserId={currentUserId}
+                                    />
                                 ))}
                             </div>
                         </section>
@@ -270,10 +317,16 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                     {/* Apps loved by the community */}
                     {loved.length > 0 && (
                         <section>
-                            <h3 className="text-base font-semibold text-white mb-4">Apps Amados pela Comunidade</h3>
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Apps Amados pela Comunidade</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {loved.map(p => (
-                                    <GalleryCard key={p.id} project={p} onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} />
+                                    <GalleryCard 
+                                        key={p.id} 
+                                        project={p} 
+                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onLike={onLikeProject}
+                                        currentUserId={currentUserId}
+                                    />
                                 ))}
                             </div>
                         </section>
@@ -282,10 +335,16 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                     {/* Personal apps */}
                     {personal.length > 0 && (
                         <section>
-                            <h3 className="text-base font-semibold text-white mb-4">Pessoal & Entretenimento</h3>
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Pessoal & Entretenimento</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {personal.map(p => (
-                                    <GalleryCard key={p.id} project={p} onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} />
+                                    <GalleryCard 
+                                        key={p.id} 
+                                        project={p} 
+                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onLike={onLikeProject}
+                                        currentUserId={currentUserId}
+                                    />
                                 ))}
                             </div>
                         </section>

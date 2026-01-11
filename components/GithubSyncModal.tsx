@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GithubIcon, CloseIcon, PlusIcon, LoaderIcon, CheckCircleIcon, TerminalIcon } from './Icons';
+import { GithubIcon, CloseIcon, PlusIcon, LoaderIcon, CheckCircleIcon, TerminalIcon, KeyIcon } from './Icons';
 import { ProjectFile } from '../types';
 
 interface GithubRepo {
@@ -18,9 +18,10 @@ interface GithubSyncModalProps {
   githubToken: string | undefined;
   onOpenSettings: () => void;
   projectName: string;
+  onSaveToken?: (token: string) => void;
 }
 
-export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClose, files, githubToken, onOpenSettings, projectName }) => {
+export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClose, files, githubToken, onOpenSettings, projectName, onSaveToken }) => {
   const [repositories, setRepositories] = useState<GithubRepo[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingRepos, setLoadingRepos] = useState(false);
@@ -31,6 +32,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   const [newRepoName, setNewRepoName] = useState('');
   const [isPrivate, setIsPrivate] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
+  const [manualToken, setManualToken] = useState('');
 
   useEffect(() => {
     if (isOpen && githubToken) {
@@ -61,6 +63,12 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
     } finally {
       setLoadingRepos(false);
     }
+  };
+
+  const handleSaveToken = () => {
+      if (manualToken.trim() && onSaveToken) {
+          onSaveToken(manualToken.trim());
+      }
   };
 
   const pushFilesToRepo = async (owner: string, repo: string) => {
@@ -216,10 +224,26 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                <div className="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center border border-[#27272a]">
                  <GithubIcon className="w-8 h-8 text-gray-500" />
                </div>
-              <p className="text-gray-400 text-sm max-w-xs mx-auto">Token do GitHub não configurado. Adicione-o nas configurações para sincronizar.</p>
-              <button onClick={onOpenSettings} className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors">
-                Configurar Token
-              </button>
+              <p className="text-gray-400 text-sm max-w-xs mx-auto">
+                  Token do GitHub não configurado. Adicione-o aqui para sincronizar seus projetos.
+              </p>
+              
+              <div className="w-full max-w-sm flex flex-col gap-2">
+                  <input
+                    type="password"
+                    placeholder="ghp_..."
+                    value={manualToken}
+                    onChange={(e) => setManualToken(e.target.value)}
+                    className="w-full p-2 bg-[#121214] border border-[#27272a] rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <button 
+                    onClick={handleSaveToken}
+                    disabled={!manualToken.trim()}
+                    className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  >
+                    Salvar e Continuar
+                  </button>
+              </div>
             </div>
           ) : syncing ? (
              <div className="py-4 space-y-4">
