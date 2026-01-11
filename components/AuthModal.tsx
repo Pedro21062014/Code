@@ -5,7 +5,6 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithP
 import { doc, setDoc } from "firebase/firestore";
 import { CloseIcon, AppLogo, GoogleIcon, GithubIcon } from './Icons';
 import { Theme } from '../types';
-import Turnstile from 'react-turnstile';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,7 +19,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = '
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   // Apenas checkbox de termos
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -30,12 +28,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = '
     setLoading(true);
     setError(null);
     setMessage(null);
-
-    if (!captchaToken) {
-        setError("Por favor, complete a verificação de segurança.");
-        setLoading(false);
-        return;
-    }
 
     if (!isLoginView && !termsAccepted) {
         setError("Você precisa aceitar os termos.");
@@ -65,10 +57,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = '
   };
   
   const handleGoogleLogin = async () => {
-    if (!captchaToken) {
-        setError("Por favor, complete a verificação de segurança.");
-        return;
-    }
     if (!isLoginView && !termsAccepted) {
         setError("Você precisa aceitar os termos.");
         return;
@@ -90,10 +78,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = '
   };
 
   const handleGithubLogin = async () => {
-    if (!captchaToken) {
-        setError("Por favor, complete a verificação de segurança.");
-        return;
-    }
     if (!isLoginView && !termsAccepted) {
         setError("Você precisa aceitar os termos.");
         return;
@@ -137,7 +121,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = '
         setLoading(false);
         setIsLoginView(true);
         setTermsAccepted(false);
-        setCaptchaToken(null);
     }
   }, [isOpen]);
 
@@ -193,14 +176,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, theme = '
                     </span>
                 </div>
             )}
-            
-            <div className="flex justify-center my-2">
-                <Turnstile
-                    sitekey="0x4AAAAAAACLHAa5iRa3ivhDh"
-                    onVerify={(token: string) => setCaptchaToken(token)}
-                    theme={theme}
-                />
-            </div>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400 text-center bg-red-50 dark:bg-red-900/10 p-2 rounded-lg border border-red-100 dark:border-red-900/20">{error}</p>}
             {message && <p className="text-sm text-green-600 dark:text-green-400 text-center">{message}</p>}

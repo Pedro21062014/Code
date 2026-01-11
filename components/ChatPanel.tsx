@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -17,57 +17,8 @@ interface ChatPanelProps {
   onOpenGithub?: () => void;
   onOpenSettings?: () => void;
   availableModels?: AIModel[];
-  credits?: number; // Compatibilidade, mas não usado
+  credits?: number;
 }
-
-const ThinkingIndicator = ({ generatingFile }: { generatingFile: string | null }) => {
-    const [fileLog, setFileLog] = useState<string[]>([]);
-    const lastFileRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        if (generatingFile && generatingFile !== lastFileRef.current) {
-            setFileLog(prev => {
-                if (prev.includes(generatingFile)) return prev;
-                return [...prev, generatingFile];
-            });
-            lastFileRef.current = generatingFile;
-        }
-    }, [generatingFile]);
-
-    return (
-        <div className="flex flex-col gap-3 py-2 animate-fadeIn select-none">
-            <div className="flex items-center gap-3">
-                <div className="relative flex items-center justify-center">
-                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur animate-pulse"></div>
-                    <SparklesIcon className="w-4 h-4 text-blue-500 dark:text-blue-400 relative z-10" />
-                </div>
-                <span className="text-sm font-medium bg-gradient-to-r from-gray-500 via-gray-800 to-gray-500 dark:from-gray-400 dark:via-white dark:to-gray-400 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine">
-                    Pensando...
-                </span>
-            </div>
-
-            {fileLog.length > 0 && (
-                <div className="flex flex-col gap-2 pl-2 border-l border-gray-200 dark:border-white/10 ml-2 mt-1">
-                    {fileLog.map((file, index) => {
-                        const isCurrent = file === generatingFile;
-                        return (
-                            <div key={index} className={`flex items-center gap-2.5 text-xs font-mono transition-all duration-300 ${isCurrent ? 'opacity-100 translate-x-1' : 'opacity-50'}`}>
-                                {isCurrent ? (
-                                    <LoaderIcon className="w-3.5 h-3.5 animate-spin text-blue-500 dark:text-blue-400" />
-                                ) : (
-                                    <CheckCircleIcon className="w-3.5 h-3.5 text-green-500" />
-                                )}
-                                <span className={isCurrent ? "text-blue-600 dark:text-blue-200" : "text-gray-500 dark:text-gray-400"}>
-                                    {file}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-    );
-};
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, generatingFile, isGenerating, 
@@ -88,112 +39,88 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setInput('');
   };
 
-  const ActionButtons = ({ text }: { text: string }) => {
-      const lower = text.toLowerCase();
-      const showSupabase = lower.includes('supabase') || lower.includes('banco de dados') || lower.includes('database') || lower.includes('backend');
-      const showGithub = lower.includes('github') || lower.includes('deploy') || lower.includes('repositório') || lower.includes('versionamento');
-
-      if (!showSupabase && !showGithub) return null;
-
-      return (
-          <div className="flex flex-wrap gap-2 mt-3 animate-fadeIn">
-              {showSupabase && (
-                <button 
-                    type="button"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (onOpenSupabase) onOpenSupabase();
-                    }} 
-                    className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 rounded-lg text-xs font-bold hover:bg-green-100 dark:hover:bg-green-500/20 transition-all cursor-pointer z-10"
-                >
-                    <SupabaseIcon className="w-3.5 h-3.5" /> Configurar Supabase
-                </button>
-              )}
-              {showGithub && (
-                <button 
-                    type="button"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (onOpenGithub) onOpenGithub();
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-white rounded-lg text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all cursor-pointer z-10"
-                >
-                    <GithubIcon className="w-3.5 h-3.5" /> Conectar GitHub
-                </button>
-              )}
-          </div>
-      );
-  };
-
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-[#0d0d0d] border-r border-gray-200 dark:border-white/5 relative transition-colors duration-300">
-      {/* Minimal Header */}
-      <div className="h-4 w-full bg-gray-50 dark:bg-[#0d0d0d]"></div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-6 custom-scrollbar">
-          {messages.map((msg, index) => (
-            msg.role !== 'system' && (
-                <div key={index} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-fadeIn`}>
-                    <div className="flex items-center gap-2 opacity-30 px-1">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">{msg.role === 'user' ? 'Você' : 'Assistente'}</span>
-                    </div>
+    <div className="flex flex-col h-full bg-[#fbfbfb] dark:bg-[#0c0c0e] border-r border-gray-200 dark:border-[#27272a] relative transition-colors duration-300 w-full font-sans">
+      
+      {/* Stream / Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+          {messages.map((msg, index) => {
+            if (msg.role === 'system') return null;
+            
+            return (
+                <div key={index} className={`flex flex-col gap-2 animate-fadeIn ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     
-                    {msg.isThinking ? (
-                        <ThinkingIndicator generatingFile={generatingFile} />
+                    {msg.role === 'user' ? (
+                        <div className="max-w-[90%] bg-gray-100 dark:bg-[#1f1f22] text-gray-900 dark:text-gray-200 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm border border-gray-200 dark:border-[#27272a]">
+                            {msg.content}
+                        </div>
                     ) : (
-                        <div className={`max-w-[95%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
-                            msg.role === 'user' 
-                            ? 'bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white border border-gray-200 dark:border-white/10' 
-                            : 'text-gray-600 dark:text-gray-300 w-full'
-                        }`}>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
-                            {/* Render Action Buttons specifically for this message */}
-                            {msg.role === 'assistant' && <ActionButtons text={msg.content} />}
+                        <div className="w-full text-sm text-gray-700 dark:text-gray-300 pl-2 border-l-2 border-gray-200 dark:border-[#27272a] ml-1">
+                            <div className="flex items-center gap-2 mb-1 opacity-50">
+                                <SparklesIcon className="w-3 h-3 text-blue-500" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
+                            </div>
+                            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90">
+                                {msg.isThinking ? (
+                                    <div className="flex items-center gap-2 text-gray-500 italic">
+                                        <LoaderIcon className="w-3 h-3 animate-spin" />
+                                        <span>Processando alterações...</span>
+                                    </div>
+                                ) : (
+                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
             )
-          ))}
-          <div ref={chatEndRef} />
+          })}
+          
+          {/* Active Generation Indicator */}
+          {generatingFile && (
+              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg text-xs animate-pulse mx-4">
+                  <TerminalIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-blue-700 dark:text-blue-300 font-mono">Gerando {generatingFile}...</span>
+              </div>
+          )}
+          
+          <div ref={chatEndRef} className="h-4" />
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-gray-50 dark:bg-[#0d0d0d]">
-          <form onSubmit={handleSubmit} className="relative bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg focus-within:border-blue-500/50 transition-all p-1.5">
-              <textarea 
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                placeholder="Descreva a alteração ou nova funcionalidade..."
-                className="w-full bg-transparent px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none min-h-[44px] max-h-[120px]"
-                rows={1}
-                style={{ height: 'auto', minHeight: '44px' }}
-              />
-              <div className="flex items-center justify-between px-1 pt-1">
-                  <div className="flex items-center gap-1">
-                      <button type="button" className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5">
-                          <PaperclipIcon className="w-4 h-4" />
-                      </button>
-                      <select 
-                        value={selectedModel}
-                        onChange={e => setSelectedModel(e.target.value)}
-                        className="bg-transparent text-[10px] font-bold text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 uppercase tracking-wider focus:outline-none cursor-pointer max-w-[100px] truncate"
+      {/* Input Area (Fixed Bottom) */}
+      <div className="p-4 bg-[#fbfbfb] dark:bg-[#0c0c0e] border-t border-gray-200 dark:border-[#27272a]">
+          <form onSubmit={handleSubmit} className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
+              <div className="relative bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50 transition-all flex flex-col">
+                  <textarea 
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+                    placeholder="Digite suas instruções..."
+                    className="w-full bg-transparent px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none min-h-[50px] max-h-[150px]"
+                    rows={1}
+                  />
+                  
+                  <div className="flex items-center justify-between px-2 pb-2">
+                      <div className="flex items-center gap-1">
+                          <button type="button" className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-[#27272a] transition-colors">
+                              <PaperclipIcon className="w-4 h-4" />
+                          </button>
+                      </div>
+                      
+                      <button 
+                        type="submit"
+                        disabled={!input.trim() || isGenerating}
+                        className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:opacity-80 transition-all disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]"
                       >
-                          {availableModels.map(m => <option key={m.id} value={m.id} className="bg-white dark:bg-[#141414] text-gray-900 dark:text-white">{m.name}</option>)}
-                      </select>
+                          <PlusIcon className="w-4 h-4 rotate-90" /> {/* Arrow icon workaround */}
+                      </button>
                   </div>
-                  <button 
-                    type="submit"
-                    disabled={!input.trim() || isGenerating}
-                    className="p-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition-opacity disabled:opacity-50 disabled:bg-gray-200 dark:disabled:bg-[#27272a] disabled:text-gray-400 dark:disabled:text-gray-500"
-                  >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-                  </button>
               </div>
           </form>
+          <div className="text-center mt-2">
+             <p className="text-[10px] text-gray-400 dark:text-gray-600">AI pode gerar código incorreto.</p>
+          </div>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import {
     CloseIcon, SunIcon, MoonIcon, SparklesIcon, TerminalIcon, GithubIcon, ChatIcon, 
     FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
-    PlusIcon
+    PlusIcon, EditIcon, UsersIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
 
@@ -48,7 +48,7 @@ interface FileNode {
 }
 
 const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
-    <pre className="p-6 text-[13px] text-gray-800 dark:text-gray-300 font-mono leading-relaxed overflow-x-auto selection:bg-blue-500/30 h-full">
+    <pre className="p-4 md:p-6 text-[13px] text-gray-800 dark:text-gray-300 font-mono leading-relaxed overflow-x-auto selection:bg-blue-500/30 h-full">
       <code>{code}</code>
     </pre>
 );
@@ -59,13 +59,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
     onLogout, onOpenSettings, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions
 }) => {
-  const [viewMode, setViewMode] = useState<'code' | 'preview'>('preview');
+  const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['src', 'components', 'lib']));
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['src', 'components', 'lib', 'app']));
 
   const selectedFile = files.find(f => f.name === activeFile);
 
-  // Organiza os arquivos em uma árvore (Explorer Real)
   const fileTree = useMemo(() => {
     const root: FileNode[] = [];
     files.forEach(file => {
@@ -112,11 +111,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <div key={node.path} className="flex flex-col">
             <button
               onClick={() => toggleFolder(node.path)}
-              className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-gray-600 dark:text-gray-500 hover:text-black dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.03] transition-colors group"
+              className="flex items-center gap-1.5 px-3 py-1 text-[12px] text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors group select-none"
               style={{ paddingLeft: `${(level * 12) + 12}px` }}
             >
-              <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`} />
-              <FolderIcon className="w-3.5 h-3.5 opacity-50" />
+              <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'} opacity-70`} />
+              <FolderIcon className="w-3.5 h-3.5 text-blue-500/80 dark:text-blue-400/80" />
               <span className="truncate font-medium">{node.name}</span>
             </button>
             {isOpen && node.children && (
@@ -132,14 +131,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
         <button
           key={node.path}
           onClick={() => onFileSelect(node.path)}
-          className={`flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition-all border border-transparent ${
+          className={`flex items-center gap-2 px-3 py-1 text-[12px] transition-all border-l-2 ${
             isSelected 
-            ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/20' 
-            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.02] hover:text-black dark:hover:text-gray-200'
+            ? 'bg-gray-100 dark:bg-[#1a1a1c] text-black dark:text-white border-blue-500' 
+            : 'text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-[#121214] hover:text-gray-900 dark:hover:text-gray-300 border-transparent'
           }`}
           style={{ paddingLeft: `${(level * 12) + 26}px` }}
         >
-          <FileIcon className="w-3.5 h-3.5 opacity-40 flex-shrink-0" />
+          <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-blue-500' : 'opacity-50'}`} />
           <span className="truncate flex-1 text-left">{node.name}</span>
         </button>
       );
@@ -147,149 +146,157 @@ export const EditorView: React.FC<EditorViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a] overflow-hidden text-gray-900 dark:text-white transition-colors duration-300">
-      {/* Bolt-style Main Header */}
-      <header className="h-14 border-b border-gray-200 dark:border-white/5 flex items-center justify-between px-6 bg-white dark:bg-[#0a0a0a] z-50 transition-colors">
-        <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer group" onClick={onOpenProjects}>
-                <AppLogo className="w-6 h-6 text-black dark:text-white group-hover:scale-105 transition-transform" />
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-black tracking-tight text-gray-900 dark:text-white/90">{projectName}</span>
-                    <ChevronDownIcon className="w-3 h-3 text-gray-500 dark:text-gray-600" />
-                </div>
+    <div className="flex flex-col h-full bg-white dark:bg-[#09090b] overflow-hidden text-gray-900 dark:text-white transition-colors duration-300">
+      
+      {/* Header PRO (Minimalist) */}
+      <header className="h-12 border-b border-gray-200 dark:border-[#27272a] flex items-center justify-between px-4 bg-white dark:bg-[#09090b] z-50 transition-colors">
+        
+        {/* Left: Project Info */}
+        <div className="flex items-center gap-3">
+            {/* Mobile Toggle */}
+            <button onClick={onOpenProjects} className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22]">
+                <ProjectsIcon className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer group" onClick={onOpenSettings}>
+                <span className="text-xs font-semibold tracking-tight text-gray-900 dark:text-white">{projectName}</span>
+                <SettingsIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+            </div>
+            
+            <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
+            
+            <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span className="text-[10px] text-gray-500 font-mono">Ready</span>
             </div>
         </div>
 
-        {/* Center Toggle */}
-        <div className="flex items-center bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-white/5 rounded-2xl p-1 shadow-sm dark:shadow-2xl">
+        {/* Center: View Toggle (Pill) */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 flex bg-gray-100 dark:bg-[#18181b] p-0.5 rounded-lg border border-gray-200 dark:border-[#27272a]">
             <button 
                 onClick={() => setViewMode('code')}
-                className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
                     viewMode === 'code' 
-                    ? 'bg-white dark:bg-[#252525] text-black dark:text-white shadow-md dark:shadow-xl scale-[1.02]' 
+                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' 
                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                 }`}
             >
-                <TerminalIcon className="w-3.5 h-3.5" />
+                <TerminalIcon className="w-3 h-3" />
                 Code
             </button>
             <button 
                 onClick={() => setViewMode('preview')}
-                className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
                     viewMode === 'preview' 
-                    ? 'bg-white dark:bg-[#252525] text-black dark:text-white shadow-md dark:shadow-xl scale-[1.02]' 
+                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' 
                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                 }`}
             >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                <SparklesIcon className="w-3 h-3" />
                 Preview
             </button>
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-4">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
             <button 
-                onClick={onSave} 
-                className="p-2.5 text-gray-500 hover:text-black dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl" 
-                title="Salvar Projeto"
+                onClick={onSave}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded-md text-xs font-bold hover:opacity-80 transition-opacity"
             >
-                <SaveIcon className="w-5 h-5" />
+                <SaveIcon className="w-3 h-3" /> Save
             </button>
-            <button onClick={onSyncGithub} className="p-2.5 text-gray-500 hover:text-black dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl" title="GitHub Sync">
-                <GithubIcon className="w-5 h-5" />
+            
+            <button
+                onClick={onShare}
+                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                title="Compartilhar"
+            >
+                <UsersIcon className="w-4 h-4" />
             </button>
+
             <button 
-                onClick={onShare} 
-                className="px-5 py-2 rounded-xl bg-gray-50 dark:bg-[#141414] border border-gray-200 dark:border-white/5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-all"
+                onClick={onDownload}
+                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                title="Download"
             >
-                Share
+                <DownloadIcon className="w-4 h-4" />
             </button>
+            
             <button 
                 onClick={onRunLocally}
-                className="px-6 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-[0.2em] hover:bg-gray-800 dark:hover:bg-gray-200 transition-all shadow-xl active:scale-95"
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20"
             >
-                Publish
+                Deploy
             </button>
-            <div className="w-px h-6 bg-gray-200 dark:bg-white/5 mx-1"></div>
-            <UserMenu user={session} onLogin={() => {}} onLogout={onLogout} onOpenSettings={onOpenSettings} />
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Explorer Sidebar - Estrutura Real */}
+        {/* Explorer Sidebar - Styled */}
         {viewMode === 'code' && (
-            <aside className={`border-r border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-[#0a0a0a] transition-all duration-300 overflow-hidden flex flex-col ${showExplorer ? 'w-64' : 'w-0'}`}>
-                <div className="px-5 py-4 flex items-center justify-between border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-[#0d0d0d]">
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Workspace</span>
-                    <button onClick={onNewProject} className="p-1.5 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/5 rounded-lg transition-all"><PlusIcon className="w-4 h-4" /></button>
+            <aside className={`border-r border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#0c0c0e] transition-all duration-300 overflow-hidden flex flex-col ${showExplorer ? 'w-60' : 'w-0'}`}>
+                <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-[#27272a]">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Explorer</span>
+                    <button className="p-1 text-gray-400 hover:text-black dark:hover:text-white"><PlusIcon className="w-3 h-3" /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto pt-2 custom-scrollbar">
                     {renderTree(fileTree)}
                 </div>
             </aside>
         )}
 
-        <main className="flex-1 relative bg-white dark:bg-[#0a0a0a] transition-colors">
+        <main className="flex-1 relative bg-white dark:bg-[#0a0a0a] flex flex-col h-full overflow-hidden">
             {viewMode === 'code' ? (
                 <div className="h-full flex flex-col">
-                    <div className="h-10 border-b border-gray-200 dark:border-white/5 flex items-center px-4 bg-gray-50/80 dark:bg-[#0d0d0d]/80 backdrop-blur-md">
-                        <button onClick={() => setShowExplorer(!showExplorer)} className="mr-4 text-gray-500 hover:text-black dark:hover:text-white transition-colors">
+                    {/* Code Tab Bar */}
+                    <div className="h-9 border-b border-gray-200 dark:border-[#27272a] flex items-center px-0 bg-white dark:bg-[#0a0a0a] overflow-x-auto no-scrollbar">
+                        <button onClick={() => setShowExplorer(!showExplorer)} className="px-3 h-full flex items-center border-r border-gray-200 dark:border-[#27272a] text-gray-500 hover:bg-gray-50 dark:hover:bg-[#121214]">
                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
-                        <div className="flex items-center gap-2">
-                             <FileIcon className="w-3 h-3 text-gray-500 dark:text-gray-600" />
-                             <span className="text-[11px] font-mono text-gray-600 dark:text-gray-400 font-medium">{activeFile || 'No file selected'}</span>
-                        </div>
+                        {activeFile && (
+                            <div className="px-4 h-full flex items-center gap-2 border-r border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#121214] text-xs font-mono text-gray-700 dark:text-gray-300 border-t-2 border-t-blue-500 min-w-fit">
+                                <FileIcon className="w-3 h-3 opacity-70" />
+                                {activeFile}
+                                <button className="ml-2 hover:text-red-500"><CloseIcon className="w-3 h-3" /></button>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex-1 overflow-auto custom-scrollbar bg-white dark:bg-[#050505]">
+                    <div className="flex-1 overflow-auto custom-scrollbar bg-white dark:bg-[#0a0a0a]">
                         {selectedFile ? <CodeDisplay code={selectedFile.content} /> : (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 gap-3 opacity-50 dark:opacity-30">
-                                <TerminalIcon className="w-12 h-12" />
-                                <span className="text-xs font-bold uppercase tracking-widest">Select a file to inspect code</span>
+                            <div className="h-full flex flex-col items-center justify-center text-gray-300 dark:text-[#27272a] gap-2 select-none">
+                                <AppLogo className="w-16 h-16 opacity-20" />
                             </div>
                         )}
                     </div>
                 </div>
             ) : (
-                <div className="h-full bg-white relative">
-                    <CodePreview files={files} onError={onError} theme={theme} envVars={envVars} />
-                    
-                    {/* Overlay de Geração (Codegen Studio Brand) */}
-                    {isGenerating && (
-                        <div className="absolute inset-0 bg-white/80 dark:bg-[#09090b]/80 backdrop-blur-[4px] flex items-center justify-center z-20">
-                             <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 rounded-[2rem] px-8 py-6 flex flex-col items-center gap-4 shadow-2xl dark:shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-slideInUp min-w-[300px]">
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 animate-pulse"></div>
-                                    <AppLogo className="w-10 h-10 text-black dark:text-white relative z-10 animate-bounce" />
-                                </div>
-                                <div className="flex flex-col items-center">
-                                    <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-[0.2em] mb-1">Codegen Studio</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-gray-900 dark:text-white font-medium">Construindo...</span>
-                                        {generatingFile && <span className="text-xs text-gray-500 font-mono">({generatingFile})</span>}
-                                    </div>
-                                </div>
-                             </div>
+                <div className="h-full w-full bg-[#f3f4f6] dark:bg-[#050505] relative flex flex-col">
+                    {/* Fake Browser Chrome */}
+                    <div className="h-10 bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#27272a] flex items-center px-4 gap-4 flex-shrink-0">
+                        <div className="flex gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
                         </div>
-                    )}
-
-                    {/* Sugestões da IA sobre o Preview (quando não estiver gerando) */}
-                    {!isGenerating && aiSuggestions.length > 0 && (
-                        <div className="absolute bottom-6 right-6 z-10 max-w-sm w-full animate-fadeIn">
-                            <div className="bg-white/90 dark:bg-[#141414]/90 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-4 shadow-2xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <SparklesIcon className="w-4 h-4 text-purple-500 dark:text-purple-400" />
-                                    <span className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">Sugestões de IA</span>
-                                </div>
-                                <div className="space-y-2">
-                                    {aiSuggestions.slice(0, 3).map((suggestion, idx) => (
-                                        <div key={idx} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-default">
-                                            <span className="mt-0.5 opacity-50">•</span>
-                                            <span>{suggestion}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                        <div className="flex-1 flex justify-center">
+                            <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a]">
+                                localhost:3000
                             </div>
+                        </div>
+                        <div className="w-10"></div>
+                    </div>
+
+                    <div className="flex-1 relative bg-white">
+                        <CodePreview files={files} onError={onError} theme={theme} envVars={envVars} />
+                    </div>
+                    
+                    {/* Generation Overlay */}
+                    {isGenerating && (
+                        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex items-end justify-center z-20 pb-12">
+                             <div className="bg-black dark:bg-[#18181b] text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-white/10 animate-slide-up">
+                                <LoaderIcon className="w-4 h-4 animate-spin text-blue-400" />
+                                <span className="text-xs font-medium">Gerando {generatingFile || 'código'}...</span>
+                             </div>
                         </div>
                     )}
                 </div>

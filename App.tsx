@@ -29,7 +29,7 @@ import { generateCodeStream } from './services/aiService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, orderBy } from "firebase/firestore";
 import { LoaderIcon } from './components/Icons';
 import { StripeModal } from './components/StripeModal';
 import { NeonModal } from './components/NeonModal';
@@ -90,9 +90,10 @@ export const App: React.FC = () => {
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
+  const [galleryProjects, setGalleryProjects] = useState<SavedProject[]>([]);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
-  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations'>(() => {
+  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations' | 'gallery'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
@@ -201,6 +202,34 @@ export const App: React.FC = () => {
     } catch (error: any) { console.error("Error fetching projects:", error); }
   }, [setSavedProjects]);
 
+  const fetchGalleryProjects = useCallback(async () => {
+      try {
+          const q = query(
+              collection(db, "projects"), 
+              where("is_public_in_gallery", "==", true),
+              limit(50)
+          );
+          const snapshot = await getDocs(q);
+          const projects: SavedProject[] = [];
+          snapshot.forEach((doc) => {
+              const data = sanitizeFirestoreData(doc.data());
+              const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
+              projects.push(p);
+          });
+          // Client-side sort fallback if composite index is missing
+          projects.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+          setGalleryProjects(projects);
+      } catch (error) {
+          console.error("Error fetching gallery:", error);
+      }
+  }, []);
+
+  useEffect(() => {
+      if (view === 'gallery') {
+          fetchGalleryProjects();
+      }
+  }, [view, fetchGalleryProjects]);
+
   const fetchUserSettings = useCallback(async (userUid: string): Promise<UserSettings | null> => {
     if (!isFirebaseAvailable.current) return null;
     try {
@@ -246,15 +275,21 @@ export const App: React.FC = () => {
     if (files.length === 0) return;
     setIsSaving(true);
     const projectId = currentProjectId || Date.now();
+    
+    // Maintain existing gallery status if saving an existing project
+    const existingProject = savedProjects.find(p => p.id === projectId);
+    const isPublic = existingProject?.is_public_in_gallery || false;
+
     const projectData: SavedProject = {
       id: projectId,
       ownerId: sessionUser.uid,
       shared_with: project.currentProjectId ? (savedProjects.find(p => p.id === project.currentProjectId)?.shared_with || []) : [],
+      is_public_in_gallery: isPublic,
       name: projectName,
       files: files,
       chat_history: chatMessages,
       env_vars: envVars,
-      created_at: new Date().toISOString(),
+      created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     try {
@@ -276,6 +311,17 @@ export const App: React.FC = () => {
         await updateDoc(doc(db, "projects", currentProjectId.toString()), { shared_with: arrayUnion(targetUid) });
       } catch (error: any) { throw new Error(error.message); }
     }
+  }, [currentProjectId, handleSaveProject]);
+
+  const handleToggleGallery = useCallback(async (isPublic: boolean) => {
+      if (!currentProjectId) await handleSaveProject();
+      if (currentProjectId) {
+          try {
+              await updateDoc(doc(db, "projects", currentProjectId.toString()), { is_public_in_gallery: isPublic });
+              // Update local state immediately
+              setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, is_public_in_gallery: isPublic } : p));
+          } catch (error: any) { throw new Error(error.message); }
+      }
   }, [currentProjectId, handleSaveProject]);
 
   const handleDeleteProject = useCallback(async (projectId: number) => {
@@ -345,7 +391,7 @@ export const App: React.FC = () => {
     try {
       const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
-        : userSettings?.openrouter_api_key; // Fallback logic would need to check provider/settings properly
+        : userSettings?.openrouter_api_key; 
 
       const fullResponse = await generateCodeStream(
           prompt, 
@@ -413,12 +459,17 @@ export const App: React.FC = () => {
   }, [project, userSettings, sessionUser, view, aiSuggestions]);
 
   const handleLoadProject = useCallback((projectId: number) => {
-    const p = savedProjects.find(x => x.id === projectId);
+    // Check saved projects first
+    let p = savedProjects.find(x => x.id === projectId);
+    
+    // If not found, check gallery projects
+    if (!p) p = galleryProjects.find(x => x.id === projectId);
+
     if (p) {
         setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], envVars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
         setView('editor');
     }
-  }, [savedProjects]);
+  }, [savedProjects, galleryProjects]);
 
   if (isLoadingPublic) {
     return (
@@ -442,7 +493,6 @@ export const App: React.FC = () => {
     );
   }
 
-  // Se não estiver logado, gerencia Landing e AuthPage
   if (!sessionUser) {
     if (view === 'auth') {
         return (
@@ -456,7 +506,6 @@ export const App: React.FC = () => {
         );
     }
     
-    // Landing padrão para usuários não autenticados que não estão na tela de login
     if (view === 'landing' || view === 'pricing' || view === 'privacy' || view === 'terms') {
         if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
         if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
@@ -476,7 +525,6 @@ export const App: React.FC = () => {
                         onThemeChange={setTheme}
                     />
                 )}
-                {/* Fallback modal, just in case code tries to open it */}
                 <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
             </div>
         );
@@ -486,8 +534,7 @@ export const App: React.FC = () => {
   if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
   if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
 
-  // Layout Logic: Determines if the Dashboard Sidebar should be visible
-  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations'].includes(view);
+  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations', 'gallery'].includes(view);
 
   return (
     <div className={`${theme} flex h-screen bg-[#09090b]`}>
@@ -495,7 +542,6 @@ export const App: React.FC = () => {
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
       <Toast message={toastError} onClose={() => setToastError(null)} type="error" />
 
-      {/* Render Sidebar only on Dashboard views */}
       {isDashboardView && (
           <NavigationSidebar 
               activeView={view}
@@ -504,12 +550,11 @@ export const App: React.FC = () => {
               onLogin={() => setView('auth')}
               onLogout={() => signOut(auth)}
               onOpenSettings={() => setSettingsOpen(true)}
-              credits={0} // No longer used
+              credits={0} 
               currentPlan={userSettings?.plan || 'Hobby'}
           />
       )}
 
-      {/* Main Content Area */}
       <div className="flex-1 h-full overflow-hidden flex flex-col relative">
           
           <div key={view} className="w-full h-full flex flex-col">
@@ -553,16 +598,18 @@ export const App: React.FC = () => {
                 />
             )}
 
-            {(view === 'projects' || view === 'shared' || view === 'recent') && (
+            {(view === 'projects' || view === 'shared' || view === 'recent' || view === 'gallery') && (
                 <ProjectsPage 
                   projects={
+                    view === 'gallery' ? galleryProjects :
                     view === 'projects' 
                       ? savedProjects.filter(p => p.ownerId === sessionUser?.uid)
                       : view === 'shared' 
                         ? savedProjects.filter(p => p.ownerId !== sessionUser?.uid)
-                        : savedProjects // recent = all
+                        : savedProjects // recent
                   }
                   title={
+                    view === 'gallery' ? 'Galeria da Comunidade' :
                     view === 'projects' ? 'Meus Projetos' : 
                     view === 'shared' ? 'Projetos Compartilhados' : 'Projetos Recentes'
                   }
@@ -623,7 +670,14 @@ export const App: React.FC = () => {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <GithubImportModal isOpen={isGithubModalOpen} onClose={() => setGithubModalOpen(false)} onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
       <GithubSyncModal isOpen={isGithubSyncModalOpen} onClose={() => setGithubSyncModalOpen(false)} files={files} projectName={projectName} githubToken={userSettings?.github_access_token} onOpenSettings={() => setSettingsOpen(true)} />
-      <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} onShare={handleShareProject} projectName={projectName} />
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setShareModalOpen(false)} 
+        onShare={handleShareProject} 
+        onToggleGallery={handleToggleGallery}
+        projectName={projectName} 
+        projectId={currentProjectId}
+      />
       <PublishModal isOpen={isPublishModalOpen} onClose={() => setPublishModalOpen(false)} onDownload={() => downloadProjectAsZip(files, projectName)} projectName={projectName} projectId={currentProjectId} files={files} onSaveRequired={handleSaveProject} />
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />

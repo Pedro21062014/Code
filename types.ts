@@ -57,6 +57,7 @@ export interface SavedProject {
   id: number;
   ownerId?: string;
   shared_with?: string[];
+  is_public_in_gallery?: boolean; // New field for gallery visibility
   name: string;
   files: ProjectFile[];
   chat_history: ChatMessage[];
