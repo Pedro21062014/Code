@@ -3,19 +3,23 @@
 // Path: /api/publish
 
 export const onRequestPost = async (context: any) => {
-  // Use context.env para acessar variáveis de ambiente no Cloudflare Pages
-  const NETLIFY_ACCESS_TOKEN = context.env.NETLIFY_ACCESS_TOKEN || 'nfp_cUTkdat2opM1aRfHScATH86T8nLRL27Y25e8'; // Fallback apenas se necessário, idealmente configure no dashboard
+  const req = context.request;
+  
+  // Tentar pegar do header primeiro (enviado pelo frontend)
+  const headerToken = req.headers.get('X-Netlify-Token');
+  
+  // Fallback para variável de ambiente se não houver header
+  const NETLIFY_ACCESS_TOKEN = headerToken || context.env.NETLIFY_ACCESS_TOKEN;
 
   if (!NETLIFY_ACCESS_TOKEN) {
     console.error('Netlify access token is not configured.');
-    return new Response(JSON.stringify({ error: 'O serviço de publicação não está configurado no servidor.' }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: 'Token de acesso do Netlify não encontrado. Por favor, configure nas integrações ou forneça manualmente.' }), {
+      status: 401,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
   try {
-    const req = context.request;
     const zipBuffer = await req.arrayBuffer();
 
     const createSiteResponse = await fetch('https://api.netlify.com/api/v1/sites', {
@@ -31,6 +35,9 @@ export const onRequestPost = async (context: any) => {
 
     if (!createSiteResponse.ok) {
       const errorMessage = siteData?.message || `Netlify API error (create site): ${createSiteResponse.statusText}`;
+      if (createSiteResponse.status === 401) {
+          throw new Error("Token do Netlify inválido ou expirado.");
+      }
       throw new Error(errorMessage);
     }
     
@@ -49,6 +56,7 @@ export const onRequestPost = async (context: any) => {
     if (!deployResponse.ok) {
         const errorBody = await deployResponse.json();
         const errorMessage = errorBody?.message || `Netlify API error (deploy): ${deployResponse.statusText}`;
+        // Tenta limpar o site criado se o deploy falhar
         await fetch(`https://api.netlify.com/api/v1/sites/${siteId}`, { 
             method: 'DELETE', 
             headers: { 'Authorization': `Bearer ${NETLIFY_ACCESS_TOKEN}` }

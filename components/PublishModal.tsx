@@ -14,18 +14,37 @@ interface PublishModalProps {
   projectId: number | null;
   files?: ProjectFile[];
   onSaveRequired: () => Promise<void>;
+  netlifyToken?: string; // Token vindo das settings
 }
 
-export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onDownload, projectName, projectId, files = [], onSaveRequired }) => {
+export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onDownload, projectName, projectId, files = [], onSaveRequired, netlifyToken }) => {
   const [deployStatus, setDeployStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle');
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTarget, setActiveTarget] = useState<'netlify' | 'cloudflare' | 'codegen' | null>(null);
+  const [manualToken, setManualToken] = useState('');
+
+  // Limpar estados ao abrir
+  React.useEffect(() => {
+      if(isOpen) {
+          setDeployStatus('idle');
+          setDeployUrl(null);
+          setErrorMessage(null);
+          setActiveTarget(null);
+          setManualToken('');
+      }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleNetlifyDeploy = async () => {
-    setActiveTarget('netlify');
+    const tokenToUse = manualToken || netlifyToken;
+
+    if (!tokenToUse) {
+        setErrorMessage("Token do Netlify necessário.");
+        return;
+    }
+
     setDeployStatus('deploying');
     setErrorMessage(null);
 
@@ -39,6 +58,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
             method: 'POST',
             headers: {
                 'Content-Type': 'application/zip',
+                'X-Netlify-Token': tokenToUse
             },
             body: arrayBuffer
         });
@@ -58,11 +78,10 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
                 const projectRef = doc(db, "projects", projectId.toString());
                 await updateDoc(projectRef, {
                     deployedUrl: data.url,
-                    updated_at: new Date().toISOString() // Atualiza data também
+                    updated_at: new Date().toISOString()
                 });
             } catch (dbError) {
                 console.error("Erro ao salvar URL do deploy no banco:", dbError);
-                // Não falha o processo visual, pois o deploy em si funcionou
             }
         }
 
@@ -120,52 +139,83 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
                     <button onClick={() => { setDeployStatus('idle'); onClose(); }} className="text-gray-500 hover:text-white text-sm">Fechar</button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Option 1: Netlify */}
-                    <button 
-                        onClick={handleNetlifyDeploy}
-                        disabled={deployStatus === 'deploying'}
-                        className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214] border border-[#27272a] hover:border-[#00C7B7]/50 hover:bg-[#1a1a1c] transition-all group gap-4 relative overflow-hidden"
-                    >
-                        <div className="w-14 h-14 bg-[#00C7B7]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <NetlifyIcon className="w-8 h-8 text-[#00C7B7]" />
-                        </div>
-                        <div className="text-center">
-                            <h3 className="font-bold text-white mb-1">Netlify</h3>
-                            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Instant Deploy</p>
-                        </div>
-                        {deployStatus === 'deploying' && activeTarget === 'netlify' && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
-                                <LoaderIcon className="w-8 h-8 text-[#00C7B7] animate-spin" />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Option 1: Netlify */}
+                        <button 
+                            onClick={() => setActiveTarget('netlify')}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${activeTarget === 'netlify' ? 'bg-[#1a1a1c] border-[#00C7B7]' : 'bg-[#121214] border-[#27272a] hover:border-[#00C7B7]/50 hover:bg-[#1a1a1c]'}`}
+                        >
+                            <div className="w-14 h-14 bg-[#00C7B7]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <NetlifyIcon className="w-8 h-8 text-[#00C7B7]" />
                             </div>
-                        )}
-                    </button>
+                            <div className="text-center">
+                                <h3 className="font-bold text-white mb-1">Netlify</h3>
+                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Instant Deploy</p>
+                            </div>
+                        </button>
 
-                    {/* Option 2: Cloudflare */}
-                    <button 
-                        onClick={handleCloudflareClick}
-                        className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214] border border-[#27272a] hover:border-[#F38020]/50 hover:bg-[#1a1a1c] transition-all group gap-4"
-                    >
-                        <div className="w-14 h-14 bg-[#F38020]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <CloudflareIcon className="w-8 h-8 text-[#F38020]" />
-                        </div>
-                        <div className="text-center">
-                            <h3 className="font-bold text-white mb-1">Cloudflare Pages</h3>
-                            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Manual Upload</p>
-                        </div>
-                    </button>
+                        {/* Option 2: Cloudflare */}
+                        <button 
+                            onClick={handleCloudflareClick}
+                            className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214] border border-[#27272a] hover:border-[#F38020]/50 hover:bg-[#1a1a1c] transition-all group gap-4"
+                        >
+                            <div className="w-14 h-14 bg-[#F38020]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <CloudflareIcon className="w-8 h-8 text-[#F38020]" />
+                            </div>
+                            <div className="text-center">
+                                <h3 className="font-bold text-white mb-1">Cloudflare Pages</h3>
+                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Manual Upload</p>
+                            </div>
+                        </button>
 
-                    {/* Option 3: Codegen Studio (Coming Soon) */}
-                    <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214]/50 border border-[#27272a] gap-4 relative opacity-60 cursor-not-allowed">
-                        <div className="absolute top-3 right-3 bg-[#27272a] text-white text-[9px] font-bold px-2 py-1 rounded border border-white/5">EM BREVE</div>
-                        <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center">
-                            <AppLogo className="w-8 h-8 text-blue-500" />
-                        </div>
-                        <div className="text-center">
-                            <h3 className="font-bold text-gray-400 mb-1">Codegen Studio</h3>
-                            <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wider">Managed Hosting</p>
+                        {/* Option 3: Codegen Studio (Coming Soon) */}
+                        <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214]/50 border border-[#27272a] gap-4 relative opacity-60 cursor-not-allowed">
+                            <div className="absolute top-3 right-3 bg-[#27272a] text-white text-[9px] font-bold px-2 py-1 rounded border border-white/5">EM BREVE</div>
+                            <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center">
+                                <AppLogo className="w-8 h-8 text-blue-500" />
+                            </div>
+                            <div className="text-center">
+                                <h3 className="font-bold text-gray-400 mb-1">Codegen Studio</h3>
+                                <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wider">Managed Hosting</p>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Netlify Config Section - Only shows if Netlify is selected */}
+                    {activeTarget === 'netlify' && (
+                        <div className="bg-[#121214] border border-[#27272a] rounded-xl p-4 animate-slideInUp">
+                            {!netlifyToken && (
+                                <div className="mb-4">
+                                    <label className="block text-xs font-medium text-gray-400 mb-2">
+                                        Token de Acesso Netlify (Não configurado)
+                                    </label>
+                                    <input 
+                                        type="password" 
+                                        value={manualToken}
+                                        onChange={(e) => setManualToken(e.target.value)}
+                                        placeholder="Cole seu token 'nfp_...' aqui"
+                                        className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#00C7B7]"
+                                    />
+                                    <p className="text-[10px] text-gray-500 mt-2">
+                                        Recomendado: Configure isso permanentemente na aba Integrações.
+                                    </p>
+                                </div>
+                            )}
+                            
+                            <button 
+                                onClick={handleNetlifyDeploy}
+                                disabled={deployStatus === 'deploying' || (!netlifyToken && !manualToken)}
+                                className="w-full bg-[#00C7B7] hover:bg-[#00b3a6] text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deployStatus === 'deploying' ? (
+                                    <>
+                                        <LoaderIcon className="w-4 h-4 animate-spin" /> Publicando...
+                                    </>
+                                ) : 'Confirmar Deploy'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 

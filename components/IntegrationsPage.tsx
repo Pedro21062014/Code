@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { GithubIcon, SupabaseIcon, StripeIcon, DatabaseIcon, MapIcon, SparklesIcon, GeminiIcon, OpenAIIcon, DriveIcon } from './Icons';
+import { GithubIcon, SupabaseIcon, StripeIcon, DatabaseIcon, MapIcon, SparklesIcon, GeminiIcon, OpenAIIcon, DriveIcon, NetlifyIcon } from './Icons';
 
 interface IntegrationsPageProps {
   onOpenGithubImport: () => void;
@@ -11,6 +11,7 @@ interface IntegrationsPageProps {
   onOpenGeminiModal: () => void;
   onOpenOpenAIModal: () => void;
   onOpenDriveAuth: () => void;
+  onOpenNetlifyModal: () => void; // New prop
 }
 
 export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
@@ -21,7 +22,8 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   onOpenOSMModal,
   onOpenGeminiModal,
   onOpenOpenAIModal,
-  onOpenDriveAuth
+  onOpenDriveAuth,
+  onOpenNetlifyModal
 }) => {
   const integrations = [
     {
@@ -59,6 +61,15 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         onClick: onOpenGithubImport,
         hoverClass: "group-hover:border-white/30",
         iconClass: "text-white"
+    },
+    { 
+        id: 'netlify',
+        title: "Netlify", 
+        description: "Hospedagem e Deploy.", 
+        icon: <NetlifyIcon className="w-6 h-6" />,
+        onClick: onOpenNetlifyModal,
+        hoverClass: "group-hover:border-[#00C7B7]/30",
+        iconClass: "text-[#00C7B7]"
     },
     { 
         id: 'supabase',
