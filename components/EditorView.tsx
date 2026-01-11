@@ -39,7 +39,8 @@ interface EditorViewProps {
   isGenerating: boolean;
   generatingFile: string | null;
   generatedFileNames: Set<string>;
-  aiSuggestions: string[]; 
+  aiSuggestions: string[];
+  deployedUrl?: string; // Nova prop
 }
 
 interface FileNode {
@@ -59,7 +60,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
     files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, 
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
-    onLogout, onOpenSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions
+    onLogout, onOpenSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
+    deployedUrl
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -230,8 +232,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
             <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
             
             <div className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="text-[10px] text-gray-500 font-mono">Ready</span>
+                <span className={`w-2 h-2 rounded-full ${deployedUrl ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                <span className="text-[10px] text-gray-500 font-mono">{deployedUrl ? 'Live' : 'Draft'}</span>
             </div>
         </div>
 
@@ -288,9 +290,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
             
             <button 
                 onClick={onRunLocally}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20"
+                className={`px-3 py-1.5 rounded-md text-xs font-bold hover:opacity-90 transition-colors shadow-lg ${deployedUrl ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-900/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20'}`}
             >
-                Deploy
+                {deployedUrl ? 'Re-Deploy' : 'Deploy'}
             </button>
         </div>
       </header>
@@ -344,14 +346,21 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         </div>
                         <div className="flex-1 flex justify-center">
                             <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a]">
-                                localhost:3000
+                                {deployedUrl || 'localhost:3000 (Offline)'}
                             </div>
                         </div>
                         <div className="w-10"></div>
                     </div>
 
                     <div className="flex-1 relative bg-white">
-                        <CodePreview files={files} onError={onError} theme={theme} envVars={envVars} />
+                        <CodePreview 
+                            files={files} 
+                            onError={onError} 
+                            theme={theme} 
+                            envVars={envVars}
+                            deployedUrl={deployedUrl}
+                            onDeploy={onRunLocally}
+                        />
                     </div>
                     
                     {/* Generation Overlay */}

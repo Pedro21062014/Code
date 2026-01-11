@@ -738,6 +738,7 @@ export const App: React.FC = () => {
                         generatingFile={generatingFile}
                         generatedFileNames={generatedFileNames}
                         aiSuggestions={aiSuggestions}
+                        deployedUrl={currentSavedProject?.deployedUrl} // Passar deployedUrl
                       />
                     </main>
                   </div>
