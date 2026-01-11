@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { CloseIcon, KeyIcon, GithubIcon } from './Icons';
+import { CloseIcon, KeyIcon, GithubIcon, NetlifyIcon } from './Icons';
 import { UserSettings } from '../types';
 import { GoogleGenAI } from '@google/genai';
 
@@ -32,12 +32,14 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const [geminiKey, setGeminiKey] = useState(settings.gemini_api_key || '');
   const [githubToken, setGithubToken] = useState(settings.github_access_token || '');
+  const [netlifyToken, setNetlifyToken] = useState(settings.netlify_access_token || '');
   const [geminiTestStatus, setGeminiTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message: string }>({ status: 'idle', message: '' });
   
   useEffect(() => {
     if (isOpen) {
         setGeminiKey(settings.gemini_api_key || '');
         setGithubToken(settings.github_access_token || '');
+        setNetlifyToken(settings.netlify_access_token || '');
         setGeminiTestStatus({ status: 'idle', message: '' });
     }
   }, [isOpen, settings]);
@@ -58,6 +60,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
     onSave({ 
       gemini_api_key: geminiKey,
       github_access_token: githubToken,
+      netlify_access_token: netlifyToken,
     });
     onClose();
   };
@@ -68,7 +71,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       onClick={onClose}
     >
       <div 
-        className="bg-white dark:bg-[#18181b] rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-200 dark:border-[#27272a] animate-slideInUp transition-colors"
+        className="bg-white dark:bg-[#18181b] rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-200 dark:border-[#27272a] animate-slideInUp transition-colors max-h-[90vh] overflow-y-auto custom-scrollbar"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
@@ -79,13 +82,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         </div>
         
         <div className="space-y-4">
+            {/* Gemini Section */}
             <div className="p-4 bg-gray-50 dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-[#3f3f46]">
                 <div className="flex items-center gap-3 mb-2 text-gray-900 dark:text-white">
                     <KeyIcon className="w-5 h-5" />
                     <h3 className="font-semibold">Chave de API do Gemini</h3>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
-                    Sua chave de API do Google Gemini é necessária. Ela é armazenada com segurança no seu perfil.
+                    Sua chave de API do Google Gemini é necessária para gerar código.
                 </p>
                 <div className="flex items-center gap-2">
                     <input
@@ -113,26 +117,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                 )}
             </div>
 
+            {/* GitHub Section */}
             <div className="p-4 bg-gray-50 dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-[#3f3f46]">
                 <div className="flex items-center gap-3 mb-2 text-gray-900 dark:text-white">
                     <GithubIcon className="w-5 h-5" />
-                    <h3 className="font-semibold">Token de Acesso do GitHub</h3>
+                    <h3 className="font-semibold">GitHub Token</h3>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
-                    Forneça um token para importar repositórios privados e aumentar os limites da API.
-                </p>
                 <div className="flex items-center gap-2">
                     <input
                         type="password"
                         value={githubToken}
                         onChange={(e) => setGithubToken(e.target.value)}
-                        placeholder="Cole seu token aqui (ex: ghp_...)"
+                        placeholder="ghp_..."
                         className="w-full p-2 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#3f3f46] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
                     />
                 </div>
-                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                   O token precisa ter escopo de <code className="bg-gray-200 dark:bg-[#18181b] px-1 py-0.5 rounded-sm text-xs font-mono text-gray-800 dark:text-gray-300 border border-gray-300 dark:border-[#3f3f46]">repo</code>.
+            </div>
+
+            {/* Netlify Section */}
+            <div className="p-4 bg-gray-50 dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-[#3f3f46]">
+                <div className="flex items-center gap-3 mb-2 text-gray-900 dark:text-white">
+                    <NetlifyIcon className="w-5 h-5 text-[#00C7B7]" />
+                    <h3 className="font-semibold">Netlify Token</h3>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+                    Token de acesso pessoal para publicar seus projetos.
                 </p>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="password"
+                        value={netlifyToken}
+                        onChange={(e) => setNetlifyToken(e.target.value)}
+                        placeholder="nfp_..."
+                        className="w-full p-2 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#3f3f46] rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C7B7]/50 transition-all text-sm"
+                    />
+                </div>
             </div>
         </div>
 

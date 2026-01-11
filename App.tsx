@@ -348,6 +348,11 @@ export const App: React.FC = () => {
       }
   }, [currentProjectId, handleSaveProject]);
 
+  // Função para atualizar metadados do projeto (ex: deployUrl, siteId) localmente
+  const handleProjectMetaUpdate = useCallback((projectId: number, updates: Partial<SavedProject>) => {
+      setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
+  }, [setSavedProjects]);
+
   // Função para curtir projetos
   const handleToggleLike = useCallback(async (projectId: number) => {
       if (!sessionUser) {
@@ -790,6 +795,7 @@ export const App: React.FC = () => {
         netlifyToken={userSettings?.netlify_access_token} 
         existingSiteId={currentSavedProject?.netlifySiteId}
         onSaveToken={(token) => handleUpdateSettings({ netlify_access_token: token })}
+        onProjectUpdate={handleProjectMetaUpdate}
       />
       
       <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
