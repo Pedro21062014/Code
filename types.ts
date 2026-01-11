@@ -56,8 +56,12 @@ export type Theme = 'light' | 'dark';
 export interface SavedProject {
   id: number;
   ownerId?: string;
+  author?: string; // Nome do criador
   shared_with?: string[];
-  is_public_in_gallery?: boolean; // New field for gallery visibility
+  is_public_in_gallery?: boolean;
+  deployedUrl?: string; // Link do Netlify
+  likes?: number;
+  category?: string; // Categoria do projeto
   name: string;
   files: ProjectFile[];
   chat_history: ChatMessage[];

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { CloseIcon, DownloadIcon, TerminalIcon, CheckCircleIcon, LoaderIcon, NetlifyIcon, CloudflareIcon, AppLogo } from './Icons';
 import { createProjectZip } from '../services/projectService';
 import { ProjectFile } from '../types';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface PublishModalProps {
   isOpen: boolean;
@@ -10,7 +12,7 @@ interface PublishModalProps {
   onDownload: () => void;
   projectName: string;
   projectId: number | null;
-  files?: ProjectFile[]; // Added to access file content for zip generation
+  files?: ProjectFile[];
   onSaveRequired: () => Promise<void>;
 }
 
@@ -50,6 +52,20 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
         setDeployUrl(data.url);
         setDeployStatus('success');
 
+        // Atualizar o projeto no Firestore com a URL do deploy
+        if (projectId && data.url) {
+            try {
+                const projectRef = doc(db, "projects", projectId.toString());
+                await updateDoc(projectRef, {
+                    deployedUrl: data.url,
+                    updated_at: new Date().toISOString() // Atualiza data também
+                });
+            } catch (dbError) {
+                console.error("Erro ao salvar URL do deploy no banco:", dbError);
+                // Não falha o processo visual, pois o deploy em si funcionou
+            }
+        }
+
     } catch (err: any) {
         console.error("Deploy error:", err);
         setErrorMessage(err.message || "Erro desconhecido ao publicar.");
@@ -58,8 +74,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
   };
 
   const handleCloudflareClick = () => {
-      // Como não temos a API do Cloudflare configurada no backend, 
-      // oferecemos o download otimizado ou um aviso de "Em breve"
       onDownload();
       alert("Para publicar no Cloudflare Pages: \n1. O ZIP do projeto foi baixado.\n2. Vá para dash.cloudflare.com > Pages > Upload Assets.");
       onClose();
@@ -86,6 +100,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
                     <div>
                         <h3 className="text-2xl font-bold text-white mb-2">Aplicação Online!</h3>
                         <p className="text-gray-400">Seu projeto foi publicado com sucesso no Netlify.</p>
+                        <p className="text-xs text-gray-500 mt-2">Agora você pode publicá-lo na Galeria.</p>
                     </div>
                     
                     <div className="flex items-center gap-3 w-full max-w-md bg-[#121214] border border-[#27272a] p-3 rounded-xl">
@@ -102,7 +117,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onD
                         </button>
                     </div>
 
-                    <button onClick={() => setDeployStatus('idle')} className="text-gray-500 hover:text-white text-sm">Voltar</button>
+                    <button onClick={() => { setDeployStatus('idle'); onClose(); }} className="text-gray-500 hover:text-white text-sm">Fechar</button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

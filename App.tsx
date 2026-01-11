@@ -304,6 +304,21 @@ export const App: React.FC = () => {
     } catch (error: any) { alert("Erro ao salvar projeto."); } finally { setIsSaving(false); }
   }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
 
+  const handleRenameProject = useCallback(async (newName: string) => {
+      if (!newName.trim()) return;
+      setProject(prev => ({ ...prev, projectName: newName }));
+      
+      if (currentProjectId) {
+          try {
+              // Optimistic update
+              setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, name: newName } : p));
+              await updateDoc(doc(db, "projects", currentProjectId.toString()), { name: newName });
+          } catch (error) {
+              console.error("Failed to rename saved project", error);
+          }
+      }
+  }, [currentProjectId, setSavedProjects]);
+
   const handleShareProject = useCallback(async (targetUid: string, email: string) => {
     if (!currentProjectId) await handleSaveProject();
     if (currentProjectId) {
@@ -652,6 +667,8 @@ export const App: React.FC = () => {
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                         onLogout={() => signOut(auth)}
                         onOpenSettings={() => setSettingsOpen(true)}
+                        onRenameProject={handleRenameProject}
+                        onNavigateHome={() => setView('welcome')}
                         session={sessionUser}
                         isGenerating={isInitializing}
                         generatingFile={generatingFile}

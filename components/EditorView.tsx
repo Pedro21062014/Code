@@ -1,12 +1,12 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ProjectFile, Theme } from '../types';
 import { CodePreview } from './CodePreview';
 import { 
     CloseIcon, SunIcon, MoonIcon, SparklesIcon, TerminalIcon, GithubIcon, ChatIcon, 
     FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
-    PlusIcon, EditIcon, UsersIcon
+    PlusIcon, EditIcon, UsersIcon, HomeIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
 
@@ -33,6 +33,8 @@ interface EditorViewProps {
   onNewProject: () => void;
   onLogout: () => void;
   onOpenSettings: () => void;
+  onRenameProject: (newName: string) => void; // New prop
+  onNavigateHome: () => void; // New prop
   session: any | null;
   isGenerating: boolean;
   generatingFile: string | null;
@@ -57,11 +59,44 @@ export const EditorView: React.FC<EditorViewProps> = ({
     files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, 
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
-    onLogout, onOpenSettings, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions
+    onLogout, onOpenSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['src', 'components', 'lib', 'app']));
+  
+  // Renaming state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(projectName);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+      setTempName(projectName);
+  }, [projectName]);
+
+  useEffect(() => {
+      if (isEditingName && inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+      }
+  }, [isEditingName]);
+
+  const handleNameSave = () => {
+      if (tempName.trim() && tempName !== projectName) {
+          onRenameProject(tempName.trim());
+      } else {
+          setTempName(projectName);
+      }
+      setIsEditingName(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') handleNameSave();
+      if (e.key === 'Escape') {
+          setTempName(projectName);
+          setIsEditingName(false);
+      }
+  };
 
   const selectedFile = files.find(f => f.name === activeFile);
 
@@ -158,9 +193,38 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 <ProjectsIcon className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer group" onClick={onOpenSettings}>
-                <span className="text-xs font-semibold tracking-tight text-gray-900 dark:text-white">{projectName}</span>
-                <SettingsIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+            {/* Home Icon */}
+            <button 
+                onClick={onNavigateHome} 
+                className="p-1.5 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                title="Voltar para o Início"
+            >
+                <HomeIcon className="w-4 h-4" />
+            </button>
+
+            <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
+
+            <div className="flex items-center gap-2 group">
+                {isEditingName ? (
+                    <input 
+                        ref={inputRef}
+                        type="text"
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        onBlur={handleNameSave}
+                        onKeyDown={handleKeyDown}
+                        className="bg-transparent text-xs font-semibold tracking-tight text-gray-900 dark:text-white focus:outline-none border-b border-blue-500 min-w-[100px]"
+                    />
+                ) : (
+                    <div 
+                        className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer" 
+                        onClick={() => setIsEditingName(true)}
+                        title="Clique para editar o nome"
+                    >
+                        <span className="text-xs font-semibold tracking-tight text-gray-900 dark:text-white">{projectName}</span>
+                        <SettingsIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+                    </div>
+                )}
             </div>
             
             <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
