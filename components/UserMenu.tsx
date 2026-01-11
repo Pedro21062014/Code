@@ -35,15 +35,27 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogin, onLogout, onO
     );
   }
 
-  const initial = user.email ? user.email[0].toUpperCase() : 'U';
+  const userName = user.displayName || user.email?.split('@')[0] || 'Dev';
+  const initial = userName.charAt(0).toUpperCase();
+  const photoURL = user.photoURL;
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-9 h-9 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-md hover:ring-2 hover:ring-white/20 transition-all border border-white/10"
+        className="w-9 h-9 rounded-full flex items-center justify-center transition-all border border-white/10 overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50"
       >
-        {initial}
+        {photoURL ? (
+            <img 
+                src={photoURL} 
+                alt={userName} 
+                className="w-full h-full object-cover bg-gray-100 dark:bg-zinc-800" 
+            />
+        ) : (
+            <div className="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                {initial}
+            </div>
+        )}
       </button>
 
       {isOpen && (

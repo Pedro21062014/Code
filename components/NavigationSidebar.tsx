@@ -2,12 +2,12 @@
 import React, { useState } from 'react';
 import { 
     AppLogo, HomeIcon, ProjectsIcon, UsersIcon, ClockIcon, SettingsIcon, 
-    LogInIcon, LogOutIcon, CubeIcon
+    LogInIcon, LogOutIcon, CubeIcon, GalleryIcon
 } from './Icons';
 
 interface NavigationSidebarProps {
   activeView: string;
-  onNavigate: (view: 'welcome' | 'projects' | 'shared' | 'recent' | 'pricing' | 'integrations') => void;
+  onNavigate: (view: 'welcome' | 'projects' | 'shared' | 'recent' | 'pricing' | 'integrations' | 'gallery') => void;
   session: any | null;
   onLogin: () => void;
   onLogout: () => void;
@@ -27,8 +27,9 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
-  const userName = session?.user?.email?.split('@')[0] || 'dev';
-  const userInitial = session?.user?.email ? session.user.email[0].toUpperCase() : 'U';
+  const userName = session?.user?.displayName || session?.user?.email?.split('@')[0] || 'Dev';
+  const userInitial = userName.charAt(0).toUpperCase();
+  const userPhoto = session?.user?.photoURL;
   const isLoggedIn = !!session;
 
   const NavItem = ({ view, icon, label, onClick, active, isBottom = false }: { view?: string, icon: React.ReactNode, label: string, onClick?: () => void, active?: boolean, isBottom?: boolean }) => {
@@ -91,6 +92,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
         <div className="flex-1 flex flex-col gap-2 py-4 overflow-y-auto custom-scrollbar">
             <NavItem view="welcome" icon={<HomeIcon className="w-5 h-5" />} label="Início" />
             <NavItem view="projects" icon={<ProjectsIcon className="w-5 h-5" />} label="Meus Projetos" onClick={isLoggedIn ? undefined : onLogin} />
+            <NavItem view="gallery" icon={<GalleryIcon className="w-5 h-5" />} label="Galeria" />
             <NavItem view="shared" icon={<UsersIcon className="w-5 h-5" />} label="Compartilhados" onClick={isLoggedIn ? undefined : onLogin} />
             <NavItem view="recent" icon={<ClockIcon className="w-5 h-5" />} label="Recentes" onClick={isLoggedIn ? undefined : onLogin} />
             <NavItem view="integrations" icon={<CubeIcon className="w-5 h-5" />} label="Integrações" />
@@ -117,12 +119,20 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
                     {/* User Profile */}
                     <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
                         <div className="relative group cursor-pointer" onClick={onOpenSettings}>
-                            {/* Blue Background Profile */}
-                            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-inner border border-white/10">
-                                {userInitial}
-                            </div>
+                            {userPhoto ? (
+                                <img 
+                                    src={userPhoto} 
+                                    alt={userName} 
+                                    className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-sm bg-gray-100 dark:bg-zinc-800"
+                                />
+                            ) : (
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md border border-white/10">
+                                    {userInitial}
+                                </div>
+                            )}
+                            
                             {/* Status Dot */}
-                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-[#09090b] rounded-full"></div>
+                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-[#09090b] rounded-full shadow-sm"></div>
                         </div>
 
                         {!isCollapsed && (
