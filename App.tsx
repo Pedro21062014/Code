@@ -211,7 +211,7 @@ export const App: React.FC = () => {
           );
           const snapshot = await getDocs(q);
           const projects: SavedProject[] = [];
-          snapshot.forEach((doc) => {
+          snapshot.forEach((doc: any) => {
               const data = sanitizeFirestoreData(doc.data());
               const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
               projects.push(p);
