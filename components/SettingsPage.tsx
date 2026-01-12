@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { UserSettings } from '../types';
 import { auth, db } from '../services/firebase';
-import { updateProfile, updatePassword, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { updateProfile, updatePassword, deleteUser, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { 
     UserIcon, KeyIcon, ShieldIcon, TrashIcon, SaveIcon, 
     LoaderIcon, CheckCircleIcon, GithubIcon, NetlifyIcon, 
     GeminiIcon, CloseIcon 
 } from './Icons';
+import { NETLIFY_CLIENT_ID } from '../constants';
 
 interface SettingsPageProps {
     settings: UserSettings | null;
@@ -21,13 +22,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
     // Profile State
     const [displayName, setDisplayName] = useState(sessionUser?.displayName || '');
     const [photoURL, setPhotoURL] = useState(sessionUser?.photoURL || '');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     
     // API Keys State
     const [geminiKey, setGeminiKey] = useState('');
     const [githubToken, setGithubToken] = useState('');
     const [netlifyToken, setNetlifyToken] = useState('');
+    const [netlifyClientId, setNetlifyClientId] = useState('');
 
     // UI State
     const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +45,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
             setGeminiKey(settings.gemini_api_key || '');
             setGithubToken(settings.github_access_token || '');
             setNetlifyToken(settings.netlify_access_token || '');
+            setNetlifyClientId(settings.netlify_client_id || '');
         }
         if (sessionUser) {
             setDisplayName(sessionUser.displayName || '');
@@ -74,26 +75,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
                 // Update Firestore as well for consistency if needed, though Auth is primary for profile
                 await onUpdateSettings({}); // Trigger generic update to refresh app state if needed
                 
-                if (newPassword) {
-                    if (newPassword !== confirmPassword) {
-                        throw new Error("As senhas não coincidem.");
-                    }
-                    if (newPassword.length < 6) {
-                        throw new Error("A senha deve ter pelo menos 6 caracteres.");
-                    }
-                    await updatePassword(auth.currentUser, newPassword);
-                }
-                
                 showMessage('success', 'Perfil atualizado com sucesso.');
-                setNewPassword('');
-                setConfirmPassword('');
             }
         } catch (error: any) {
-            if (error.code === 'auth/requires-recent-login') {
-                showMessage('error', 'Por segurança, faça login novamente para alterar a senha.');
-            } else {
-                showMessage('error', error.message || 'Erro ao atualizar perfil.');
-            }
+            showMessage('error', error.message || 'Erro ao atualizar perfil.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handlePasswordReset = async () => {
+        if (!auth.currentUser || !auth.currentUser.email) {
+            showMessage('error', 'Email não encontrado para enviar redefinição.');
+            return;
+        }
+        
+        setIsLoading(true);
+        try {
+            await sendPasswordResetEmail(auth, auth.currentUser.email);
+            showMessage('success', `Email de redefinição enviado para ${auth.currentUser.email}. Verifique sua caixa de entrada.`);
+        } catch (error: any) {
+            console.error(error);
+            showMessage('error', 'Erro ao enviar email. Tente novamente mais tarde.');
         } finally {
             setIsLoading(false);
         }
@@ -102,10 +105,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
     const handleUpdateKeys = async () => {
         setIsLoading(true);
         try {
+            // Trim inputs to avoid accidental spaces
             await onUpdateSettings({
-                gemini_api_key: geminiKey,
-                github_access_token: githubToken,
-                netlify_access_token: netlifyToken
+                gemini_api_key: geminiKey.trim(),
+                github_access_token: githubToken.trim(),
+                netlify_access_token: netlifyToken.trim(),
+                netlify_client_id: netlifyClientId.trim()
             });
             showMessage('success', 'Chaves de API salvas com sucesso.');
         } catch (error: any) {
@@ -216,39 +221,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
                         </div>
 
                         <div className="pt-6 border-t border-gray-100 dark:border-[#27272a]">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Alterar Senha</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Nova Senha</label>
-                                    <input 
-                                        type="password" 
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="w-full p-2.5 bg-gray-50 dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Confirmar Senha</label>
-                                    <input 
-                                        type="password" 
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="w-full p-2.5 bg-gray-50 dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
-                                    />
-                                </div>
-                            </div>
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Segurança</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-lg">
+                                Para alterar sua senha, enviaremos um link de confirmação seguro para o endereço de email associado à sua conta.
+                            </p>
+                            
+                            <button
+                                onClick={handlePasswordReset}
+                                className="px-4 py-2 bg-gray-100 dark:bg-[#27272a] hover:bg-gray-200 dark:hover:bg-[#3f3f46] text-gray-900 dark:text-white rounded-lg text-xs font-medium transition-colors border border-gray-200 dark:border-[#3f3f46]"
+                            >
+                                Enviar Email de Redefinição de Senha
+                            </button>
                         </div>
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-[#27272a]">
                             <button 
                                 onClick={handleUpdateProfile}
                                 disabled={isLoading}
                                 className="px-6 py-2.5 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 text-sm disabled:opacity-50"
                             >
                                 {isLoading ? <LoaderIcon className="w-4 h-4 animate-spin"/> : <SaveIcon className="w-4 h-4"/>}
-                                Salvar Alterações
+                                Salvar Perfil
                             </button>
                         </div>
                     </div>
@@ -296,17 +289,44 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
                         </div>
 
                         {/* Netlify */}
-                        <div className="p-4 bg-gray-50 dark:bg-[#18181b] rounded-xl border border-gray-200 dark:border-[#27272a]">
-                            <div className="flex items-center gap-2 mb-2 text-gray-900 dark:text-white font-medium text-sm">
-                                <NetlifyIcon className="w-4 h-4 text-[#00C7B7]" /> Netlify Access Token
+                        <div className="p-4 bg-gray-50 dark:bg-[#18181b] rounded-xl border border-gray-200 dark:border-[#27272a] space-y-3">
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-medium text-sm">
+                                <NetlifyIcon className="w-4 h-4 text-[#00C7B7]" /> Netlify Configuration
                             </div>
-                            <input 
-                                type="password" 
-                                value={netlifyToken}
-                                onChange={(e) => setNetlifyToken(e.target.value)}
-                                placeholder="nfp_..."
-                                className="w-full p-2 bg-white dark:bg-[#0c0c0e] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white text-sm focus:border-[#00C7B7] focus:outline-none"
-                            />
+                            
+                            <div>
+                                <label className="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Access Token</label>
+                                <input 
+                                    type="password" 
+                                    value={netlifyToken}
+                                    onChange={(e) => setNetlifyToken(e.target.value)}
+                                    placeholder="nfp_..."
+                                    className="w-full p-2 bg-white dark:bg-[#0c0c0e] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white text-sm focus:border-[#00C7B7] focus:outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] uppercase text-gray-500 font-bold block">OAuth Client ID (Opcional)</label>
+                                    <button 
+                                        onClick={() => setNetlifyClientId('')}
+                                        className="text-[10px] text-blue-500 hover:underline"
+                                        title="Limpar para usar o ID padrão da plataforma"
+                                    >
+                                        Restaurar Padrão
+                                    </button>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    value={netlifyClientId}
+                                    onChange={(e) => setNetlifyClientId(e.target.value)}
+                                    placeholder={NETLIFY_CLIENT_ID}
+                                    className="w-full p-2 bg-white dark:bg-[#0c0c0e] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white text-sm focus:border-[#00C7B7] focus:outline-none placeholder-gray-400 dark:placeholder-gray-600"
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                    Deixe em branco para usar o ID padrão do Codegen Studio ({NETLIFY_CLIENT_ID.substring(0,8)}...). Use um ID próprio apenas se tiver configurado seu próprio OAuth App no Netlify.
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex justify-end pt-2">

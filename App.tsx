@@ -120,6 +120,7 @@ export const App: React.FC = () => {
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
+  const [toastSuccess, setToastSuccess] = useState<string | null>(null); // Added Success Toast
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -135,6 +136,32 @@ export const App: React.FC = () => {
   const [codeError, setCodeError] = useState<string | null>(null);
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Check for OAuth callbacks (Netlify)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+        // Parse params
+        const params = new URLSearchParams(hash.substring(1));
+        const token = params.get('access_token');
+        
+        if (token) {
+            // If opened in popup, communicate with opener
+            if (window.opener) {
+                window.opener.postMessage({ type: 'NETLIFY_TOKEN', token }, '*');
+                window.close();
+            } else {
+                // If redirect was in same window, save temporarily or handle as login
+                // Since we rely on Firebase auth for the app, we just clear hash
+                // and maybe show a toast if user was already logged in
+                window.location.hash = '';
+                // If user is logged in, we could try to save it, but we need sessionUser
+                // This case is tricky if we don't have user state yet.
+                // Best to let the auth state listener handle it or use local storage
+            }
+        }
+    }
+  }, []);
 
   useEffect(() => {
     if (!userSettings) return;
@@ -260,14 +287,17 @@ export const App: React.FC = () => {
     } catch (error: any) { return null; }
   }, []);
 
-  const handleUpdateSettings = async (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => {
+  const handleUpdateSettings = useCallback(async (newSettings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>) => {
     if (!sessionUser) return;
     try {
       const docRef = doc(db, "users", sessionUser.uid);
       await updateDoc(docRef, { ...newSettings, updated_at: serverTimestamp() });
       setUserSettings(prev => prev ? { ...prev, ...newSettings } : null);
+      if (newSettings.netlify_access_token) {
+          setToastSuccess("Netlify conectado com sucesso!");
+      }
     } catch (error) { console.error("Erro ao atualizar configurações:", error); }
-  };
+  }, [sessionUser]);
 
   const handleCompleteProOnboarding = async () => {
     setShowProOnboarding(false);
@@ -643,6 +673,7 @@ export const App: React.FC = () => {
       <SaveSuccessAnimation isVisible={showSaveSuccess} />
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
       <Toast message={toastError} onClose={() => setToastError(null)} type="error" />
+      <Toast message={toastSuccess} onClose={() => setToastSuccess(null)} type="success" />
 
       {isDashboardView && (
           <NavigationSidebar 

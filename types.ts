@@ -43,6 +43,7 @@ export interface UserSettings {
   openrouter_api_key?: string;
   github_access_token?: string;
   netlify_access_token?: string;
+  netlify_client_id?: string; // ID for OAuth App
   supabase_project_url?: string;
   supabase_anon_key?: string;
   supabase_service_key?: string;
