@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
     AppLogo, HomeIcon, ProjectsIcon, UsersIcon, ClockIcon, SettingsIcon, 
-    LogInIcon, LogOutIcon, CubeIcon, GalleryIcon, SparklesIcon
+    LogInIcon, LogOutIcon, CubeIcon, GalleryIcon, SparklesIcon, LightningIcon
 } from './Icons';
 
 interface NavigationSidebarProps {
@@ -119,7 +119,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
                 <div className="flex flex-col gap-3">
                     {/* Credits Badge */}
                     <div className={`flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400 ${isCollapsed ? 'justify-center p-2' : ''}`}>
-                        <SparklesIcon className="w-4 h-4" />
+                        <LightningIcon className="w-4 h-4" />
                         {!isCollapsed && <span className="text-xs font-bold font-mono">{credits} Créditos</span>}
                     </div>
 
