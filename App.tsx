@@ -50,20 +50,37 @@ const sanitizeFirestoreData = (data: any) => {
 
 const extractAndParseJson = (text: string): any => {
   if (!text) return { message: "Erro: Resposta vazia da IA.", files: [] };
+  
+  // 1. First, attempt to clean up Markdown code blocks
+  let cleanText = text.trim();
+  
+  // Replace "```json" or "```" at start
+  cleanText = cleanText.replace(/^```json\s*/, '').replace(/^```\s*/, '');
+  
+  // Replace "```" at the end
+  cleanText = cleanText.replace(/```$/, '').trim();
+
+  // 2. Try parsing the clean text
   try {
-    return JSON.parse(text);
+    return JSON.parse(cleanText);
   } catch (e) {
+    // 3. If standard parse fails, try to find the outermost JSON object
     const firstBrace = text.indexOf('{');
     const lastBrace = text.lastIndexOf('}');
+    
     if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        // Fallback: If absolutely no JSON structure is found, return the text as message
        return { message: text, files: [] };
     }
+    
     const jsonString = text.substring(firstBrace, lastBrace + 1);
+    
     try {
       return JSON.parse(jsonString);
     } catch (innerError) {
       console.error("JSON Parse Error:", innerError);
-      throw new Error("A resposta da IA não é um JSON válido.");
+      // Last resort fallback
+      return { message: `Erro ao processar resposta da IA. Texto bruto: ${text.substring(0, 100)}...`, files: [] };
     }
   }
 };
@@ -511,11 +528,7 @@ export const App: React.FC = () => {
           apiKey
       );
       
-      let payload = fullResponse.trim();
-      if (payload.startsWith('```json')) payload = payload.replace(/^```json/, '').replace(/```$/, '');
-      else if (payload.startsWith('```')) payload = payload.replace(/^```/, '').replace(/```$/, '');
-
-      const result = extractAndParseJson(payload);
+      const result = extractAndParseJson(fullResponse);
       
       if (result.suggestions && Array.isArray(result.suggestions)) {
           setAiSuggestions(result.suggestions);

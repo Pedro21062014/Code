@@ -190,15 +190,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </div>
 
         {/* Input Box - Bolt Style */}
-        <div className="w-full relative group">
+        <div className="w-full relative group z-20">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
-            <div className="relative bg-white dark:bg-[#18181b] rounded-xl border border-gray-200 dark:border-[#27272a] shadow-2xl flex flex-col overflow-hidden">
+            {/* Removed overflow-hidden to allow dropdown to pop out */}
+            <div className="relative bg-white dark:bg-[#18181b] rounded-xl border border-gray-200 dark:border-[#27272a] shadow-2xl flex flex-col">
                 <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Descreva seu app..."
-                    className="w-full h-32 p-5 bg-transparent text-base md:text-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none"
+                    className="w-full h-32 p-5 bg-transparent text-base md:text-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none rounded-t-xl"
                     autoFocus
                 />
 
@@ -215,7 +216,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 )}
 
                 {/* Actions Bar */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50 dark:bg-[#121214]/50 border-t border-gray-100 dark:border-[#27272a]">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50 dark:bg-[#121214]/50 border-t border-gray-100 dark:border-[#27272a] rounded-b-xl">
                     <div className="flex items-center gap-2">
                         <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors" title="Anexar arquivo">
                             <PlusIcon className="w-4 h-4" />
@@ -234,7 +235,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             </button>
                             
                             {isModelDropdownOpen && (
-                                <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-xl overflow-hidden z-20 py-1">
+                                <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 py-1">
                                     {availableModels.map(model => (
                                         <button
                                             key={model.id}
@@ -287,7 +288,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
         {/* Recent Projects (Minimal) */}
         {session?.user && recentProjects.length > 0 && (
-            <div className="fixed bottom-0 left-0 right-0 p-4 flex justify-center pointer-events-none">
+            <div className="fixed bottom-0 left-0 right-0 p-4 flex justify-center pointer-events-none z-0">
                 <div className="bg-white/90 dark:bg-[#18181b]/90 backdrop-blur-md border border-gray-200 dark:border-[#27272a] rounded-2xl shadow-xl p-2 flex gap-4 pointer-events-auto max-w-3xl overflow-x-auto custom-scrollbar">
                     {displayProjects.map(p => (
                         <div key={p.id} onClick={() => onLoadProject(p.id)} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-[#27272a] rounded-xl cursor-pointer min-w-[180px] transition-colors group">
