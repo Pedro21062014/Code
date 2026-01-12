@@ -4,7 +4,6 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
 import { NavigationSidebar } from './components/NavigationSidebar';
-import { SettingsModal } from './components/SettingsModal';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { PricingPage } from './components/PricingPage';
 import { ProjectsPage } from './components/ProjectsPage';
@@ -37,6 +36,7 @@ import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { OpenAIModal } from './components/OpenAIModal';
 import { NetlifyModal } from './components/NetlifyModal';
+import { SettingsPage } from './components/SettingsPage'; // Import new page
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -94,7 +94,7 @@ export const App: React.FC = () => {
   const [galleryProjects, setGalleryProjects] = useState<SavedProject[]>([]);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
-  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations' | 'gallery'>(() => {
+  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations' | 'gallery' | 'settings'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
@@ -105,7 +105,6 @@ export const App: React.FC = () => {
   const [previousView, setPreviousView] = useState<'landing' | 'welcome'>('landing');
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
 
-  const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isOpenAIModalOpen, setOpenAIModalOpen] = useState(false);
   const [isGithubModalOpen, setGithubModalOpen] = useState(false);
@@ -124,7 +123,8 @@ export const App: React.FC = () => {
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  const [theme, setTheme] = useLocalStorage<Theme>('theme', 'dark');
+  // Default theme set to 'light'
+  const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
   
   const [availableModels, setAvailableModels] = useState<AIModel[]>(AI_MODELS);
   
@@ -245,9 +245,15 @@ export const App: React.FC = () => {
             await updateDoc(docRef, { email: currentUserEmail }).catch(() => {});
             mergedSettings.email = currentUserEmail;
         }
+        // Initialize credits if undefined
+        if (mergedSettings.credits === undefined) {
+            const defaultCredits = 50;
+            await updateDoc(docRef, { credits: defaultCredits }).catch(() => {});
+            mergedSettings.credits = defaultCredits;
+        }
         return mergedSettings;
       } else {
-        const initialData = { email: currentUserEmail, plan: 'Hobby' as const, hasSeenProWelcome: false };
+        const initialData = { email: currentUserEmail, plan: 'Hobby' as const, hasSeenProWelcome: false, credits: 50 };
         await setDoc(docRef, initialData);
         return { id: userUid, ...initialData } as UserSettings;
       }
@@ -283,7 +289,7 @@ export const App: React.FC = () => {
     const isPublic = existingProject?.is_public_in_gallery || false;
     const existingLikes = existingProject?.likes || 0;
     const existingLikedBy = existingProject?.likedBy || [];
-    const existingSiteId = existingProject?.netlifySiteId; // Preserve siteId
+    const existingSiteId = existingProject?.netlifySiteId; // Persist siteId
 
     const projectData: SavedProject = {
       id: projectId,
@@ -450,6 +456,15 @@ export const App: React.FC = () => {
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
     if (!sessionUser) { setView('auth'); return; }
     
+    // Check and deduct credits if user doesn't have their own key (simplified check)
+    // Note: If user has a key, we might not deduct credits, but user requested "they have to spend credits".
+    // We will deduct credits regardless for platform usage, unless userSettings allows bypass.
+    const currentCredits = userSettings?.credits || 0;
+    if (currentCredits <= 0) {
+        setToastError("Você não tem créditos suficientes. Por favor, recarregue.");
+        return;
+    }
+
     let activeProjectState = project;
     if (view === 'welcome') {
         activeProjectState = { ...initialProjectState };
@@ -467,6 +482,12 @@ export const App: React.FC = () => {
     let accumulatedResponse = "";
 
     try {
+      // Deduct Credit Logic
+      const newCredits = currentCredits - 1;
+      setUserSettings(prev => prev ? { ...prev, credits: newCredits } : null);
+      // Sync with Firestore in background
+      updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-1) }).catch(err => console.error("Failed to update credits", err));
+
       const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
         : userSettings?.openrouter_api_key; 
@@ -612,7 +633,7 @@ export const App: React.FC = () => {
   if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
   if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
 
-  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations', 'gallery'].includes(view);
+  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations', 'gallery', 'settings'].includes(view);
 
   // Get existing site ID for current project
   const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
@@ -630,8 +651,8 @@ export const App: React.FC = () => {
               session={sessionUser ? { user: sessionUser } : null}
               onLogin={() => setView('auth')}
               onLogout={() => signOut(auth)}
-              onOpenSettings={() => setSettingsOpen(true)}
-              credits={0} 
+              onOpenSettings={() => setView('settings')} // Use setView
+              credits={userSettings?.credits || 0} 
               currentPlan={userSettings?.plan || 'Hobby'}
           />
       )}
@@ -650,10 +671,10 @@ export const App: React.FC = () => {
                   onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
                   onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                   onLogout={() => signOut(auth)}
-                  onOpenSettings={() => setSettingsOpen(true)}
+                  onOpenSettings={() => setView('settings')}
                   recentProjects={savedProjects}
                   onLoadProject={handleLoadProject}
-                  credits={0}
+                  credits={userSettings?.credits || 0}
                   userGeminiKey={userSettings?.gemini_api_key}
                   currentPlan={userSettings?.plan || 'Hobby'}
                   availableModels={availableModels}
@@ -664,6 +685,15 @@ export const App: React.FC = () => {
 
             {view === 'pricing' && (
                 <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
+            )}
+
+            {view === 'settings' && (
+                <SettingsPage 
+                    settings={userSettings} 
+                    sessionUser={sessionUser} 
+                    onUpdateSettings={handleUpdateSettings} 
+                    onLogout={() => signOut(auth)} 
+                />
             )}
 
             {view === 'integrations' && (
@@ -713,13 +743,13 @@ export const App: React.FC = () => {
                           onSendMessage={handleSendMessage} 
                           isProUser={userSettings?.plan === 'Pro'} 
                           projectName={projectName} 
-                          credits={0}
+                          credits={userSettings?.credits || 0}
                           generatingFile={generatingFile} 
                           isGenerating={isInitializing}
                           availableModels={availableModels}
                           onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
                           onOpenGithub={() => setGithubSyncModalOpen(true)}
-                          onOpenSettings={() => setSettingsOpen(true)}
+                          onOpenSettings={() => setView('settings')}
                       />
                     </div>
                     <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
@@ -735,7 +765,7 @@ export const App: React.FC = () => {
                         onOpenProjects={() => setView('projects')}
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                         onLogout={() => signOut(auth)}
-                        onOpenSettings={() => setSettingsOpen(true)}
+                        onOpenSettings={() => setView('settings')}
                         onRenameProject={handleRenameProject}
                         onNavigateHome={() => setView('welcome')}
                         session={sessionUser}
@@ -754,14 +784,13 @@ export const App: React.FC = () => {
       
       {/* Global Modals */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
       
       <GithubImportModal 
         isOpen={isGithubModalOpen} 
         onClose={() => setGithubModalOpen(false)} 
         onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} 
         githubToken={userSettings?.github_access_token} 
-        onOpenSettings={() => setSettingsOpen(true)} 
+        onOpenSettings={() => setView('settings')} 
         onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
       />
       
@@ -771,7 +800,7 @@ export const App: React.FC = () => {
         files={files} 
         projectName={projectName} 
         githubToken={userSettings?.github_access_token} 
-        onOpenSettings={() => setSettingsOpen(true)} 
+        onOpenSettings={() => setView('settings')} 
         onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
       />
       

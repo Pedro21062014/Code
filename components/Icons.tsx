@@ -57,8 +57,8 @@ export const DeepSeekIcon = ({ className = "w-5 h-5" }: IconProps) => (
 );
 
 export const NetlifyIcon = ({ className = "w-5 h-5" }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6.433 10.38c.184.22.443.25.642.062l2.678-2.525c.183-.172.168-.429-.033-.585L6.657 5.01c-.167-.13-.41-.097-.56.076L3.92 8.12a.377.377 0 0 0 .056.54l2.457 1.72zM12.44 19.346c.203.22.483.243.692.046l6.634-6.257c.202-.19.185-.473-.037-.645l-3.37-2.617a.417.417 0 0 0-.575.056l-3.385 4.094a.393.393 0 0 0 .041.565l.001-.001zM20.297 9.877L15.352 6.037a.417.417 0 0 0-.617.07l-1.397 1.69a.394.394 0 0 0 .043.565l7.394 5.742a.378.378 0 0 0 .57-.08l1.378-1.927a.416.416 0 0 0-.05-.54l-2.376-1.68z" />
+    <svg className={className} viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M62.624 37.07L23.013 75.485L70.07 122.54l40.355-52.47zM117.425 200.772l69.255-39.986l-39.23-42.37l-30.025 82.356zM192.3 154.02l-38.412-41.487l40.75-55.935l40.065 40.066z" />
     </svg>
 );
 
@@ -339,6 +339,13 @@ export const HomeIcon = ({ className = "w-6 h-6" }: IconProps) => (
     <svg {...defaultProps} className={className} viewBox="0 0 24 24">
         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
         <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+);
+
+export const UserIcon = ({ className = "w-6 h-6" }: IconProps) => (
+    <svg {...defaultProps} className={className} viewBox="0 0 24 24">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
     </svg>
 );
 

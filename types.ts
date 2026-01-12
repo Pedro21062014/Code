@@ -37,11 +37,12 @@ export interface UserSettings {
   id: string;
   email?: string;
   updated_at?: string;
+  credits?: number; // Added credits field
   gemini_api_key?: string;
   openai_api_key?: string;
   openrouter_api_key?: string;
   github_access_token?: string;
-  netlify_access_token?: string; // New field
+  netlify_access_token?: string;
   supabase_project_url?: string;
   supabase_anon_key?: string;
   supabase_service_key?: string;
