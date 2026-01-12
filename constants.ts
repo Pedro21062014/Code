@@ -9,6 +9,7 @@ export const AI_MODELS: AIModel[] = [
   
   // Direct API Models (Requires User Key)
   { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Own Key)', provider: AIProvider.Gemini },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.5 Flash (Own Key)', provider: AIProvider.Gemini }, // Added 2.5 (Mapped to 2.0-flash)
   { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro (Own Key)', provider: AIProvider.Gemini },
 ];
 
