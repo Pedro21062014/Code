@@ -1,3 +1,4 @@
+
 import { ProjectFile } from '../types';
 
 const fileContentToString = (files: ProjectFile[]): string => {
@@ -20,6 +21,7 @@ const getSystemPrompt = (files: ProjectFile[]): string => `You are an expert sen
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
 - If a 'services/supabase.ts' file exists, it means the project is integrated with Supabase. Use the exported Supabase client from that file for any data-related tasks. Do not re-initialize the client.
+- **NETLIFY CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works on Netlify.
 - Respond with a JSON object that strictly adheres to the provided schema. The JSON object must contain two keys: "message" (a friendly, conversational message to the user, in Portuguese) and "files" (an array of file objects). Each file object must have "name", "language", and "content".
 
 Current project files:

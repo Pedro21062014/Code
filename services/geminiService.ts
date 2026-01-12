@@ -29,6 +29,7 @@ ${file.content}
   - Hooks in \`src/hooks/\`.
   - Utils/Services in \`src/lib/\` or \`src/services/\`.
   - Assets in \`public/\`.
+  - **NETLIFY CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works on Netlify.
   - **IMPORTANT**: Every file in the "files" array must have a full relative path (e.g., "src/components/Navbar.tsx").
 
 - **ARCHITECTURE (NODE.JS + VITE)**:

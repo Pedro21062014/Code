@@ -66,8 +66,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
     setError(null);
     try {
         const provider = new GoogleAuthProvider();
-        // Add Drive Scope
-        provider.addScope('https://www.googleapis.com/auth/drive.file');
         await signInWithPopup(auth, provider);
     } catch (err: any) {
       setError(err.message);
