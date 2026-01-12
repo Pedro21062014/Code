@@ -12,5 +12,5 @@ export const INITIAL_CHAT_MESSAGE = `Olá! Sou seu assistente de codificação d
 // Adicionada uma chave de API padrão do Gemini como fallback, lendo de variáveis de ambiente VITE_
 export const DEFAULT_GEMINI_API_KEY = (import.meta as any).env?.VITE_DEFAULT_GEMINI_API_KEY || 'AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU';
 
-// Netlify Client ID para OAuth (Trimmed just in case)
-export const NETLIFY_CLIENT_ID = 'W-BabN2kb2RnXcaiLNcol-dhel1M6mttxUGdGYhmHPI';
+// Netlify Client ID para OAuth
+export const NETLIFY_CLIENT_ID = 'uz0O6pbDlGcg6yfz0rEDAibosIWNCFsji1DQkGPpoXU';

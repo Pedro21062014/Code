@@ -85,18 +85,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
     };
 
     const handlePasswordReset = async () => {
-        if (!auth.currentUser || !auth.currentUser.email) {
+        const user = auth.currentUser;
+        
+        if (!user || !user.email) {
             showMessage('error', 'Email não encontrado para enviar redefinição.');
+            return;
+        }
+
+        // Verifica se o usuário está logado via provedor social (Google/GitHub) e não tem senha
+        // O Firebase retorna providerData como um array. Se 'password' não estiver lá, o usuário não tem senha.
+        const providerData = user.providerData;
+        const hasPasswordProvider = providerData.some(p => p.providerId === 'password');
+
+        if (providerData.length > 0 && !hasPasswordProvider) {
+            const providerName = providerData[0].providerId;
+            showMessage('error', `Sua conta usa login social (${providerName}). Não é possível redefinir senha pois você não usa senha para entrar.`);
             return;
         }
         
         setIsLoading(true);
         try {
-            await sendPasswordResetEmail(auth, auth.currentUser.email);
-            showMessage('success', `Email de redefinição enviado para ${auth.currentUser.email}. Verifique sua caixa de entrada.`);
+            await sendPasswordResetEmail(auth, user.email);
+            showMessage('success', `Email de redefinição enviado para ${user.email}. Verifique sua caixa de entrada e spam.`);
         } catch (error: any) {
-            console.error(error);
-            showMessage('error', 'Erro ao enviar email. Tente novamente mais tarde.');
+            console.error("Reset Password Error:", error);
+            let msg = 'Erro ao enviar email. Tente novamente mais tarde.';
+            if (error.code === 'auth/too-many-requests') msg = 'Muitas tentativas recentes. Aguarde alguns minutos.';
+            if (error.code === 'auth/user-not-found') msg = 'Usuário não encontrado.';
+            showMessage('error', msg);
         } finally {
             setIsLoading(false);
         }
@@ -223,14 +239,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
                         <div className="pt-6 border-t border-gray-100 dark:border-[#27272a]">
                             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Segurança</h3>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 max-w-lg">
-                                Para alterar sua senha, enviaremos um link de confirmação seguro para o endereço de email associado à sua conta.
+                                Para alterar sua senha, enviaremos um link de confirmação seguro para o endereço de email associado à sua conta ({auth.currentUser?.email}). 
+                                <br/><br/>
+                                <span className="text-yellow-600 dark:text-yellow-500 font-medium">Nota:</span> Se você fez login com Google ou GitHub, não é necessário (nem possível) alterar a senha por aqui.
                             </p>
                             
                             <button
                                 onClick={handlePasswordReset}
-                                className="px-4 py-2 bg-gray-100 dark:bg-[#27272a] hover:bg-gray-200 dark:hover:bg-[#3f3f46] text-gray-900 dark:text-white rounded-lg text-xs font-medium transition-colors border border-gray-200 dark:border-[#3f3f46]"
+                                disabled={isLoading}
+                                className="px-4 py-2 bg-gray-100 dark:bg-[#27272a] hover:bg-gray-200 dark:hover:bg-[#3f3f46] text-gray-900 dark:text-white rounded-lg text-xs font-medium transition-colors border border-gray-200 dark:border-[#3f3f46] disabled:opacity-50"
                             >
-                                Enviar Email de Redefinição de Senha
+                                {isLoading ? 'Enviando...' : 'Enviar Email de Redefinição de Senha'}
                             </button>
                         </div>
 
