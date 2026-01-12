@@ -15,8 +15,8 @@ const testApiKey = async (key: string): Promise<{ success: boolean; message: str
     if (!key) return { success: false, message: 'A chave não pode estar em branco.' };
     try {
         const ai = new GoogleGenAI({ apiKey: key });
-        /* Using gemini-3-flash-preview for the connectivity test as it's the standard basic model */
-        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: 'diga "ok"' });
+        /* Using gemini-2.0-flash-exp for the connectivity test */
+        const response = await ai.models.generateContent({ model: 'gemini-2.0-flash-exp', contents: 'diga "ok"' });
         // FIX: Safely check for response.text
         const text = response.text || "";
         if (text.trim().toLowerCase().includes('ok')) {
