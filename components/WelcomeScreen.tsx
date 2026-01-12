@@ -63,7 +63,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onThemeChange
 }) => {
   const [prompt, setPrompt] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp');
+  // Set default to the OpenRouter Free Gemini model
+  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   

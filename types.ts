@@ -3,6 +3,7 @@ export enum AIProvider {
   Gemini = 'Gemini',
   OpenAI = 'OpenAI',
   DeepSeek = 'DeepSeek',
+  OpenRouter = 'OpenRouter',
 }
 
 export enum IntegrationProvider {

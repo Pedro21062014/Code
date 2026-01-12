@@ -2,15 +2,19 @@
 import { AIProvider, AIModel } from './types';
 
 export const AI_MODELS: AIModel[] = [
-  // Gemini Models (Updated to valid 2.0 series)
-  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: AIProvider.Gemini },
-  { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro', provider: AIProvider.Gemini },
+  // OpenRouter Free Models (Default)
+  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (Free)', provider: AIProvider.OpenRouter },
+  { id: 'z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (Free)', provider: AIProvider.OpenRouter },
+  { id: 'openai/gpt-oss-120b:free', name: 'GPT OSS 120B (Free)', provider: AIProvider.OpenRouter },
+  
+  // Direct API Models (Requires User Key)
+  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Own Key)', provider: AIProvider.Gemini },
+  { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro (Own Key)', provider: AIProvider.Gemini },
 ];
 
 export const INITIAL_CHAT_MESSAGE = `Olá! Sou seu assistente de codificação de IA. Descreva a aplicação web que você deseja construir. Por exemplo: "Crie um site de portfólio simples com uma página inicial, sobre e de contato."`;
 
-// Adicionada uma chave de API padrão do Gemini como fallback, lendo de variáveis de ambiente VITE_
-export const DEFAULT_GEMINI_API_KEY = (import.meta as any).env?.VITE_DEFAULT_GEMINI_API_KEY || 'AIzaSyD0433RALd_5FVbs89xn6okQUsZ3QgHejU';
-
 // Netlify Client ID para OAuth
 export const NETLIFY_CLIENT_ID = 'uz0O6pbDlGcg6yfz0rEDAibosIWNCFsji1DQkGPpoXU';
+
+export const DEFAULT_GEMINI_API_KEY = '';
