@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
     AppLogo, HomeIcon, ProjectsIcon, UsersIcon, ClockIcon, SettingsIcon, 
-    LogInIcon, LogOutIcon, CubeIcon, GalleryIcon
+    LogInIcon, LogOutIcon, CubeIcon, GalleryIcon, SparklesIcon
 } from './Icons';
 
 interface NavigationSidebarProps {
@@ -12,7 +12,7 @@ interface NavigationSidebarProps {
   onLogin: () => void;
   onLogout: () => void;
   onOpenSettings: () => void;
-  credits: number; // Mantido na interface para compatibilidade, mas ignorado
+  credits: number;
   currentPlan: string;
 }
 
@@ -23,6 +23,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   onLogin,
   onLogout,
   onOpenSettings,
+  credits,
   currentPlan
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -108,6 +109,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
                 icon={<SettingsIcon className="w-5 h-5" />} 
                 label="Configurações" 
                 onClick={onOpenSettings} 
+                active={activeView === 'settings'}
             />
         </div>
 
@@ -115,7 +117,12 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
         <div className="p-4 border-t border-gray-200 dark:border-[#27272a] flex-shrink-0 bg-gray-50 dark:bg-[#09090b]">
             {isLoggedIn ? (
                 <div className="flex flex-col gap-3">
-                    
+                    {/* Credits Badge */}
+                    <div className={`flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400 ${isCollapsed ? 'justify-center p-2' : ''}`}>
+                        <SparklesIcon className="w-4 h-4" />
+                        {!isCollapsed && <span className="text-xs font-bold font-mono">{credits} Créditos</span>}
+                    </div>
+
                     {/* User Profile */}
                     <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
                         <div className="relative group cursor-pointer" onClick={onOpenSettings}>

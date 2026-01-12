@@ -2,10 +2,9 @@
 import { AIProvider, AIModel } from './types';
 
 export const AI_MODELS: AIModel[] = [
-  // Gemini Models
-  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: AIProvider.Gemini },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', provider: AIProvider.Gemini },
-  { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite', provider: AIProvider.Gemini },
+  // Gemini Models (Updated to 2.5 series)
+  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash', provider: AIProvider.Gemini },
+  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', provider: AIProvider.Gemini },
 ];
 
 export const INITIAL_CHAT_MESSAGE = `Olá! Sou seu assistente de codificação de IA. Descreva a aplicação web que você deseja construir. Por exemplo: "Crie um site de portfólio simples com uma página inicial, sobre e de contato."`;
