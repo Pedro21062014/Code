@@ -486,7 +486,7 @@ export const App: React.FC = () => {
       const newCredits = currentCredits - 1;
       setUserSettings(prev => prev ? { ...prev, credits: newCredits } : null);
       // Sync with Firestore in background
-      updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-1) }).catch(err => console.error("Failed to update credits", err));
+      updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-1) }).catch((err: any) => console.error("Failed to update credits", err));
 
       const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
