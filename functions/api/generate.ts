@@ -16,6 +16,7 @@ const getSystemPrompt = (files: any[], envVars = {}) => {
 - For React projects, use functional components, TypeScript (.tsx), and hooks.
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
+- **NETLIFY DEPLOYMENT CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works correctly after deployment.
 
 - **IMPORTANT: ARCHITECTURE FOR FULL-STACK APPS**:
   - You are generating a Client-Side Single Page Application (SPA) that runs in a browser preview.

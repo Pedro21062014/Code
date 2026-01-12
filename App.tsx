@@ -36,7 +36,7 @@ import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { OpenAIModal } from './components/OpenAIModal';
 import { NetlifyModal } from './components/NetlifyModal';
-import { SettingsPage } from './components/SettingsPage'; // Import new page
+import { SettingsPage } from './components/SettingsPage';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -120,11 +120,10 @@ export const App: React.FC = () => {
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
-  const [toastSuccess, setToastSuccess] = useState<string | null>(null); // Added Success Toast
+  const [toastSuccess, setToastSuccess] = useState<string | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  // Default theme set to 'light'
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
   
   const [availableModels, setAvailableModels] = useState<AIModel[]>(AI_MODELS);
@@ -137,27 +136,18 @@ export const App: React.FC = () => {
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Check for OAuth callbacks (Netlify)
   useEffect(() => {
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
-        // Parse params
         const params = new URLSearchParams(hash.substring(1));
         const token = params.get('access_token');
         
         if (token) {
-            // If opened in popup, communicate with opener
             if (window.opener) {
                 window.opener.postMessage({ type: 'NETLIFY_TOKEN', token }, '*');
                 window.close();
             } else {
-                // If redirect was in same window, save temporarily or handle as login
-                // Since we rely on Firebase auth for the app, we just clear hash
-                // and maybe show a toast if user was already logged in
                 window.location.hash = '';
-                // If user is logged in, we could try to save it, but we need sessionUser
-                // This case is tricky if we don't have user state yet.
-                // Best to let the auth state listener handle it or use local storage
             }
         }
     }
@@ -245,7 +235,6 @@ export const App: React.FC = () => {
               const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
               projects.push(p);
           });
-          // Client-side sort fallback if composite index is missing
           projects.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
           setGalleryProjects(projects);
       } catch (error) {
@@ -272,7 +261,6 @@ export const App: React.FC = () => {
             await updateDoc(docRef, { email: currentUserEmail }).catch(() => {});
             mergedSettings.email = currentUserEmail;
         }
-        // Initialize credits if undefined
         if (mergedSettings.credits === undefined) {
             const defaultCredits = 50;
             await updateDoc(docRef, { credits: defaultCredits }).catch(() => {});
@@ -314,12 +302,16 @@ export const App: React.FC = () => {
     setIsSaving(true);
     const projectId = currentProjectId || Date.now();
     
-    // Maintain existing gallery status if saving an existing project
+    // Maintain existing status if saving an existing project
     const existingProject = savedProjects.find(p => p.id === projectId);
     const isPublic = existingProject?.is_public_in_gallery || false;
     const existingLikes = existingProject?.likes || 0;
     const existingLikedBy = existingProject?.likedBy || [];
-    const existingSiteId = existingProject?.netlifySiteId; // Persist siteId
+    
+    // IMPORTANT: Persist the netlifySiteId. If the state (savedProjects) is outdated, this prevents nulling it out.
+    // If we have an existing project in memory, use its ID.
+    const existingSiteId = existingProject?.netlifySiteId; 
+    const existingDeployedUrl = existingProject?.deployedUrl;
 
     const projectData: SavedProject = {
       id: projectId,
@@ -332,8 +324,8 @@ export const App: React.FC = () => {
       env_vars: envVars,
       likes: existingLikes,
       likedBy: existingLikedBy,
-      netlifySiteId: existingSiteId, // Persist
-      deployedUrl: existingProject?.deployedUrl, // Persist
+      netlifySiteId: existingSiteId, // CRITICAL FIX: Ensure this is persisted
+      deployedUrl: existingDeployedUrl, // CRITICAL FIX: Ensure this is persisted
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -342,7 +334,6 @@ export const App: React.FC = () => {
       await setDoc(doc(db, "projects", projectId.toString()), { ...projectData, updated_at: serverTimestamp() }, { merge: true });
       setProject(prev => ({ ...prev, currentProjectId: projectId }));
       
-      // Trigger Success Animation
       setShowSaveSuccess(true);
       setTimeout(() => setShowSaveSuccess(false), 2500);
 
@@ -355,7 +346,6 @@ export const App: React.FC = () => {
       
       if (currentProjectId) {
           try {
-              // Optimistic update
               setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, name: newName } : p));
               await updateDoc(doc(db, "projects", currentProjectId.toString()), { name: newName });
           } catch (error) {
@@ -378,25 +368,25 @@ export const App: React.FC = () => {
       if (currentProjectId) {
           try {
               await updateDoc(doc(db, "projects", currentProjectId.toString()), { is_public_in_gallery: isPublic });
-              // Update local state immediately
               setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, is_public_in_gallery: isPublic } : p));
           } catch (error: any) { throw new Error(error.message); }
       }
   }, [currentProjectId, handleSaveProject]);
 
-  // Função para atualizar metadados do projeto (ex: deployUrl, siteId) localmente
   const handleProjectMetaUpdate = useCallback((projectId: number, updates: Partial<SavedProject>) => {
+      // Ensure we update both the saved list AND the current project context if it matches
       setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
+      
+      // Update gallery list if present there too
+      setGalleryProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   }, [setSavedProjects]);
 
-  // Função para curtir projetos
   const handleToggleLike = useCallback(async (projectId: number) => {
       if (!sessionUser) {
           setAuthModalOpen(true);
           return;
       }
 
-      // Check both lists
       let targetProject = galleryProjects.find(p => p.id === projectId) || savedProjects.find(p => p.id === projectId);
       
       if (!targetProject) return;
@@ -404,7 +394,6 @@ export const App: React.FC = () => {
       const isLiked = targetProject.likedBy?.includes(sessionUser.uid);
       const newLikesCount = (targetProject.likes || 0) + (isLiked ? -1 : 1);
       
-      // Update Local State Optimistically
       const updater = (prev: SavedProject[]) => prev.map(p => {
           if (p.id === projectId) {
               const currentLikedBy = p.likedBy || [];
@@ -434,7 +423,6 @@ export const App: React.FC = () => {
           }
       } catch (error) {
           console.error("Failed to toggle like:", error);
-          // Revert on error (could implement if needed, but keeping simple for now)
       }
   }, [sessionUser, galleryProjects, savedProjects]);
 
@@ -444,27 +432,6 @@ export const App: React.FC = () => {
     if (sessionUser) { try { await deleteDoc(doc(db, "projects", projectId.toString())); } catch (error) { console.error("Erro ao deletar projeto:", error); } }
   }, [sessionUser, project.currentProjectId, setSavedProjects, setProject]);
 
-  const handleDriveAuth = async () => {
-    if (!auth.currentUser) {
-        setAuthModalOpen(true);
-        return;
-    }
-    try {
-        const provider = new GoogleAuthProvider();
-        provider.addScope('https://www.googleapis.com/auth/drive.file');
-        // Re-authenticate/Link to ensure scope is present if not already
-        await linkWithPopup(auth.currentUser, provider).catch(async (e: any) => {
-             // If already linked or error, just try popup auth to refresh scopes
-             // This might not be strictly necessary if we added scope at login, but handles "add later" cases
-             console.log("Link/Scope update:", e.message);
-        });
-        alert("Google Drive conectado! Permissões atualizadas.");
-    } catch (error: any) {
-        console.error("Error linking drive:", error);
-        alert("Erro ao conectar Google Drive.");
-    }
-  };
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
@@ -473,7 +440,6 @@ export const App: React.FC = () => {
         setUserSettings(settings);
         fetchUserProjects(user.uid);
         localStorage.setItem('codegen-has-visited', 'true');
-        // Se estava na auth page, vai para welcome. Se estava na landing, vai pra welcome.
         setView(current => (current === 'landing' || current === 'auth') ? 'welcome' : current);
       } else {
         setSessionUser(null);
@@ -486,9 +452,6 @@ export const App: React.FC = () => {
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
     if (!sessionUser) { setView('auth'); return; }
     
-    // Check and deduct credits if user doesn't have their own key (simplified check)
-    // Note: If user has a key, we might not deduct credits, but user requested "they have to spend credits".
-    // We will deduct credits regardless for platform usage, unless userSettings allows bypass.
     const currentCredits = userSettings?.credits || 0;
     if (currentCredits <= 0) {
         setToastError("Você não tem créditos suficientes. Por favor, recarregue.");
@@ -512,10 +475,8 @@ export const App: React.FC = () => {
     let accumulatedResponse = "";
 
     try {
-      // Deduct Credit Logic
       const newCredits = currentCredits - 1;
       setUserSettings(prev => prev ? { ...prev, credits: newCredits } : null);
-      // Sync with Firestore in background
       updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-1) }).catch((err: any) => console.error("Failed to update credits", err));
 
       const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
@@ -588,10 +549,7 @@ export const App: React.FC = () => {
   }, [project, userSettings, sessionUser, view, aiSuggestions]);
 
   const handleLoadProject = useCallback((projectId: number) => {
-    // Check saved projects first
     let p = savedProjects.find(x => x.id === projectId);
-    
-    // If not found, check gallery projects
     if (!p) p = galleryProjects.find(x => x.id === projectId);
 
     if (p) {
@@ -599,6 +557,8 @@ export const App: React.FC = () => {
         setView('editor');
     }
   }, [savedProjects, galleryProjects]);
+
+  const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
 
   if (isLoadingPublic) {
     return (
@@ -665,9 +625,6 @@ export const App: React.FC = () => {
 
   const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations', 'gallery', 'settings'].includes(view);
 
-  // Get existing site ID for current project
-  const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
-
   return (
     <div className={`${theme} flex h-screen bg-[#09090b]`}>
       <SaveSuccessAnimation isVisible={showSaveSuccess} />
@@ -682,7 +639,7 @@ export const App: React.FC = () => {
               session={sessionUser ? { user: sessionUser } : null}
               onLogin={() => setView('auth')}
               onLogout={() => signOut(auth)}
-              onOpenSettings={() => setView('settings')} // Use setView
+              onOpenSettings={() => setView('settings')}
               credits={userSettings?.credits || 0} 
               currentPlan={userSettings?.plan || 'Hobby'}
           />
@@ -736,7 +693,7 @@ export const App: React.FC = () => {
                     onOpenOSMModal={() => setOSMModalOpen(true)}
                     onOpenGeminiModal={() => setApiKeyModalOpen(true)}
                     onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
-                    onOpenDriveAuth={handleDriveAuth}
+                    onOpenDriveAuth={() => {}} // Removed functionality
                     onOpenNetlifyModal={() => setNetlifyModalOpen(true)}
                 />
             )}
@@ -804,7 +761,7 @@ export const App: React.FC = () => {
                         generatingFile={generatingFile}
                         generatedFileNames={generatedFileNames}
                         aiSuggestions={aiSuggestions}
-                        deployedUrl={currentSavedProject?.deployedUrl} // Passar deployedUrl
+                        deployedUrl={currentSavedProject?.deployedUrl}
                       />
                     </main>
                   </div>

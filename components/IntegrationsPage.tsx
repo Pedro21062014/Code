@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { GithubIcon, SupabaseIcon, StripeIcon, DatabaseIcon, MapIcon, SparklesIcon, GeminiIcon, OpenAIIcon, DriveIcon, NetlifyIcon } from './Icons';
+import { GithubIcon, SupabaseIcon, StripeIcon, DatabaseIcon, MapIcon, SparklesIcon, GeminiIcon, OpenAIIcon, NetlifyIcon } from './Icons';
 
 interface IntegrationsPageProps {
   onOpenGithubImport: () => void;
@@ -11,7 +11,7 @@ interface IntegrationsPageProps {
   onOpenGeminiModal: () => void;
   onOpenOpenAIModal: () => void;
   onOpenDriveAuth: () => void;
-  onOpenNetlifyModal: () => void; // New prop
+  onOpenNetlifyModal: () => void;
 }
 
 export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
@@ -22,7 +22,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   onOpenOSMModal,
   onOpenGeminiModal,
   onOpenOpenAIModal,
-  onOpenDriveAuth,
   onOpenNetlifyModal
 }) => {
   const integrations = [
@@ -43,15 +42,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
       onClick: onOpenOpenAIModal,
       hoverClass: "group-hover:border-green-500/30",
       iconClass: "text-green-500"
-    },
-    {
-      id: 'drive',
-      title: "Google Drive",
-      description: "Sincronização na nuvem.",
-      icon: <DriveIcon className="w-6 h-6" />,
-      onClick: onOpenDriveAuth,
-      hoverClass: "group-hover:border-yellow-500/30",
-      iconClass: "text-yellow-500"
     },
     { 
         id: 'github',
