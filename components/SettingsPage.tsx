@@ -95,7 +95,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, sessionUse
         // Verifica se o usuário está logado via provedor social (Google/GitHub) e não tem senha
         // O Firebase retorna providerData como um array. Se 'password' não estiver lá, o usuário não tem senha.
         const providerData = user.providerData;
-        const hasPasswordProvider = providerData.some(p => p.providerId === 'password');
+        const hasPasswordProvider = providerData.some((p: any) => p.providerId === 'password');
 
         if (providerData.length > 0 && !hasPasswordProvider) {
             const providerName = providerData[0].providerId;
