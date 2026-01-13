@@ -65,6 +65,9 @@ export interface SavedProject {
   is_public_in_gallery?: boolean;
   deployedUrl?: string; // Link do Netlify
   netlifySiteId?: string; // ID do site no Netlify para atualizações
+  previewImage?: string; // Base64 image for gallery preview
+  logo?: string; // Base64 image for app logo
+  description?: string; // Project description
   likes?: number;
   likedBy?: string[]; // IDs dos usuários que curtiram
   category?: string; // Categoria do projeto

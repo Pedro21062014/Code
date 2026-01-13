@@ -32,6 +32,22 @@ const getTimeAgo = (dateString: string) => {
     return "Criado agora";
 };
 
+// Component helper para o preview do site (Iframe escalado)
+const PreviewFrame: React.FC<{ url: string }> = ({ url }) => (
+    <div className="w-full h-full bg-white relative overflow-hidden group/frame">
+        <iframe 
+            src={url} 
+            className="w-[400%] h-[400%] border-none pointer-events-none absolute top-0 left-0 bg-white"
+            style={{ transform: 'scale(0.25)', transformOrigin: 'top left' }}
+            tabIndex={-1}
+            loading="lazy"
+            title="App Preview"
+        />
+        {/* Overlay transparente para evitar interação direta com iframe mas permitir ver */}
+        <div className="absolute inset-0 z-10 bg-transparent"></div>
+    </div>
+);
+
 // Card estilo Comunidade/Lovable (Escuro, Imagem no topo, Texto embaixo)
 const GalleryCard: React.FC<{ 
     project: SavedProject; 
@@ -57,23 +73,39 @@ const GalleryCard: React.FC<{
         <div onClick={onClick} className="group flex flex-col gap-0 cursor-pointer">
             {/* Image Preview Container */}
             <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-gray-200 dark:bg-[#121214] border border-gray-300 dark:border-[#27272a] group-hover:border-gray-400 dark:group-hover:border-gray-600 transition-all shadow-sm">
-                <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50 group-hover:opacity-70 transition-opacity`}></div>
                 
-                {/* Abstract Content Representation */}
-                <div className="absolute inset-0 flex items-center justify-center p-6">
-                    <div className="w-full h-full bg-white/20 dark:bg-[#000]/20 backdrop-blur-sm rounded-lg flex flex-col gap-2 p-3 border border-white/20 dark:border-white/5">
-                        <div className="h-2 w-1/3 bg-black/10 dark:bg-white/20 rounded-full"></div>
-                        <div className="h-2 w-1/2 bg-black/10 dark:bg-white/20 rounded-full"></div>
-                        <div className="flex-1"></div>
-                        <div className="flex gap-2">
-                            <div className="h-6 w-full bg-black/5 dark:bg-white/10 rounded-md"></div>
-                            <div className="h-6 w-1/4 bg-black/5 dark:bg-white/10 rounded-md"></div>
+                {project.previewImage ? (
+                    <img 
+                        src={project.previewImage} 
+                        alt={project.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                ) : (
+                    <>
+                        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50 group-hover:opacity-70 transition-opacity`}></div>
+                        {/* Content Representation */}
+                        <div className="absolute inset-0 flex items-center justify-center p-6">
+                            <div className="w-full h-full bg-white/20 dark:bg-[#000]/20 backdrop-blur-sm rounded-lg flex flex-col gap-2 p-3 border border-white/20 dark:border-white/5 overflow-hidden relative">
+                                {project.deployedUrl ? (
+                                    <PreviewFrame url={project.deployedUrl} />
+                                ) : (
+                                    <>
+                                        <div className="h-2 w-1/3 bg-black/10 dark:bg-white/20 rounded-full"></div>
+                                        <div className="h-2 w-1/2 bg-black/10 dark:bg-white/20 rounded-full"></div>
+                                        <div className="flex-1"></div>
+                                        <div className="flex gap-2">
+                                            <div className="h-6 w-full bg-black/5 dark:bg-white/10 rounded-md"></div>
+                                            <div className="h-6 w-1/4 bg-black/5 dark:bg-white/10 rounded-md"></div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </>
+                )}
 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px] z-20">
                     <span className="px-4 py-2 bg-white text-black rounded-full text-xs font-bold uppercase tracking-widest transform translate-y-2 group-hover:translate-y-0 transition-transform">
                         {project.deployedUrl ? 'Visitar App' : 'Ver Código'}
                     </span>
@@ -82,11 +114,18 @@ const GalleryCard: React.FC<{
 
             {/* Meta Info Below */}
             <div className="pt-3 px-1">
-                <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-tight mb-1 truncate">
-                    {project.name}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">
-                    {project.files.length > 5 ? 'A full-stack application built with React & Supabase.' : 'A simple tool for developers.'}
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        {project.logo && (
+                            <img src={project.logo} alt="Logo" className="w-5 h-5 rounded-md object-cover bg-gray-100 dark:bg-gray-800" />
+                        )}
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-tight truncate">
+                            {project.name}
+                        </h3>
+                    </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mb-2 mt-1">
+                    {project.description || (project.files.length > 5 ? 'A full-stack application built with React & Supabase.' : 'A simple tool for developers.')}
                 </p>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
@@ -129,21 +168,25 @@ const FeaturedGalleryCard: React.FC<{
             <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient} opacity-10 dark:opacity-100`}></div>
             
             {/* Content Content - Simulação de UI */}
-            <div className="absolute inset-0 p-8 flex flex-col justify-between z-10">
-                <div className="space-y-2">
+            <div className="absolute inset-0 p-8 flex flex-col justify-between z-10 pointer-events-none">
+                <div className="space-y-2 pointer-events-auto relative z-10">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-xs">
-                            {project.name.charAt(0)}
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{project.name}</h3>
+                        {project.logo ? (
+                            <img src={project.logo} alt="Logo" className="w-8 h-8 rounded-lg object-cover bg-white shadow-sm" />
+                        ) : (
+                            <div className="w-6 h-6 rounded-md bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-xs">
+                                {project.name.charAt(0)}
+                            </div>
+                        )}
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight drop-shadow-md">{project.name}</h3>
                     </div>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs leading-relaxed line-clamp-3">
-                       Uma aplicação em destaque criada com Codegen Studio. Explore o código fonte ou veja a demo ao vivo.
+                    <p className="text-gray-600 dark:text-gray-300 text-sm max-w-xs leading-relaxed line-clamp-3 drop-shadow-sm">
+                       {project.description || "Uma aplicação em destaque criada com Codegen Studio. Explore o código fonte ou veja a demo ao vivo."}
                     </p>
                 </div>
 
-                <div className="flex items-center justify-between mt-auto">
-                    <span className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                <div className="flex items-center justify-between mt-auto pointer-events-auto">
+                    <span className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 shadow-lg">
                         Visit Project
                     </span>
                     
@@ -160,16 +203,22 @@ const FeaturedGalleryCard: React.FC<{
                 </div>
             </div>
 
-            {/* Right Side Visual Decoration */}
-            <div className="absolute right-[-20px] top-[40px] w-[60%] h-[90%] bg-gray-100 dark:bg-[#1a1a1c] rounded-tl-xl border-l border-t border-gray-200 dark:border-white/10 shadow-2xl transform rotate-[-2deg] transition-transform group-hover:rotate-0 group-hover:translate-x-2">
-                <div className="p-4 space-y-3">
-                    <div className="h-8 w-1/3 bg-gray-300 dark:bg-white/10 rounded"></div>
-                    <div className="h-32 w-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded border border-gray-300 dark:border-white/5"></div>
-                    <div className="flex gap-2">
-                        <div className="h-10 w-1/2 bg-gray-300 dark:bg-white/5 rounded"></div>
-                        <div className="h-10 w-1/2 bg-gray-300 dark:bg-white/5 rounded"></div>
+            {/* Right Side Visual Decoration - NOW WITH IFRAME PREVIEW */}
+            <div className="absolute right-[-20px] top-[40px] w-[60%] h-[90%] bg-gray-100 dark:bg-[#1a1a1c] rounded-tl-xl border-l border-t border-gray-200 dark:border-white/10 shadow-2xl transform rotate-[-2deg] transition-transform group-hover:rotate-0 group-hover:translate-x-2 overflow-hidden">
+                {project.previewImage ? (
+                    <img src={project.previewImage} alt="Preview" className="w-full h-full object-cover" />
+                ) : project.deployedUrl ? (
+                    <PreviewFrame url={project.deployedUrl} />
+                ) : (
+                    <div className="p-4 space-y-3">
+                        <div className="h-8 w-1/3 bg-gray-300 dark:bg-white/10 rounded"></div>
+                        <div className="h-32 w-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded border border-gray-300 dark:border-white/5"></div>
+                        <div className="flex gap-2">
+                            <div className="h-10 w-1/2 bg-gray-300 dark:bg-white/5 rounded"></div>
+                            <div className="h-10 w-1/2 bg-gray-300 dark:bg-white/5 rounded"></div>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     )
@@ -182,9 +231,9 @@ const DashboardProjectCard: React.FC<{ project: SavedProject; onClick: () => voi
     ];
     const iconColor = iconColors[project.id % iconColors.length];
     
-    const description = project.files.length > 5 
+    const description = project.description || (project.files.length > 5 
         ? `Projeto completo com ${project.files.length} arquivos configurados.`
-        : `Aplicação inicial contendo ${project.files.length} arquivos.`;
+        : `Aplicação inicial contendo ${project.files.length} arquivos.`);
 
     const author = project.author || "Eu";
 
@@ -195,9 +244,13 @@ const DashboardProjectCard: React.FC<{ project: SavedProject; onClick: () => voi
         >
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 ${iconColor} rounded-xl flex items-center justify-center text-white shadow-md`}>
-                        {project.name.charAt(0).toUpperCase()}
-                    </div>
+                    {project.logo ? (
+                        <img src={project.logo} alt="Logo" className="w-12 h-12 rounded-xl object-cover border border-gray-100 dark:border-[#27272a] bg-gray-50 dark:bg-black" />
+                    ) : (
+                        <div className={`w-12 h-12 ${iconColor} rounded-xl flex items-center justify-center text-white shadow-md`}>
+                            {project.name.charAt(0).toUpperCase()}
+                        </div>
+                    )}
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white text-lg leading-tight group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
                             {project.name}

@@ -37,6 +37,7 @@ import { IntegrationsPage } from './components/IntegrationsPage';
 import { OpenAIModal } from './components/OpenAIModal';
 import { NetlifyModal } from './components/NetlifyModal';
 import { SettingsPage } from './components/SettingsPage';
+import { ProjectSettingsModal } from './components/ProjectSettingsModal'; // Import new modal
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -92,6 +93,8 @@ interface ProjectState {
   projectName: string;
   envVars: Record<string, string>;
   currentProjectId: number | null;
+  // Note: previewImage, logo, description are stored in SavedProject (metadata), 
+  // we could sync them here if needed for live preview but they are mostly for gallery/dashboard
 }
 
 const initialProjectState: ProjectState = {
@@ -134,6 +137,7 @@ export const App: React.FC = () => {
   const [isNeonModalOpen, setNeonModalOpen] = useState(false);
   const [isOSMModalOpen, setOSMModalOpen] = useState(false);
   const [isNetlifyModalOpen, setNetlifyModalOpen] = useState(false);
+  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false); // New State
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
@@ -321,28 +325,23 @@ export const App: React.FC = () => {
     
     // Maintain existing status if saving an existing project
     const existingProject = savedProjects.find(p => p.id === projectId);
-    const isPublic = existingProject?.is_public_in_gallery || false;
-    const existingLikes = existingProject?.likes || 0;
-    const existingLikedBy = existingProject?.likedBy || [];
     
-    // IMPORTANT: Persist the netlifySiteId. If the state (savedProjects) is outdated, this prevents nulling it out.
-    // If we have an existing project in memory, use its ID.
-    const existingSiteId = existingProject?.netlifySiteId; 
-    const existingDeployedUrl = existingProject?.deployedUrl;
-
     const projectData: SavedProject = {
       id: projectId,
       ownerId: sessionUser.uid,
-      shared_with: project.currentProjectId ? (savedProjects.find(p => p.id === project.currentProjectId)?.shared_with || []) : [],
-      is_public_in_gallery: isPublic,
+      shared_with: project.currentProjectId ? (existingProject?.shared_with || []) : [],
+      is_public_in_gallery: existingProject?.is_public_in_gallery || false,
       name: projectName,
       files: files,
       chat_history: chatMessages,
       env_vars: envVars,
-      likes: existingLikes,
-      likedBy: existingLikedBy,
-      netlifySiteId: existingSiteId, // CRITICAL FIX: Ensure this is persisted
-      deployedUrl: existingDeployedUrl, // CRITICAL FIX: Ensure this is persisted
+      likes: existingProject?.likes || 0,
+      likedBy: existingProject?.likedBy || [],
+      netlifySiteId: existingProject?.netlifySiteId, 
+      deployedUrl: existingProject?.deployedUrl,
+      previewImage: existingProject?.previewImage, // Preserve existing preview
+      logo: existingProject?.logo, // Preserve existing logo
+      description: existingProject?.description, // Preserve existing description
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -368,6 +367,29 @@ export const App: React.FC = () => {
           } catch (error) {
               console.error("Failed to rename saved project", error);
           }
+      }
+  }, [currentProjectId, setSavedProjects]);
+
+  const handleUpdateProjectSettings = useCallback(async (projectId: number, updates: Partial<SavedProject>) => {
+      // 1. Update in local storage state
+      setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
+      
+      // 2. Update current project context if it's the active one
+      if (currentProjectId === projectId) {
+          if (updates.name) setProject(prev => ({ ...prev, projectName: updates.name! }));
+          // other fields like logo/preview are not in active ProjectState currently, only in SavedProject
+      }
+
+      // 3. Update Firestore
+      try {
+          await updateDoc(doc(db, "projects", projectId.toString()), { 
+              ...updates, 
+              updated_at: serverTimestamp() 
+          });
+          setToastSuccess("Configurações do projeto salvas!");
+      } catch (error) {
+          console.error("Failed to update project settings", error);
+          setToastError("Erro ao salvar configurações do projeto.");
       }
   }, [currentProjectId, setSavedProjects]);
 
@@ -573,6 +595,16 @@ export const App: React.FC = () => {
 
   const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
 
+  // Helper to open project settings safely
+  const handleOpenProjectSettings = () => {
+      if (!currentProjectId) {
+          // If project not saved yet, prompt to save
+          handleSaveProject();
+          return;
+      }
+      setIsProjectSettingsModalOpen(true);
+  };
+
   if (isLoadingPublic) {
     return (
       <div className="h-screen w-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
@@ -767,6 +799,7 @@ export const App: React.FC = () => {
                         onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                         onLogout={() => signOut(auth)}
                         onOpenSettings={() => setView('settings')}
+                        onOpenProjectSettings={handleOpenProjectSettings}
                         onRenameProject={handleRenameProject}
                         onNavigateHome={() => setView('welcome')}
                         session={sessionUser}
@@ -785,6 +818,16 @@ export const App: React.FC = () => {
       
       {/* Global Modals */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
+      
+      {/* Project Settings Modal */}
+      {currentSavedProject && (
+          <ProjectSettingsModal 
+              isOpen={isProjectSettingsModalOpen}
+              onClose={() => setIsProjectSettingsModalOpen(false)}
+              project={currentSavedProject}
+              onSave={handleUpdateProjectSettings}
+          />
+      )}
       
       <GithubImportModal 
         isOpen={isGithubModalOpen} 
