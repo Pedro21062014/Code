@@ -426,6 +426,10 @@ export const App: React.FC = () => {
           return;
       }
 
+      // Save previous state for rollback
+      const prevGallery = [...galleryProjects];
+      const prevSaved = [...savedProjects];
+
       let targetProject = galleryProjects.find(p => p.id === projectId) || savedProjects.find(p => p.id === projectId);
       
       if (!targetProject) return;
@@ -444,6 +448,7 @@ export const App: React.FC = () => {
           return p;
       });
 
+      // Optimistic Update
       setGalleryProjects(updater);
       setSavedProjects(updater);
 
@@ -460,8 +465,18 @@ export const App: React.FC = () => {
                   likedBy: arrayUnion(sessionUser.uid)
               });
           }
-      } catch (error) {
+      } catch (error: any) {
           console.error("Failed to toggle like:", error);
+          
+          // Rollback on error
+          setGalleryProjects(prevGallery);
+          setSavedProjects(prevSaved);
+
+          if (error.code === 'permission-denied') {
+              setToastError("Permissão negada. Verifique as regras do Firebase.");
+          } else {
+              setToastError("Erro ao curtir projeto.");
+          }
       }
   }, [sessionUser, galleryProjects, savedProjects]);
 
