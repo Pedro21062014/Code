@@ -847,7 +847,17 @@ export const App: React.FC = () => {
       <GithubImportModal 
         isOpen={isGithubModalOpen} 
         onClose={() => setGithubModalOpen(false)} 
-        onImport={(f) => { setProject(p => ({ ...p, files: f })); setView('editor'); }} 
+        onImport={(f, name) => { 
+            // Creates a new project state with imported files
+            setProject({
+                ...initialProjectState,
+                files: f,
+                projectName: name || 'GitHub Project',
+                activeFile: f.length > 0 ? f[0].name : null,
+                chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Como posso ajudar a editá-lo?` }]
+            }); 
+            setView('editor'); 
+        }} 
         githubToken={userSettings?.github_access_token} 
         onOpenSettings={() => setView('settings')} 
         onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
