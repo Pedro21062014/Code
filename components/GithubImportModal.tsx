@@ -18,7 +18,7 @@ interface GithubRepo {
 interface GithubImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (files: ProjectFile[]) => void;
+  onImport: (files: ProjectFile[], repoName: string) => void; // Updated signature
   githubToken: string | undefined;
   onOpenSettings: () => void;
   onSaveToken?: (token: string) => void;
@@ -154,7 +154,9 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         });
 
         const importedFiles = (await Promise.all(importedFilesPromises)).filter((f): f is ProjectFile => f !== null);
-        onImport(importedFiles);
+        
+        // Pass repo.name alongside files
+        onImport(importedFiles, repo.name);
         onClose();
 
     } catch (err) {
