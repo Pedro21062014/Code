@@ -1,12 +1,8 @@
-import { ProjectFile } from '../types';
 
-declare const JSZip: any;
+import { ProjectFile } from '../types';
+import JSZip from 'jszip';
 
 export const createProjectZip = async (files: ProjectFile[]): Promise<Blob> => {
-  if (typeof JSZip === 'undefined') {
-    throw new Error('A biblioteca JSZip não foi carregada.');
-  }
-  
   const zip = new JSZip();
 
   files.forEach(file => {

@@ -2,8 +2,6 @@
 // Cloudflare Pages Function
 // Path: /api/supabase-admin
 
-import { createClient } from '@supabase/supabase-js';
-
 export const onRequestPost = async (context: any) => {
   try {
     const req = context.request;
@@ -16,13 +14,32 @@ export const onRequestPost = async (context: any) => {
       });
     }
 
-    const supabaseAdmin = createClient(projectUrl, serviceKey);
-    
-    const { error } = await supabaseAdmin.rpc('exec', { sql: query });
-    
-    if (error) {
-      console.error('Supabase admin error:', error);
-      throw new Error(`Erro do Supabase: ${error.message}`);
+    // Use fetch direct REST API call instead of supabase-js client to avoid build dependency issues
+    // RPC Endpoint: POST https://<project_ref>.supabase.co/rest/v1/rpc/exec
+    const baseUrl = projectUrl.replace(/\/$/, '');
+    const rpcUrl = `${baseUrl}/rest/v1/rpc/exec`;
+
+    const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`
+        },
+        body: JSON.stringify({ sql: query })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = errorText;
+        try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.message) errorMessage = errorJson.message;
+        } catch (e) {
+            // keep raw text
+        }
+        console.error('Supabase admin error:', errorMessage);
+        throw new Error(`Erro do Supabase (${response.status}): ${errorMessage}`);
     }
 
     return new Response(JSON.stringify({ success: true, message: 'Consulta executada com sucesso.' }), {
