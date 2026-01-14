@@ -18,6 +18,8 @@ interface ChatPanelProps {
   onOpenSettings?: () => void;
   availableModels?: AIModel[];
   credits?: number;
+  activeMode?: ChatMode; // Now a prop
+  onModeChange?: (mode: ChatMode) => void; // Callback prop
 }
 
 const ImageGeneratingPreview = () => {
@@ -114,7 +116,8 @@ const EmptyState: React.FC<{ mode: ChatMode }> = ({ mode }) => {
         },
         design: {
             title: "Design Studio",
-            titleClass: "text-4xl font-light italic text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 animate-pulse tracking-wide font-serif",
+            // Removed animate-pulse, using a static gradient
+            titleClass: "text-4xl font-light italic text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 tracking-wide font-serif",
             font: "font-serif",
             suggestions: [
                 "Crie uma paleta de cores pastéis.",
@@ -152,12 +155,11 @@ const EmptyState: React.FC<{ mode: ChatMode }> = ({ mode }) => {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, generatingFile, isGenerating, onStopGeneration,
-    onOpenSupabase, onOpenGithub, availableModels = AI_MODELS 
+    onOpenSupabase, onOpenGithub, availableModels = AI_MODELS, activeMode = 'general', onModeChange 
 }) => {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || AI_MODELS[0].id);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-  const [activeMode, setActiveMode] = useState<ChatMode>('general');
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -207,7 +209,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   return (
                       <button
                           key={mode.id}
-                          onClick={() => setActiveMode(mode.id as ChatMode)}
+                          onClick={() => onModeChange && onModeChange(mode.id as ChatMode)}
                           className={`flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-medium transition-all duration-300 ease-in-out ${
                               isActive
                                   ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm px-3'
@@ -230,11 +232,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           ) : (
               <>
                 {messages.map((msg, index) => {
-                    // Skip the initial greeting if it's the first message and we want to hide it
-                    // But actually, if we are in "showEmptyState" block, we skip rendering messages entirely.
-                    // If we are here, it means user has interacted or there are more messages.
-                    // If the first message is the default one, we can choose to hide it or show it.
-                    // Let's hide it for a cleaner chat if it's the very first generic message.
                     if (index === 0 && msg.role === 'assistant' && msg.content.includes("Olá! Sou seu assistente")) return null;
                     if (msg.role === 'system') return null;
                     

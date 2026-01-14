@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ProjectFile, Theme } from '../types';
+import { ProjectFile, Theme, ChatMode } from '../types';
 import { CodePreview } from './CodePreview';
 import { 
     CloseIcon, SunIcon, MoonIcon, SparklesIcon, TerminalIcon, GithubIcon, ChatIcon, 
@@ -41,7 +41,8 @@ interface EditorViewProps {
   generatingFile: string | null;
   generatedFileNames: Set<string>;
   aiSuggestions: string[];
-  deployedUrl?: string;
+  deployedUrl?: string | null;
+  chatMode?: ChatMode; // Propriedade nova para controlar ferramentas específicas de modo
 }
 
 interface FileNode {
@@ -62,7 +63,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
     onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
-    deployedUrl
+    deployedUrl, chatMode = 'general'
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -316,6 +317,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             envVars={envVars}
                             deployedUrl={deployedUrl}
                             onDeploy={onRunLocally}
+                            chatMode={chatMode} // Pass chatMode down
                         />
                     </div>
                     
