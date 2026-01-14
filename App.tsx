@@ -23,13 +23,12 @@ import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './constants';
-import { generateCodeStream } from './services/aiService'; // Import generateCodeStream from aiService to support abort signal
+import { generateCodeStream } from './services/aiService';
 import { generateImagesWithImagen } from './services/geminiService';
-// Note: generateCodeStream in aiService internally calls provider specific services
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
-import { onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, orderBy, increment, arrayRemove } from "firebase/firestore";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, increment, arrayRemove } from "firebase/firestore";
 import { LoaderIcon } from './components/Icons';
 import { StripeModal } from './components/StripeModal';
 import { NeonModal } from './components/NeonModal';
@@ -38,7 +37,7 @@ import { IntegrationsPage } from './components/IntegrationsPage';
 import { OpenAIModal } from './components/OpenAIModal';
 import { NetlifyModal } from './components/NetlifyModal';
 import { SettingsPage } from './components/SettingsPage';
-import { ProjectSettingsModal } from './components/ProjectSettingsModal'; // Import new modal
+import { ProjectSettingsModal } from './components/ProjectSettingsModal';
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -53,25 +52,17 @@ const sanitizeFirestoreData = (data: any) => {
 const extractAndParseJson = (text: string): any => {
   if (!text) return { message: "Erro: Resposta vazia da IA.", files: [] };
   
-  // 1. First, attempt to clean up Markdown code blocks
   let cleanText = text.trim();
-  
-  // Replace "```json" or "```" at start
   cleanText = cleanText.replace(/^```json\s*/, '').replace(/^```\s*/, '');
-  
-  // Replace "```" at the end
   cleanText = cleanText.replace(/```$/, '').trim();
 
-  // 2. Try parsing the clean text
   try {
     return JSON.parse(cleanText);
   } catch (e) {
-    // 3. If standard parse fails, try to find the outermost JSON object
     const firstBrace = text.indexOf('{');
     const lastBrace = text.lastIndexOf('}');
     
     if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        // Fallback: If absolutely no JSON structure is found, return the text as message
        return { message: text, files: [] };
     }
     
@@ -81,7 +72,6 @@ const extractAndParseJson = (text: string): any => {
       return JSON.parse(jsonString);
     } catch (innerError) {
       console.error("JSON Parse Error:", innerError);
-      // Last resort fallback
       return { message: `Erro ao processar resposta da IA. Texto bruto: ${text.substring(0, 100)}...`, files: [] };
     }
   }
@@ -124,7 +114,6 @@ export const App: React.FC = () => {
   const [previousView, setPreviousView] = useState<'landing' | 'welcome'>('landing');
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
   
-  // Lifted Chat Mode State
   const [chatMode, setChatMode] = useState<ChatMode>('general');
 
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
@@ -159,14 +148,11 @@ export const App: React.FC = () => {
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Chat Sidebar Resizing State
   const [chatSidebarWidth, setChatSidebarWidth] = useState(420);
   const isResizingRef = useRef(false);
 
-  // Abort controller for cancelling generation
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Resizing Logic
   const startResizing = useCallback(() => {
     isResizingRef.current = true;
     document.body.style.cursor = 'col-resize';
@@ -400,7 +386,6 @@ export const App: React.FC = () => {
     setIsSaving(true);
     const projectId = currentProjectId || Date.now();
     
-    // Maintain existing status if saving an existing project
     const existingProject = savedProjects.find(p => p.id === projectId);
     
     const projectData: SavedProject = {
@@ -414,7 +399,6 @@ export const App: React.FC = () => {
       env_vars: envVars,
       likes: existingProject?.likes || 0,
       likedBy: existingProject?.likedBy || [],
-      // Use null or defaults for optional fields to avoid 'undefined' error in Firestore
       netlifySiteId: existingProject?.netlifySiteId || null,
       deployedUrl: existingProject?.deployedUrl || null,
       previewImage: existingProject?.previewImage || null,
@@ -427,13 +411,10 @@ export const App: React.FC = () => {
     };
 
     try {
-      // 1. Sanitize Data: JSON methods strip undefined values automatically
       const cleanData = JSON.parse(JSON.stringify(projectData));
 
-      // 2. Optimistic UI update
       setSavedProjects(prev => [cleanData, ...prev.filter(p => p.id !== projectId)]);
       
-      // 3. Firestore Save
       await setDoc(doc(db, "projects", projectId.toString()), { 
           ...cleanData, 
           updated_at: serverTimestamp() 
@@ -467,16 +448,12 @@ export const App: React.FC = () => {
   }, [currentProjectId, setSavedProjects]);
 
   const handleUpdateProjectSettings = useCallback(async (projectId: number, updates: Partial<SavedProject>) => {
-      // 1. Update in local storage state
       setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
       
-      // 2. Update current project context if it's the active one
       if (currentProjectId === projectId) {
           if (updates.name) setProject(prev => ({ ...prev, projectName: updates.name! }));
-          // other fields like logo/preview are not in active ProjectState currently, only in SavedProject
       }
 
-      // 3. Update Firestore
       try {
           await updateDoc(doc(db, "projects", projectId.toString()), { 
               ...updates, 
@@ -509,10 +486,7 @@ export const App: React.FC = () => {
   }, [currentProjectId, handleSaveProject]);
 
   const handleProjectMetaUpdate = useCallback((projectId: number, updates: Partial<SavedProject>) => {
-      // Ensure we update both the saved list AND the current project context if it matches
       setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
-      
-      // Update gallery list if present there too
       setGalleryProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   }, [setSavedProjects]);
 
@@ -522,7 +496,6 @@ export const App: React.FC = () => {
           return;
       }
 
-      // Save previous state for rollback
       const prevGallery = [...galleryProjects];
       const prevSaved = [...savedProjects];
 
@@ -544,7 +517,6 @@ export const App: React.FC = () => {
           return p;
       });
 
-      // Optimistic Update
       setGalleryProjects(updater);
       setSavedProjects(updater);
 
@@ -563,8 +535,6 @@ export const App: React.FC = () => {
           }
       } catch (error: any) {
           console.error("Failed to toggle like:", error);
-          
-          // Rollback on error
           setGalleryProjects(prevGallery);
           setSavedProjects(prevSaved);
 
@@ -603,16 +573,13 @@ export const App: React.FC = () => {
       if (abortControllerRef.current) {
           abortControllerRef.current.abort();
           abortControllerRef.current = null;
-          
-          // Add a system message indicating interruption
           setProject(p => ({
               ...p,
               chatMessages: [
-                  ...p.chatMessages.slice(0, -1), // Remove the "Thinking..." or active message
+                  ...p.chatMessages.slice(0, -1),
                   { role: 'assistant', content: 'Geração interrompida pelo usuário.', isThinking: false }
               ]
           }));
-          
           setIsInitializing(false);
           setGeneratingFile(null);
           setToastSuccess("Geração parada.");
@@ -624,8 +591,6 @@ export const App: React.FC = () => {
     
     const currentCredits = userSettings?.credits || 0;
     
-    // IMAGE GENERATION HANDLER
-    // Updated Regex to handle conjugations: "crie", "gera", "desenhe", etc.
     const isImageRequest = /(\b(gerar|gera|criar|crie|fazer|faça|desenhar|desenhe)\b.*\bimagem\b)|(\b(generate|create|make|draw)\b.*\bimage\b)/i.test(prompt);
     
     if (isImageRequest) {
@@ -634,7 +599,6 @@ export const App: React.FC = () => {
             return;
         }
 
-        // Add user message
         let activeProjectState = project;
         if (view === 'welcome') {
             activeProjectState = { ...initialProjectState };
@@ -652,15 +616,12 @@ export const App: React.FC = () => {
         if (view !== 'editor') setView('editor');
         
         try {
-            // Deduct credits
             const newCredits = currentCredits - 40;
             setUserSettings(prev => prev ? { ...prev, credits: newCredits } : null);
             updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-40) }).catch(console.error);
 
-            // Use Default API Key for images if user key not present (as per requirement)
             const apiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
             
-            // Generate Image
             const images = await generateImagesWithImagen(prompt, apiKey, 1, "1:1");
             
             if (images.length > 0) {
@@ -695,7 +656,6 @@ export const App: React.FC = () => {
         return;
     }
 
-    // NORMAL CODE GENERATION
     if (currentCredits <= 0) {
         setToastError("Você não tem créditos suficientes. Por favor, recarregue.");
         return;
@@ -706,7 +666,6 @@ export const App: React.FC = () => {
         activeProjectState = { ...initialProjectState };
     }
 
-    // APPLY MODE CONTEXT
     let adjustedPrompt = prompt;
     if (mode === 'design') {
         adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus heavily on aesthetics, modern design patterns, Tailwind CSS best practices, responsiveness, and animations. Ensure the UI is beautiful and polished. User request: ${prompt}`;
@@ -723,7 +682,6 @@ export const App: React.FC = () => {
     setIsInitializing(true);
     setAiSuggestions([]); 
     
-    // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     
     let accumulatedResponse = "";
@@ -814,10 +772,8 @@ export const App: React.FC = () => {
 
   const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
 
-  // Helper to open project settings safely
   const handleOpenProjectSettings = () => {
       if (!currentProjectId) {
-          // If project not saved yet, prompt to save
           handleSaveProject();
           return;
       }
@@ -929,7 +885,7 @@ export const App: React.FC = () => {
                   recentProjects={savedProjects}
                   onLoadProject={handleLoadProject}
                   credits={userSettings?.credits || 0}
-                  userGeminiKey={userSettings?.gemini_api_key || undefined} // Fixed potentially null
+                  userGeminiKey={userSettings?.gemini_api_key ? userSettings.gemini_api_key : undefined}
                   currentPlan={userSettings?.plan || 'Hobby'}
                   availableModels={availableModels}
                   theme={theme}
@@ -959,7 +915,7 @@ export const App: React.FC = () => {
                     onOpenOSMModal={() => setOSMModalOpen(true)}
                     onOpenGeminiModal={() => setApiKeyModalOpen(true)}
                     onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
-                    onOpenDriveAuth={() => {}} // Removed functionality
+                    onOpenDriveAuth={() => {}}
                     onOpenNetlifyModal={() => setNetlifyModalOpen(true)}
                 />
             )}
@@ -972,7 +928,7 @@ export const App: React.FC = () => {
                       ? savedProjects.filter(p => p.ownerId === sessionUser?.uid)
                       : view === 'shared' 
                         ? savedProjects.filter(p => p.ownerId !== sessionUser?.uid)
-                        : savedProjects // recent
+                        : savedProjects
                   }
                   title={
                     view === 'gallery' ? 'Galeria da Comunidade' :
@@ -1008,12 +964,11 @@ export const App: React.FC = () => {
                           onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
                           onOpenGithub={() => setGithubSyncModalOpen(true)}
                           onOpenSettings={() => setView('settings')}
-                          activeMode={chatMode} // Pass activeMode prop
-                          onModeChange={setChatMode} // Pass callback to change mode
+                          activeMode={chatMode} 
+                          onModeChange={setChatMode}
                       />
                     </div>
                     
-                    {/* Resizer Handle */}
                     <div 
                         onMouseDown={startResizing}
                         className="w-1.5 h-full bg-[#121214] hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-[#27272a]"
@@ -1041,8 +996,8 @@ export const App: React.FC = () => {
                         generatingFile={generatingFile}
                         generatedFileNames={generatedFileNames}
                         aiSuggestions={aiSuggestions}
-                        deployedUrl={currentSavedProject?.deployedUrl || undefined} // Fixed potential null
-                        chatMode={chatMode} // Pass chatMode to EditorView for CodePreview logic
+                        deployedUrl={currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined}
+                        chatMode={chatMode}
                       />
                     </main>
                   </div>
@@ -1051,10 +1006,8 @@ export const App: React.FC = () => {
           </div>
       </div>
       
-      {/* Global Modals */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
       
-      {/* Project Settings Modal */}
       {currentSavedProject && (
           <ProjectSettingsModal 
               isOpen={isProjectSettingsModalOpen}
@@ -1068,7 +1021,6 @@ export const App: React.FC = () => {
         isOpen={isGithubModalOpen} 
         onClose={() => setGithubModalOpen(false)} 
         onImport={(f, name) => { 
-            // Creates a new project state with imported files
             setProject({
                 ...initialProjectState,
                 files: f,
@@ -1111,7 +1063,7 @@ export const App: React.FC = () => {
         files={files} 
         onSaveRequired={handleSaveProject} 
         netlifyToken={userSettings?.netlify_access_token} 
-        existingSiteId={currentSavedProject?.netlifySiteId}
+        existingSiteId={currentSavedProject?.netlifySiteId ? currentSavedProject.netlifySiteId : undefined}
         onSaveToken={(token) => handleUpdateSettings({ netlify_access_token: token })}
         onProjectUpdate={handleProjectMetaUpdate}
       />
