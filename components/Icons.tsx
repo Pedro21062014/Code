@@ -27,6 +27,12 @@ export const AppLogo = ({ className = "w-8 h-8 text-white", ...props }: IconProp
     </svg>
 );
 
+export const StopIcon = ({ className = "w-6 h-6" }: IconProps) => (
+  <svg {...defaultProps} className={className} viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </svg>
+);
+
 // Ícone Oficial do Google Gemini
 export const GeminiIcon = ({ className = "w-5 h-5" }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -198,6 +204,12 @@ export const PlusIcon = ({ className = "w-6 h-6" }: IconProps) => (
 export const ChevronDownIcon = ({ className = "w-6 h-6" }: IconProps) => (
   <svg {...defaultProps} className={className} viewBox="0 0 24 24">
     <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+export const ChevronUpIcon = ({ className = "w-6 h-6" }: IconProps) => (
+  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
+    <polyline points="18 15 12 9 6 15" />
   </svg>
 );
 

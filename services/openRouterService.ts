@@ -60,6 +60,7 @@ export const generateCodeStreamWithOpenRouter = async (
   onChunk: (chunk: string) => void,
   apiKey: string,
   model: string,
+  signal?: AbortSignal
 ): Promise<string> => {
   const systemPrompt = getSystemPrompt(existingFiles, envVars);
   
@@ -84,6 +85,7 @@ export const generateCodeStreamWithOpenRouter = async (
         response_format: { type: "json_object" },
         stream: true,
       }),
+      signal: signal
     });
 
     if (!response.ok) {
@@ -141,7 +143,10 @@ export const generateCodeStreamWithOpenRouter = async (
     
     return fullResponse;
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+        return JSON.stringify({ message: "Gerando interrompido." });
+    }
     console.error("Error generating code with OpenRouter:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({

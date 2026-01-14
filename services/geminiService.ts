@@ -57,7 +57,8 @@ export const generateCodeStreamWithGemini = async (
   onChunk: (chunk: string) => void,
   modelId: string,
   apiKey: string,
-  attachments?: { data: string; mimeType: string }[]
+  attachments?: { data: string; mimeType: string }[],
+  signal?: AbortSignal
 ): Promise<string> => {
   try {
     // Note: guidelines suggest process.env.API_KEY, but we support the provided apiKey as fallback
@@ -88,6 +89,9 @@ export const generateCodeStreamWithGemini = async (
 
     let fullResponse = "";
     for await (const chunk of response) {
+      if (signal?.aborted) {
+          throw new Error("AbortError");
+      }
       // Fix: response.text is a property, not a method. Access directly.
       const chunkText = chunk.text;
       if (chunkText) {
@@ -98,7 +102,10 @@ export const generateCodeStreamWithGemini = async (
     
     return fullResponse;
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "AbortError" || error.name === "AbortError") {
+       return JSON.stringify({ message: "Geração interrompida." });
+    }
     console.error("Error calling Gemini API:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     return JSON.stringify({
