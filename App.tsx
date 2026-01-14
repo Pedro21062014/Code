@@ -944,7 +944,15 @@ export const App: React.FC = () => {
                   onShowPricing={() => setView('pricing')}
                   onShowProjects={() => setView('projects')}
                   onOpenGithubImport={() => setGithubModalOpen(true)}
-                  onFolderImport={f => { setProject(p => ({ ...p, files: f })); setView('editor'); }}
+                  onFolderImport={f => { 
+                      setProject({
+                          ...initialProjectState,
+                          files: f,
+                          activeFile: f.length > 0 ? f[0].name : null,
+                          chatMessages: [{ role: 'assistant', content: "Pasta importada com sucesso! O que você gostaria de fazer com esses arquivos?" }]
+                      }); 
+                      setView('editor'); 
+                  }}
                   onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
                   onLogout={() => signOut(auth)}
                   onOpenSettings={() => setView('settings')}
@@ -1006,15 +1014,15 @@ export const App: React.FC = () => {
                   onLoadProject={handleLoadProject} 
                   onDeleteProject={handleDeleteProject} 
                   onBack={() => setView('welcome')} 
-                  onNewProject={() => {}} 
+                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} 
                 />
             )}
 
             {view === 'editor' && (
-                <div className="flex flex-col h-full bg-white dark:bg-[#09090b] overflow-hidden w-full">
+                <div className="flex flex-col h-full bg-var-bg-default overflow-hidden w-full">
                   <div className="flex flex-1 overflow-hidden relative">
                     <div 
-                        className={`flex-shrink-0 border-r border-gray-200 dark:border-[#27272a] h-full z-10 bg-white dark:bg-[#121214] transition-none ${activeMobileTab === 'chat' ? 'flex w-full lg:w-auto' : 'hidden lg:flex'}`}
+                        className={`flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-none ${activeMobileTab === 'chat' ? 'flex w-full lg:w-auto' : 'hidden lg:flex'}`}
                         style={{ width: activeMobileTab === 'chat' ? '100%' : `${chatSidebarWidth}px` }}
                     >
                       <ChatPanel 
@@ -1037,7 +1045,7 @@ export const App: React.FC = () => {
                     
                     <div 
                         onMouseDown={startResizing}
-                        className="w-1 h-full hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#121214]"
+                        className="w-1.5 h-full bg-[#121214] hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-[#27272a]"
                     />
 
                     <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
