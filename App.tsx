@@ -423,11 +423,12 @@ export const App: React.FC = () => {
           updated_at: serverTimestamp() 
       }, { merge: true });
       
-      // Save history version on manual save
+      // Save history version on manual save - DEEP COPY files to prevent reference issues
+      const filesDeepCopy = JSON.parse(JSON.stringify(files));
       const newVersion: ProjectVersion = {
           id: Date.now().toString(),
           timestamp: Date.now(),
-          files: files,
+          files: filesDeepCopy,
           message: "Salvamento Manual"
       };
 
@@ -449,12 +450,26 @@ export const App: React.FC = () => {
   }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
 
   const handleRestoreVersion = useCallback((version: ProjectVersion) => {
+      // 1. Deep copy the version files to ensure we have a fresh set
+      const restoredFiles = JSON.parse(JSON.stringify(version.files));
+      
+      // 2. Create a NEW history entry representing this restore action
+      // This ensures the "Current" version in the modal updates to this new action
+      const newHistoryEntry: ProjectVersion = {
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          files: restoredFiles,
+          message: `Restaurado: ${version.message || 'Versão anterior'}`
+      };
+
       setProject(prev => ({
           ...prev,
-          files: version.files,
+          files: restoredFiles,
+          // Add the restore action to history so it becomes the latest
+          history: [...(prev.history || []), newHistoryEntry],
           chatMessages: [...prev.chatMessages, { 
               role: 'system', 
-              content: `Restaurado para a versão de ${new Date(version.timestamp).toLocaleString()}` 
+              content: `Projeto restaurado para a versão de ${new Date(version.timestamp).toLocaleString()}` 
           }]
       }));
       setToastSuccess("Versão restaurada com sucesso.");
@@ -768,11 +783,14 @@ export const App: React.FC = () => {
             
             const updatedFiles = Array.from(map.values());
 
+            // DEEP COPY updatedFiles for history to ensure immutability
+            const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
+
             // Save to history automatically
             const newVersion: ProjectVersion = {
                 id: Date.now().toString(),
                 timestamp: Date.now(),
-                files: updatedFiles,
+                files: filesDeepCopy,
                 message: prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '')
             };
 
