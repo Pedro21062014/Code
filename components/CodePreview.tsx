@@ -1,19 +1,37 @@
 
 import React, { useState } from 'react';
-import { ProjectFile, Theme } from '../types';
-import { AppLogo, NetlifyIcon, LoaderIcon, GlobeIcon } from './Icons';
+import { ProjectFile, Theme, ChatMode } from '../types';
+import { AppLogo, NetlifyIcon, LoaderIcon, GlobeIcon, EditIcon } from './Icons';
 
 interface CodePreviewProps {
   files: ProjectFile[]; // Mantido para compatibilidade, mas não usado para renderização local
   onError: (errorMessage: string) => void;
   theme: Theme;
   envVars: Record<string, string>;
-  deployedUrl?: string;
+  deployedUrl?: string | null;
   onDeploy?: () => void;
+  chatMode?: ChatMode; // New prop
 }
 
-export const CodePreview: React.FC<CodePreviewProps> = ({ deployedUrl, onDeploy, theme }) => {
+export const CodePreview: React.FC<CodePreviewProps> = ({ deployedUrl, onDeploy, theme, chatMode }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isInspecting, setIsInspecting] = useState(false);
+  const [lastClickPosition, setLastClickPosition] = useState<{ x: number, y: number } | null>(null);
+
+  // Handle Inspection Click
+  const handleOverlayClick = (e: React.MouseEvent) => {
+      if (!isInspecting) return;
+      
+      const rect = (e.target as HTMLElement).getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      setLastClickPosition({ x, y });
+      
+      // Visual feedback only since we can't inspect cross-origin iframes easily
+      // In a real scenario with postMessage, we'd send these coords to the iframe
+      // setTimeout(() => setIsInspecting(false), 2000); // Auto disable or keep enabled
+  };
 
   // Se não houver URL de deploy, mostra o estado vazio pedindo deploy
   if (!deployedUrl) {
@@ -47,7 +65,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ deployedUrl, onDeploy,
   }
 
   return (
-    <div className="w-full h-full bg-white relative group">
+    <div className="w-full h-full bg-white relative group overflow-hidden">
       <iframe
         key={deployedUrl} // Força recarregar se a URL mudar
         title="Live Preview"
@@ -56,6 +74,46 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ deployedUrl, onDeploy,
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-presentation allow-downloads"
         onLoad={() => setIsLoading(false)}
       />
+
+      {/* Design Inspector Layer */}
+      {chatMode === 'design' && (
+          <>
+            <button
+                onClick={() => { setIsInspecting(!isInspecting); setLastClickPosition(null); }}
+                className={`absolute top-4 right-4 z-50 p-2 rounded-lg shadow-lg transition-all border ${
+                    isInspecting 
+                    ? 'bg-blue-600 text-white border-blue-700 animate-pulse' 
+                    : 'bg-white dark:bg-[#18181b] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-[#27272a] hover:bg-gray-100'
+                }`}
+                title="Selecionar Elemento para Design"
+            >
+                <EditIcon className="w-5 h-5" />
+            </button>
+
+            {isInspecting && (
+                <div 
+                    className="absolute inset-0 z-40 cursor-crosshair bg-blue-500/5 hover:bg-blue-500/10 transition-colors"
+                    onClick={handleOverlayClick}
+                >
+                    {/* Fake Selection Box Feedback */}
+                    {lastClickPosition && (
+                        <div 
+                            className="absolute border-2 border-blue-500 bg-blue-500/20 w-12 h-12 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none animate-ping"
+                            style={{ top: lastClickPosition.y, left: lastClickPosition.x }}
+                        />
+                    )}
+                    {lastClickPosition && (
+                        <div 
+                            className="absolute bg-black text-white text-xs px-3 py-1 rounded shadow-lg -translate-x-1/2 -translate-y-full mt-[-10px] whitespace-nowrap pointer-events-none"
+                            style={{ top: lastClickPosition.y, left: lastClickPosition.x }}
+                        >
+                            Elemento Selecionado
+                        </div>
+                    )}
+                </div>
+            )}
+          </>
+      )}
 
       {/* Overlay de carregamento do Iframe */}
       {isLoading && (
@@ -71,10 +129,12 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ deployedUrl, onDeploy,
       )}
       
       {/* Indicador de Status (Canto inferior) */}
-      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/80 backdrop-blur text-white text-[10px] rounded-full font-medium border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <GlobeIcon className="w-3 h-3 text-green-400" />
-          Live via Netlify
-      </div>
+      {!isInspecting && (
+          <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/80 backdrop-blur text-white text-[10px] rounded-full font-medium border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <GlobeIcon className="w-3 h-3 text-green-400" />
+              Live via Netlify
+          </div>
+      )}
     </div>
   );
 };

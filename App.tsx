@@ -124,6 +124,9 @@ export const App: React.FC = () => {
 
   const [previousView, setPreviousView] = useState<'landing' | 'welcome'>('landing');
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
+  
+  // Lifted Chat Mode State
+  const [chatMode, setChatMode] = useState<ChatMode>('general');
 
   const [isApiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [isOpenAIModalOpen, setOpenAIModalOpen] = useState(false);
@@ -179,18 +182,6 @@ export const App: React.FC = () => {
 
   const resize = useCallback((e: MouseEvent) => {
     if (isResizingRef.current) {
-      // Calculate new width based on mouse X position relative to sidebar (assuming sidebar is on left)
-      // Since there's a nav sidebar (width ~240px or 60px), we need to account for it roughly or just rely on movement
-      // A simpler approach for the chat panel (which is inside the flex layout):
-      // The chat panel is the first child of the main flex container in editor view.
-      
-      // We can use the movementX to adjust, but let's try direct clientX
-      // Assuming NavigationSidebar is roughly 240px or 60px.
-      // Let's constrain width between 300px and 800px.
-      
-      // Better approach: calculate width based on offset from the left edge of the ChatPanel container
-      // But since we don't have a ref to the container here easily, let's use the previous width + movement
-      
       setChatSidebarWidth(prevWidth => {
           const newWidth = prevWidth + e.movementX;
           if (newWidth < 300) return 300;
@@ -1018,6 +1009,8 @@ export const App: React.FC = () => {
                           onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
                           onOpenGithub={() => setGithubSyncModalOpen(true)}
                           onOpenSettings={() => setView('settings')}
+                          activeMode={chatMode} // Pass activeMode prop
+                          onModeChange={setChatMode} // Pass callback to change mode
                       />
                     </div>
                     
@@ -1050,6 +1043,7 @@ export const App: React.FC = () => {
                         generatedFileNames={generatedFileNames}
                         aiSuggestions={aiSuggestions}
                         deployedUrl={currentSavedProject?.deployedUrl}
+                        chatMode={chatMode} // Pass chatMode to EditorView for CodePreview logic
                       />
                     </main>
                   </div>
