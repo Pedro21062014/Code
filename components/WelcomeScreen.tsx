@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon, SunIcon, MoonIcon, AppLogo } from './Icons';
-import { ProjectFile, SavedProject, AIModel, Theme } from '../types';
+import { ProjectFile, SavedProject, AIModel, Theme, ChatMode } from '../types';
 
 interface WelcomeScreenProps {
-  onPromptSubmit: (prompt: string, model: string, attachments: { data: string; mimeType: string }[]) => void;
+  onPromptSubmit: (prompt: string, model: string, attachments: { data: string; mimeType: string }[], mode?: ChatMode) => void;
   onShowPricing: () => void;
   onShowProjects: () => void;
   onOpenGithubImport: () => void;
@@ -115,7 +115,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         });
 
         const attachments = await Promise.all(filePromises);
-        onPromptSubmit(prompt.trim(), selectedModel, attachments);
+        onPromptSubmit(prompt.trim(), selectedModel, attachments, 'general');
         setPrompt('');
         setAttachedFiles([]);
     } catch (error) {

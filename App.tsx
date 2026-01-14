@@ -21,7 +21,7 @@ import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { Toast } from './components/Toast';
 import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
-import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel } from './types';
+import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './constants';
 import { generateCodeStream } from './services/aiService'; // Import generateCodeStream from aiService to support abort signal
@@ -157,8 +157,58 @@ export const App: React.FC = () => {
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Chat Sidebar Resizing State
+  const [chatSidebarWidth, setChatSidebarWidth] = useState(420);
+  const isResizingRef = useRef(false);
+
   // Abort controller for cancelling generation
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Resizing Logic
+  const startResizing = useCallback(() => {
+    isResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    isResizingRef.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizingRef.current) {
+      // Calculate new width based on mouse X position relative to sidebar (assuming sidebar is on left)
+      // Since there's a nav sidebar (width ~240px or 60px), we need to account for it roughly or just rely on movement
+      // A simpler approach for the chat panel (which is inside the flex layout):
+      // The chat panel is the first child of the main flex container in editor view.
+      
+      // We can use the movementX to adjust, but let's try direct clientX
+      // Assuming NavigationSidebar is roughly 240px or 60px.
+      // Let's constrain width between 300px and 800px.
+      
+      // Better approach: calculate width based on offset from the left edge of the ChatPanel container
+      // But since we don't have a ref to the container here easily, let's use the previous width + movement
+      
+      setChatSidebarWidth(prevWidth => {
+          const newWidth = prevWidth + e.movementX;
+          if (newWidth < 300) return 300;
+          if (newWidth > 800) return 800;
+          return newWidth;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [resize, stopResizing]);
+
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -579,7 +629,7 @@ export const App: React.FC = () => {
       }
   }, []);
 
-  const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
+  const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = [], mode: ChatMode = 'general') => {
     if (!sessionUser) { setView('auth'); return; }
     
     const currentCredits = userSettings?.credits || 0;
@@ -666,6 +716,14 @@ export const App: React.FC = () => {
         activeProjectState = { ...initialProjectState };
     }
 
+    // APPLY MODE CONTEXT
+    let adjustedPrompt = prompt;
+    if (mode === 'design') {
+        adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus heavily on aesthetics, modern design patterns, Tailwind CSS best practices, responsiveness, and animations. Ensure the UI is beautiful and polished. User request: ${prompt}`;
+    } else if (mode === 'backend') {
+        adjustedPrompt = `[BACKEND EXPERT MODE] Act as a senior Backend/Data engineer. Focus on data structure, API logic, Supabase/Firebase integration, security, and performance. User request: ${prompt}`;
+    }
+
     setProject({ 
         ...activeProjectState, 
         chatMessages: [...activeProjectState.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando...', isThinking: true }] 
@@ -690,7 +748,7 @@ export const App: React.FC = () => {
         : userSettings?.openrouter_api_key; 
 
       const fullResponse = await generateCodeStream(
-          prompt, 
+          adjustedPrompt, 
           activeProjectState.files, 
           activeProjectState.envVars, 
           (chunk) => {
@@ -943,7 +1001,10 @@ export const App: React.FC = () => {
             {view === 'editor' && (
                 <div className="flex flex-col h-full bg-var-bg-default overflow-hidden w-full">
                   <div className="flex flex-1 overflow-hidden relative">
-                    <div className={`w-full lg:w-[420px] flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-all ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+                    <div 
+                        className={`flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-none ${activeMobileTab === 'chat' ? 'flex w-full lg:w-auto' : 'hidden lg:flex'}`}
+                        style={{ width: activeMobileTab === 'chat' ? '100%' : `${chatSidebarWidth}px` }}
+                    >
                       <ChatPanel 
                           messages={chatMessages} 
                           onSendMessage={handleSendMessage} 
@@ -959,6 +1020,13 @@ export const App: React.FC = () => {
                           onOpenSettings={() => setView('settings')}
                       />
                     </div>
+                    
+                    {/* Resizer Handle */}
+                    <div 
+                        onMouseDown={startResizing}
+                        className="w-1.5 h-full bg-[#121214] hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-[#27272a]"
+                    />
+
                     <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
                       <EditorView 
                         files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
