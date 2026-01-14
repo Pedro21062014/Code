@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
@@ -930,7 +929,7 @@ export const App: React.FC = () => {
                   recentProjects={savedProjects}
                   onLoadProject={handleLoadProject}
                   credits={userSettings?.credits || 0}
-                  userGeminiKey={userSettings?.gemini_api_key}
+                  userGeminiKey={userSettings?.gemini_api_key || undefined} // Fixed potentially null
                   currentPlan={userSettings?.plan || 'Hobby'}
                   availableModels={availableModels}
                   theme={theme}
@@ -1042,7 +1041,7 @@ export const App: React.FC = () => {
                         generatingFile={generatingFile}
                         generatedFileNames={generatedFileNames}
                         aiSuggestions={aiSuggestions}
-                        deployedUrl={currentSavedProject?.deployedUrl}
+                        deployedUrl={currentSavedProject?.deployedUrl || undefined} // Fixed potential null
                         chatMode={chatMode} // Pass chatMode to EditorView for CodePreview logic
                       />
                     </main>
