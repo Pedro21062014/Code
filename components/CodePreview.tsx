@@ -101,11 +101,14 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, on
   const activeSrc = deployedUrl ? deployedUrl : undefined;
   const activeSrcDoc = deployedUrl ? undefined : srcDoc;
 
+  // Use file length or hash to force re-render if updated
+  const versionKey = files.reduce((acc, f) => acc + f.content.length, 0);
+
   return (
     <div className="w-full h-full bg-white relative group overflow-hidden">
       <iframe
         ref={iframeRef}
-        key={deployedUrl || 'local'}
+        key={deployedUrl ? deployedUrl : `local-${versionKey}`}
         title="Preview"
         src={activeSrc}
         srcDoc={activeSrcDoc}
