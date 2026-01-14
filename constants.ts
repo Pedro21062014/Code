@@ -6,6 +6,7 @@ export const AI_MODELS: AIModel[] = [
   { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (Free)', provider: AIProvider.OpenRouter },
   { id: 'z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (Free)', provider: AIProvider.OpenRouter },
   { id: 'openai/gpt-oss-120b:free', name: 'GPT OSS 120B (Free)', provider: AIProvider.OpenRouter },
+  { id: 'xiaomi/mimo-v2-flash:free', name: 'Xiaomi MiMo V2 Flash (Free)', provider: AIProvider.OpenRouter },
   
   // Direct API Models (Requires User Key)
   { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Own Key)', provider: AIProvider.Gemini },
