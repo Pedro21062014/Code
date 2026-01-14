@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -30,12 +29,12 @@ const ImageGeneratingPreview = () => {
                 if (prev >= 99) return 99;
                 return prev + 1;
             });
-        }, 80); // ~8 seconds to 99%
+        }, 150); // Aumentado para 150ms (mais lento)
         return () => clearInterval(interval);
     }, []);
 
     return (
-        <div className="w-full aspect-square md:aspect-[16/9] max-w-[400px] rounded-xl overflow-hidden relative shadow-lg">
+        <div className="w-full aspect-square max-w-[280px] rounded-xl overflow-hidden relative shadow-lg border border-gray-200 dark:border-[#27272a]">
             <style>{`
                 @keyframes pastelFlow {
                     0% { background-position: 0% 50%; }
@@ -43,17 +42,18 @@ const ImageGeneratingPreview = () => {
                     100% { background-position: 0% 50%; }
                 }
                 .bg-pastel-animated {
-                    background: linear-gradient(270deg, #ffc3a0, #ffafbd, #e2ebf0, #d4fc79, #96e6a1);
-                    background-size: 800% 800%;
-                    animation: pastelFlow 8s ease infinite;
+                    /* Cores pastéis mais suaves e harmoniosas */
+                    background: linear-gradient(270deg, #ffdde1, #ee9ca7, #e0c3fc, #d4fc79, #8ec5fc);
+                    background-size: 400% 400%;
+                    animation: pastelFlow 15s ease-in-out infinite; /* Animação mais lenta e fluida */
                 }
             `}</style>
             <div className="absolute inset-0 bg-pastel-animated flex flex-col items-center justify-center text-white/90">
                 <div className="bg-white/20 backdrop-blur-md rounded-full p-4 mb-3 border border-white/30">
-                    <ImageIcon className="w-8 h-8 animate-pulse text-white" />
+                    <ImageIcon className="w-8 h-8 text-white" />
                 </div>
-                <span className="font-mono text-2xl font-bold tracking-tight">{progress}%</span>
-                <span className="text-xs font-medium uppercase tracking-widest mt-1 opacity-80">Gerando Arte</span>
+                <span className="font-mono text-2xl font-bold tracking-tight text-white drop-shadow-sm">{progress}%</span>
+                <span className="text-xs font-medium uppercase tracking-widest mt-1 opacity-90 drop-shadow-sm">Gerando Arte</span>
             </div>
         </div>
     );
@@ -112,7 +112,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     ) : (
                         <div className="w-full text-sm text-gray-700 dark:text-gray-300 pl-2 border-l-2 border-gray-200 dark:border-[#27272a] ml-1">
                             <div className="flex items-center gap-2 mb-1 opacity-50">
-                                <SparklesIcon className="w-3 h-3 text-blue-500" />
+                                <BotIcon className="w-3.5 h-3.5 text-blue-500" />
                                 <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
                             </div>
                             
@@ -122,7 +122,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     {msg.isThinking ? (
                                         <ImageGeneratingPreview />
                                     ) : msg.image ? (
-                                        <div className="group relative w-full max-w-[400px]">
+                                        <div className="group relative w-full max-w-[280px]">
                                             <img 
                                                 src={`data:image/png;base64,${msg.image}`} 
                                                 alt="Generated" 
@@ -229,7 +229,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         disabled={(!input.trim() && !isGenerating)}
                         className={`p-2 rounded-lg transition-all text-white shadow-md
                             ${isGenerating 
-                                ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                                ? 'bg-red-500 hover:bg-red-600'
                                 : 'bg-black dark:bg-white dark:text-black hover:opacity-80 disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]'
                             }
                         `}
