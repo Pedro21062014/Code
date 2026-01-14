@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 
 // Re-export UserMenu to be available easily
@@ -39,6 +40,24 @@ export const BotIcon = ({ className = "w-6 h-6" }: IconProps) => (
     <path d="M12 7v4" />
     <line x1="8" x2="8" y1="16" y2="16" />
     <line x1="16" x2="16" y1="16" y2="16" />
+  </svg>
+);
+
+export const PaletteIcon = ({ className = "w-6 h-6" }: IconProps) => (
+  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
+    <path d="M12 21a9 9 0 0 0 9 -9c0 -4.97 -4.03 -9 -9 -9c-2.386 0 -4.556 .927 -6.177 2.45l-.188 .183a9 9 0 0 0 6.365 15.367z" />
+    <path d="M8.5 13a1.5 1.5 0 1 0 0 -3a1.5 1.5 0 0 0 0 3z" fill="currentColor" className="opacity-50" />
+    <path d="M12.5 9a1.5 1.5 0 1 0 0 -3a1.5 1.5 0 0 0 0 3z" fill="currentColor" className="opacity-50" />
+    <path d="M16.5 13a1.5 1.5 0 1 0 0 -3a1.5 1.5 0 0 0 0 3z" fill="currentColor" className="opacity-50" />
+    <path d="M12.5 17a1.5 1.5 0 1 0 0 -3a1.5 1.5 0 0 0 0 3z" fill="currentColor" className="opacity-50" />
+  </svg>
+);
+
+export const CloudSimpleIcon = ({ className = "w-6 h-6" }: IconProps) => (
+  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
+    <path d="M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1 -2.966 2.544h-6.852a3 3 0 0 1 -2.965 -2.544l-1.255 -8.152a2 2 0 0 1 1.977 -2.304z" />
+    <path d="M9 11v-5a3 3 0 0 1 6 0v5" />
+    <circle cx="12" cy="14" r="1.5" fill="currentColor" />
   </svg>
 );
 

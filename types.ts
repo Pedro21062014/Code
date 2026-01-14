@@ -66,10 +66,10 @@ export interface SavedProject {
   author?: string; // Nome do criador
   shared_with?: string[];
   is_public_in_gallery?: boolean;
-  deployedUrl?: string; // Link do Netlify
-  netlifySiteId?: string; // ID do site no Netlify para atualizações
-  previewImage?: string; // Base64 image for gallery preview
-  logo?: string; // Base64 image for app logo
+  deployedUrl?: string | null; // Link do Netlify (Updated to allow null)
+  netlifySiteId?: string | null; // ID do site no Netlify para atualizações (Updated to allow null)
+  previewImage?: string | null; // Base64 image for gallery preview (Updated to allow null)
+  logo?: string | null; // Base64 image for app logo (Updated to allow null)
   description?: string; // Project description
   likes?: number;
   likedBy?: string[]; // IDs dos usuários que curtiram
@@ -81,3 +81,5 @@ export interface SavedProject {
   created_at: string;
   updated_at: string;
 }
+
+export type ChatMode = 'general' | 'design' | 'backend';
