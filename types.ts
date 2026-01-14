@@ -60,6 +60,13 @@ export interface UserSettings {
 
 export type Theme = 'light' | 'dark';
 
+export interface ProjectVersion {
+  id: string;
+  timestamp: number;
+  files: ProjectFile[];
+  message: string; // Descrição curta (ex: último prompt ou "Versão Manual")
+}
+
 export interface SavedProject {
   id: number;
   ownerId?: string;
