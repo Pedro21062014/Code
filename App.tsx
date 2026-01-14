@@ -24,7 +24,9 @@ import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './constants';
-import { generateCodeStream } from './services/aiService';
+import { generateCodeStream } from './services/aiService'; // Import generateCodeStream from aiService to support abort signal
+import { generateImagesWithImagen } from './services/geminiService';
+// Note: generateCodeStream in aiService internally calls provider specific services
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, GoogleAuthProvider, linkWithPopup } from "firebase/auth";
@@ -93,8 +95,6 @@ interface ProjectState {
   projectName: string;
   envVars: Record<string, string>;
   currentProjectId: number | null;
-  // Note: previewImage, logo, description are stored in SavedProject (metadata), 
-  // we could sync them here if needed for live preview but they are mostly for gallery/dashboard
 }
 
 const initialProjectState: ProjectState = {
@@ -137,7 +137,7 @@ export const App: React.FC = () => {
   const [isNeonModalOpen, setNeonModalOpen] = useState(false);
   const [isOSMModalOpen, setOSMModalOpen] = useState(false);
   const [isNetlifyModalOpen, setNetlifyModalOpen] = useState(false);
-  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false); // New State
+  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false); 
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
@@ -156,6 +156,9 @@ export const App: React.FC = () => {
   const [codeError, setCodeError] = useState<string | null>(null);
   const isFirebaseAvailable = useRef(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Abort controller for cancelling generation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -316,6 +319,40 @@ export const App: React.FC = () => {
       await updateDoc(docRef, { hasSeenProWelcome: true }).catch(console.error);
     }
   };
+
+  const handleRedeemCredits = useCallback(async () => {
+      if (!sessionUser || !userSettings) return;
+
+      const lastRedeemDate = userSettings.last_credit_redemption ? new Date(userSettings.last_credit_redemption) : null;
+      const today = new Date();
+
+      if (lastRedeemDate && lastRedeemDate.toDateString() === today.toDateString()) {
+          setToastError("Você já resgatou seus créditos diários hoje. Volte amanhã!");
+          return;
+      }
+
+      const amountToAdd = userSettings.plan === 'Pro' ? 400 : 200;
+      const newCredits = (userSettings.credits || 0) + amountToAdd;
+
+      try {
+          const userRef = doc(db, "users", sessionUser.uid);
+          await updateDoc(userRef, {
+              credits: increment(amountToAdd),
+              last_credit_redemption: today.toISOString()
+          });
+
+          setUserSettings(prev => prev ? {
+              ...prev,
+              credits: newCredits,
+              last_credit_redemption: today.toISOString()
+          } : null);
+
+          setToastSuccess(`Resgatado! +${amountToAdd} créditos adicionados.`);
+      } catch (error) {
+          console.error(error);
+          setToastError("Erro ao resgatar créditos.");
+      }
+  }, [sessionUser, userSettings]);
 
   const handleSaveProject = useCallback(async () => {
     if (!sessionUser) { setAuthModalOpen(true); return; }
@@ -503,10 +540,102 @@ export const App: React.FC = () => {
     return () => unsubscribe();
   }, [fetchUserSettings, fetchUserProjects]);
 
+  const handleStopGeneration = useCallback(() => {
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+          
+          // Add a system message indicating interruption
+          setProject(p => ({
+              ...p,
+              chatMessages: [
+                  ...p.chatMessages.slice(0, -1), // Remove the "Thinking..." or active message
+                  { role: 'assistant', content: 'Geração interrompida pelo usuário.', isThinking: false }
+              ]
+          }));
+          
+          setIsInitializing(false);
+          setGeneratingFile(null);
+          setToastSuccess("Geração parada.");
+      }
+  }, []);
+
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = []) => {
     if (!sessionUser) { setView('auth'); return; }
     
     const currentCredits = userSettings?.credits || 0;
+    
+    // IMAGE GENERATION HANDLER
+    const isImageRequest = /gerar imagem|criar imagem|generate image|create image|fazer imagem/i.test(prompt);
+    
+    if (isImageRequest) {
+        if (currentCredits < 40) {
+            setToastError("Créditos insuficientes para gerar imagem (necessário: 40).");
+            return;
+        }
+
+        // Add user message
+        let activeProjectState = project;
+        if (view === 'welcome') {
+            activeProjectState = { ...initialProjectState };
+        }
+
+        setProject({
+            ...activeProjectState,
+            chatMessages: [
+                ...activeProjectState.chatMessages,
+                { role: 'user', content: prompt },
+                { role: 'assistant', content: 'Gerando imagem...', isThinking: true, isImageGenerator: true }
+            ]
+        });
+
+        if (view !== 'editor') setView('editor');
+        
+        try {
+            // Deduct credits
+            const newCredits = currentCredits - 40;
+            setUserSettings(prev => prev ? { ...prev, credits: newCredits } : null);
+            updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-40) }).catch(console.error);
+
+            // Use Default API Key for images if user key not present (as per requirement)
+            const apiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
+            
+            // Generate Image
+            const images = await generateImagesWithImagen(prompt, apiKey, 1, "1:1");
+            
+            if (images.length > 0) {
+                setProject(p => ({
+                    ...p,
+                    chatMessages: [
+                        ...p.chatMessages.slice(0, -1),
+                        { 
+                            role: 'assistant', 
+                            content: `Imagem gerada para: "${prompt}"`, 
+                            isThinking: false, 
+                            isImageGenerator: true,
+                            image: images[0]
+                        }
+                    ]
+                }));
+            } else {
+                throw new Error("Nenhuma imagem retornada.");
+            }
+
+        } catch (e: any) {
+            console.error(e);
+            setToastError("Erro ao gerar imagem: " + e.message);
+            setProject(p => ({
+                ...p,
+                chatMessages: [
+                    ...p.chatMessages.slice(0, -1),
+                    { role: 'assistant', content: `Erro ao gerar imagem: ${e.message}`, isThinking: false, isImageGenerator: true }
+                ]
+            }));
+        }
+        return;
+    }
+
+    // NORMAL CODE GENERATION
     if (currentCredits <= 0) {
         setToastError("Você não tem créditos suficientes. Por favor, recarregue.");
         return;
@@ -525,6 +654,9 @@ export const App: React.FC = () => {
     if (view !== 'editor') setView('editor');
     setIsInitializing(true);
     setAiSuggestions([]); 
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
     
     let accumulatedResponse = "";
 
@@ -562,7 +694,8 @@ export const App: React.FC = () => {
           }, 
           modelId, 
           attachments,
-          apiKey
+          apiKey,
+          abortControllerRef.current.signal
       );
       
       const result = extractAndParseJson(fullResponse);
@@ -587,14 +720,17 @@ export const App: React.FC = () => {
         });
 
     } catch (e: any) { 
-        console.error(e);
-        setToastError(e.message || "Erro desconhecido na geração.");
-        setProject(p => ({
-            ...p,
-            chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: `Erro: ${e.message}`, isThinking: false }]
-        }));
+        if (e.message !== "AbortError") {
+            console.error(e);
+            setToastError(e.message || "Erro desconhecido na geração.");
+            setProject(p => ({
+                ...p,
+                chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: `Erro: ${e.message}`, isThinking: false }]
+            }));
+        }
     } finally { 
         setIsInitializing(false); 
+        abortControllerRef.current = null;
     }
   }, [project, userSettings, sessionUser, view, aiSuggestions]);
 
@@ -702,6 +838,8 @@ export const App: React.FC = () => {
               onOpenSettings={() => setView('settings')}
               credits={userSettings?.credits || 0} 
               currentPlan={userSettings?.plan || 'Hobby'}
+              onRedeemCredits={handleRedeemCredits}
+              lastRedemptionDate={userSettings?.last_credit_redemption}
           />
       )}
 
@@ -794,6 +932,7 @@ export const App: React.FC = () => {
                           credits={userSettings?.credits || 0}
                           generatingFile={generatingFile} 
                           isGenerating={isInitializing}
+                          onStopGeneration={handleStopGeneration}
                           availableModels={availableModels}
                           onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
                           onOpenGithub={() => setGithubSyncModalOpen(true)}

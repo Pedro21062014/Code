@@ -11,7 +11,8 @@ const generateCodeStreamWithServer = async (
   envVars: Record<string, string>,
   onChunk: (chunk: string) => void,
   provider: AIProvider,
-  model: string
+  model: string,
+  signal?: AbortSignal
 ): Promise<string> => {
   try {
     const response = await fetch('/api/generate', {
@@ -26,6 +27,7 @@ const generateCodeStreamWithServer = async (
         provider,
         model,
       }),
+      signal: signal,
     });
 
     if (!response.ok || !response.body) {
@@ -48,7 +50,11 @@ const generateCodeStreamWithServer = async (
     
     return fullResponse;
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.log('Generation aborted by user');
+      return JSON.stringify({ message: "Geração interrompida pelo usuário.", files: existingFiles });
+    }
     console.error(`Error calling backend proxy for ${provider}:`, error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
@@ -67,7 +73,8 @@ export const generateCodeStream = async (
   onChunk: (chunk: string) => void,
   modelId: string,
   attachments: { data: string; mimeType: string }[] = [],
-  apiKey?: string
+  apiKey?: string,
+  signal?: AbortSignal
 ): Promise<string> => {
   const modelDef = AI_MODELS.find(m => m.id === modelId);
   const provider = modelDef?.provider;
@@ -82,7 +89,8 @@ export const generateCodeStream = async (
           onChunk,
           modelId,
           apiKey,
-          attachments
+          attachments,
+          signal
       );
   }
 
@@ -96,7 +104,8 @@ export const generateCodeStream = async (
               envVars,
               onChunk,
               apiKey,
-              modelId
+              modelId,
+              signal
           );
       }
       
@@ -108,7 +117,8 @@ export const generateCodeStream = async (
           envVars,
           onChunk,
           AIProvider.OpenRouter,
-          modelId
+          modelId,
+          signal
       );
   }
 
@@ -120,7 +130,8 @@ export const generateCodeStream = async (
           envVars,
           onChunk,
           provider,
-          modelId
+          modelId,
+          signal
       );
   }
 

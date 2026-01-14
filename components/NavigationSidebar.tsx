@@ -14,6 +14,8 @@ interface NavigationSidebarProps {
   onOpenSettings: () => void;
   credits: number;
   currentPlan: string;
+  onRedeemCredits?: () => void; // New prop
+  lastRedemptionDate?: string;
 }
 
 export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
@@ -24,7 +26,9 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   onLogout,
   onOpenSettings,
   credits,
-  currentPlan
+  currentPlan,
+  onRedeemCredits,
+  lastRedemptionDate
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
 
@@ -32,6 +36,14 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   const userInitial = userName.charAt(0).toUpperCase();
   const userPhoto = session?.user?.photoURL;
   const isLoggedIn = !!session;
+
+  // Determine if already redeemed today
+  const isRedeemedToday = React.useMemo(() => {
+      if (!lastRedemptionDate) return false;
+      const today = new Date().toDateString();
+      const last = new Date(lastRedemptionDate).toDateString();
+      return today === last;
+  }, [lastRedemptionDate]);
 
   const NavItem = ({ view, icon, label, onClick, active, isBottom = false }: { view?: string, icon: React.ReactNode, label: string, onClick?: () => void, active?: boolean, isBottom?: boolean }) => {
     const isActive = active || (view && activeView === view);
@@ -117,10 +129,27 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
         <div className="p-4 border-t border-gray-200 dark:border-[#27272a] flex-shrink-0 bg-gray-50 dark:bg-[#09090b]">
             {isLoggedIn ? (
                 <div className="flex flex-col gap-3">
-                    {/* Credits Badge */}
-                    <div className={`flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400 ${isCollapsed ? 'justify-center p-2' : ''}`}>
-                        <LightningIcon className="w-4 h-4" />
-                        {!isCollapsed && <span className="text-xs font-bold font-mono">{credits} Créditos</span>}
+                    {/* Credits Badge with Redeem Button */}
+                    <div className={`flex items-center justify-between gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400 ${isCollapsed ? 'justify-center p-2 flex-col' : ''}`}>
+                        <div className="flex items-center gap-2">
+                            <LightningIcon className="w-4 h-4" />
+                            {!isCollapsed && <span className="text-xs font-bold font-mono">{credits} Créditos</span>}
+                        </div>
+                        {onRedeemCredits && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); if (!isRedeemedToday) onRedeemCredits(); }}
+                                disabled={isRedeemedToday}
+                                className={`text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded transition-colors 
+                                    ${isRedeemedToday 
+                                        ? 'bg-gray-200 dark:bg-[#27272a] text-gray-500 cursor-not-allowed' 
+                                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'}
+                                    ${isCollapsed ? 'hidden group-hover:block absolute left-14 bg-black dark:bg-white dark:text-black shadow-xl z-50 w-max' : ''}
+                                `}
+                                title={isRedeemedToday ? "Créditos diários já resgatados hoje" : "Resgatar créditos diários"}
+                            >
+                                {isRedeemedToday ? 'Resgatado' : 'Resgatar'}
+                            </button>
+                        )}
                     </div>
 
                     {/* User Profile */}

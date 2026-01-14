@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -12,6 +12,7 @@ interface ChatPanelProps {
   projectName?: string;
   generatingFile: string | null;
   isGenerating: boolean;
+  onStopGeneration?: () => void;
   userGeminiKey?: string;
   onOpenSupabase?: () => void;
   onOpenGithub?: () => void;
@@ -20,12 +21,51 @@ interface ChatPanelProps {
   credits?: number;
 }
 
+const ImageGeneratingPreview = () => {
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setProgress(prev => {
+                if (prev >= 99) return 99;
+                return prev + 1;
+            });
+        }, 80); // ~8 seconds to 99%
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="w-full aspect-square md:aspect-[16/9] max-w-[400px] rounded-xl overflow-hidden relative shadow-lg">
+            <style>{`
+                @keyframes pastelFlow {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .bg-pastel-animated {
+                    background: linear-gradient(270deg, #ffc3a0, #ffafbd, #e2ebf0, #d4fc79, #96e6a1);
+                    background-size: 800% 800%;
+                    animation: pastelFlow 8s ease infinite;
+                }
+            `}</style>
+            <div className="absolute inset-0 bg-pastel-animated flex flex-col items-center justify-center text-white/90">
+                <div className="bg-white/20 backdrop-blur-md rounded-full p-4 mb-3 border border-white/30">
+                    <ImageIcon className="w-8 h-8 animate-pulse text-white" />
+                </div>
+                <span className="font-mono text-2xl font-bold tracking-tight">{progress}%</span>
+                <span className="text-xs font-medium uppercase tracking-widest mt-1 opacity-80">Gerando Arte</span>
+            </div>
+        </div>
+    );
+};
+
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
-    messages, onSendMessage, generatingFile, isGenerating, 
+    messages, onSendMessage, generatingFile, isGenerating, onStopGeneration,
     onOpenSupabase, onOpenGithub, availableModels = AI_MODELS 
 }) => {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || AI_MODELS[0].id);
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -34,10 +74,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isGenerating && onStopGeneration) {
+        onStopGeneration();
+        return;
+    }
     if (!input.trim() || isGenerating) return;
     onSendMessage(input, AIProvider.Gemini, selectedModel, []);
     setInput('');
   };
+
+  const handleDownloadImage = (base64: string, index: number) => {
+      const link = document.createElement('a');
+      link.href = `data:image/png;base64,${base64}`;
+      link.download = `generated-image-${index}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  const currentModelName = availableModels.find(m => m.id === selectedModel)?.name || 'Modelo';
 
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb] dark:bg-[#0c0c0e] border-r border-gray-200 dark:border-[#27272a] relative transition-colors duration-300 w-full font-sans">
@@ -60,16 +115,47 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 <SparklesIcon className="w-3 h-3 text-blue-500" />
                                 <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
                             </div>
-                            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90">
-                                {msg.isThinking ? (
-                                    <div className="flex items-center gap-2 text-gray-500 italic">
-                                        <LoaderIcon className="w-3 h-3 animate-spin" />
-                                        <span>Processando alterações...</span>
-                                    </div>
-                                ) : (
-                                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                                )}
-                            </div>
+                            
+                            {/* Image Generation State */}
+                            {msg.isImageGenerator ? (
+                                <div className="mt-2">
+                                    {msg.isThinking ? (
+                                        <ImageGeneratingPreview />
+                                    ) : msg.image ? (
+                                        <div className="group relative w-full max-w-[400px]">
+                                            <img 
+                                                src={`data:image/png;base64,${msg.image}`} 
+                                                alt="Generated" 
+                                                className="w-full rounded-xl shadow-lg border border-gray-200 dark:border-[#27272a]" 
+                                            />
+                                            <button 
+                                                onClick={() => msg.image && handleDownloadImage(msg.image, index)}
+                                                className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                                                title="Baixar Imagem"
+                                            >
+                                                <DownloadIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-500 text-xs rounded-lg">
+                                            {msg.content}
+                                        </div>
+                                    )}
+                                    {!msg.isThinking && msg.image && <p className="mt-2 text-xs text-gray-500">{msg.content}</p>}
+                                </div>
+                            ) : (
+                                /* Standard Text/Code Response */
+                                <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90">
+                                    {msg.isThinking ? (
+                                        <div className="flex items-center gap-2 text-gray-500 italic">
+                                            <LoaderIcon className="w-3 h-3 animate-spin" />
+                                            <span>Processando alterações...</span>
+                                        </div>
+                                    ) : (
+                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -96,24 +182,64 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                    placeholder="Digite suas instruções..."
+                    placeholder="Digite suas instruções (ex: 'Gerar imagem de um robô')"
                     className="w-full bg-transparent px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none min-h-[50px] max-h-[150px]"
                     rows={1}
                   />
                   
-                  <div className="flex items-center justify-between px-2 pb-2">
-                      <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-between px-2 pb-2 relative">
+                      <div className="flex items-center gap-2">
                           <button type="button" className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-[#27272a] transition-colors">
                               <PaperclipIcon className="w-4 h-4" />
                           </button>
+                          
+                          {/* Model Selector Dropdown */}
+                          <div className="relative">
+                              <button 
+                                type="button"
+                                onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+                                className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 bg-gray-100 dark:bg-[#27272a] rounded-md transition-colors"
+                              >
+                                  {currentModelName.split(' ')[0]} <ChevronUpIcon className="w-3 h-3" />
+                              </button>
+                              
+                              {isModelSelectorOpen && (
+                                  <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setIsModelSelectorOpen(false)}></div>
+                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg shadow-xl z-40 overflow-hidden py-1 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {availableModels.map(model => (
+                                            <button
+                                                key={model.id}
+                                                type="button"
+                                                onClick={() => { setSelectedModel(model.id); setIsModelSelectorOpen(false); }}
+                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+                                            >
+                                                {model.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                  </>
+                              )}
+                          </div>
                       </div>
                       
                       <button 
-                        type="submit"
-                        disabled={!input.trim() || isGenerating}
-                        className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:opacity-80 transition-all disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]"
+                        type={isGenerating ? "button" : "submit"}
+                        onClick={isGenerating && onStopGeneration ? onStopGeneration : undefined}
+                        disabled={(!input.trim() && !isGenerating)}
+                        className={`p-2 rounded-lg transition-all text-white shadow-md
+                            ${isGenerating 
+                                ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                                : 'bg-black dark:bg-white dark:text-black hover:opacity-80 disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]'
+                            }
+                        `}
+                        title={isGenerating ? "Parar geração" : "Enviar mensagem"}
                       >
-                          <PlusIcon className="w-4 h-4 rotate-90" /> {/* Arrow icon workaround */}
+                          {isGenerating ? (
+                              <StopIcon className="w-4 h-4" />
+                          ) : (
+                              <PlusIcon className="w-4 h-4 rotate-90" />
+                          )}
                       </button>
                   </div>
               </div>

@@ -31,6 +31,8 @@ export interface ChatMessage {
   content: string;
   summary?: string;
   isThinking?: boolean;
+  isImageGenerator?: boolean; // Indicates this message is an image generation task
+  image?: string; // Base64 string of the generated image
 }
 
 // UserSettings reflecting Firestore 'users' collection
@@ -39,6 +41,7 @@ export interface UserSettings {
   email?: string;
   updated_at?: string;
   credits?: number; // Added credits field
+  last_credit_redemption?: string; // Timestamp of last daily credit claim
   gemini_api_key?: string;
   openai_api_key?: string;
   openrouter_api_key?: string;
