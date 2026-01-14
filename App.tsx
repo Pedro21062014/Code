@@ -20,7 +20,7 @@ import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { Toast } from './components/Toast';
 import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
-import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode } from './types';
+import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode, ProjectVersion } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './constants';
 import { generateCodeStream } from './services/aiService';
@@ -84,6 +84,7 @@ interface ProjectState {
   projectName: string;
   envVars: Record<string, string>;
   currentProjectId: number | null;
+  history: ProjectVersion[];
 }
 
 const initialProjectState: ProjectState = {
@@ -93,11 +94,12 @@ const initialProjectState: ProjectState = {
   projectName: 'NovoProjeto',
   envVars: {},
   currentProjectId: null,
+  history: [],
 };
 
 export const App: React.FC = () => {
   const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
-  const { files, activeFile, chatMessages, projectName, envVars, currentProjectId } = project;
+  const { files, activeFile, chatMessages, projectName, envVars, currentProjectId, history } = project;
   
   const [savedProjects, setSavedProjects] = useLocalStorage<SavedProject[]>('codegen-studio-saved-projects', []);
   const [galleryProjects, setGalleryProjects] = useState<SavedProject[]>([]);
@@ -230,7 +232,8 @@ export const App: React.FC = () => {
               chatMessages: data.chat_history || [],
               envVars: data.env_vars || {},
               currentProjectId: data.id,
-              activeFile: data.files[0]?.name || null
+              activeFile: data.files[0]?.name || null,
+              history: []
             });
             setView('public_preview');
           } else {
@@ -420,7 +423,19 @@ export const App: React.FC = () => {
           updated_at: serverTimestamp() 
       }, { merge: true });
       
-      setProject(prev => ({ ...prev, currentProjectId: projectId }));
+      // Save history version on manual save
+      const newVersion: ProjectVersion = {
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          files: files,
+          message: "Salvamento Manual"
+      };
+
+      setProject(prev => ({ 
+          ...prev, 
+          currentProjectId: projectId,
+          history: [...(prev.history || []), newVersion]
+      }));
       
       setShowSaveSuccess(true);
       setTimeout(() => setShowSaveSuccess(false), 2500);
@@ -432,6 +447,18 @@ export const App: React.FC = () => {
         setIsSaving(false); 
     }
   }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
+
+  const handleRestoreVersion = useCallback((version: ProjectVersion) => {
+      setProject(prev => ({
+          ...prev,
+          files: version.files,
+          chatMessages: [...prev.chatMessages, { 
+              role: 'system', 
+              content: `Restaurado para a versão de ${new Date(version.timestamp).toLocaleString()}` 
+          }]
+      }));
+      setToastSuccess("Versão restaurada com sucesso.");
+  }, []);
 
   const handleRenameProject = useCallback(async (newName: string) => {
       if (!newName.trim()) return;
@@ -731,17 +758,30 @@ export const App: React.FC = () => {
       }
 
       setProject(p => {
-            const map = new Map(p.files.map(f => [f.name, f]));
+            const map = new Map<string, ProjectFile>();
+            p.files.forEach(f => map.set(f.name, f));
+
             if (result.files && Array.isArray(result.files)) {
                 result.files.forEach((file: ProjectFile) => map.set(file.name, file));
             }
             const newActiveFile = (result.files && result.files.length > 0) ? result.files[0].name : p.activeFile;
             
+            const updatedFiles = Array.from(map.values());
+
+            // Save to history automatically
+            const newVersion: ProjectVersion = {
+                id: Date.now().toString(),
+                timestamp: Date.now(),
+                files: updatedFiles,
+                message: prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '')
+            };
+
             return { 
                 ...p, 
-                files: Array.from(map.values()), 
+                files: updatedFiles, 
                 activeFile: newActiveFile, 
-                chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: result.message, summary: result.summary, isThinking: false }] 
+                chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: result.message, summary: result.summary, isThinking: false }],
+                history: [...(p.history || []), newVersion]
             };
         });
 
@@ -765,7 +805,15 @@ export const App: React.FC = () => {
     if (!p) p = galleryProjects.find(x => x.id === projectId);
 
     if (p) {
-        setProject({ files: p.files, projectName: p.name, chatMessages: p.chat_history || [], envVars: p.env_vars || {}, currentProjectId: p.id, activeFile: p.files[0]?.name || null });
+        setProject({ 
+            files: p.files, 
+            projectName: p.name, 
+            chatMessages: p.chat_history || [], 
+            envVars: p.env_vars || {}, 
+            currentProjectId: p.id, 
+            activeFile: p.files[0]?.name || null,
+            history: [] // Reset history for newly loaded project context
+        });
         setView('editor');
     }
   }, [savedProjects, galleryProjects]);
@@ -998,6 +1046,8 @@ export const App: React.FC = () => {
                         aiSuggestions={aiSuggestions}
                         deployedUrl={currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined}
                         chatMode={chatMode}
+                        projectHistory={history}
+                        onRestoreVersion={handleRestoreVersion}
                       />
                     </main>
                   </div>

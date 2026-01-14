@@ -1,14 +1,14 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ProjectFile, Theme, ChatMode } from '../types';
+import { ProjectFile, Theme, ChatMode, ProjectVersion } from '../types';
 import { CodePreview } from './CodePreview';
 import { 
     CloseIcon, SunIcon, MoonIcon, SparklesIcon, TerminalIcon, GithubIcon, ChatIcon, 
     FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
-    PlusIcon, EditIcon, UsersIcon, HomeIcon
+    PlusIcon, EditIcon, UsersIcon, HomeIcon, ClockIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
+import { VersioningModal } from './VersioningModal';
 
 interface EditorViewProps {
   files: ProjectFile[];
@@ -33,16 +33,19 @@ interface EditorViewProps {
   onNewProject: () => void;
   onLogout: () => void;
   onOpenSettings: () => void;
-  onOpenProjectSettings: () => void; // CHANGED: New Prop
-  onRenameProject: (newName: string) => void; // Keep for legacy or internal use if needed
+  onOpenProjectSettings: () => void; 
+  onRenameProject: (newName: string) => void;
   onNavigateHome: () => void;
   session: any | null;
   isGenerating: boolean;
   generatingFile: string | null;
   generatedFileNames: Set<string>;
   aiSuggestions: string[];
-  deployedUrl?: string | null;
-  chatMode?: ChatMode; // Propriedade nova para controlar ferramentas específicas de modo
+  deployedUrl?: string | undefined;
+  chatMode?: ChatMode;
+  // History Props
+  projectHistory?: ProjectVersion[];
+  onRestoreVersion?: (version: ProjectVersion) => void;
 }
 
 interface FileNode {
@@ -63,11 +66,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
     onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
-    deployedUrl, chatMode = 'general'
+    deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['src', 'components', 'lib', 'app']));
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
   const selectedFile = files.find(f => f.name === activeFile);
 
@@ -154,6 +158,16 @@ export const EditorView: React.FC<EditorViewProps> = ({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#09090b] overflow-hidden text-gray-900 dark:text-white transition-colors duration-300">
       
+      {/* Versioning Modal */}
+      {onRestoreVersion && (
+          <VersioningModal 
+            isOpen={isHistoryModalOpen} 
+            onClose={() => setIsHistoryModalOpen(false)}
+            versions={projectHistory}
+            onRestore={onRestoreVersion}
+          />
+      )}
+
       {/* Header PRO (Minimalist) */}
       <header className="h-12 border-b border-gray-200 dark:border-[#27272a] flex items-center justify-between px-4 bg-white dark:bg-[#09090b] z-50 transition-colors">
         
@@ -301,9 +315,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
                             <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
                         </div>
-                        <div className="flex-1 flex justify-center">
-                            <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a]">
-                                {deployedUrl || 'localhost:3000 (Offline)'}
+                        <div className="flex-1 flex justify-center items-center gap-2">
+                            <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a] flex justify-between items-center group">
+                                <span className="flex-1 text-center">{deployedUrl || 'localhost:3000 (Simulated)'}</span>
+                                {/* Clock Icon for Versioning */}
+                                <button 
+                                    onClick={() => setIsHistoryModalOpen(true)}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white"
+                                    title="Histórico de Versões"
+                                >
+                                    <ClockIcon className="w-3 h-3" />
+                                </button>
                             </div>
                         </div>
                         <div className="w-10"></div>
@@ -317,7 +339,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             envVars={envVars}
                             deployedUrl={deployedUrl}
                             onDeploy={onRunLocally}
-                            chatMode={chatMode} // Pass chatMode down
+                            chatMode={chatMode} 
                         />
                     </div>
                     
