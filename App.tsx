@@ -374,23 +374,42 @@ export const App: React.FC = () => {
       env_vars: envVars,
       likes: existingProject?.likes || 0,
       likedBy: existingProject?.likedBy || [],
-      netlifySiteId: existingProject?.netlifySiteId, 
-      deployedUrl: existingProject?.deployedUrl,
-      previewImage: existingProject?.previewImage, // Preserve existing preview
-      logo: existingProject?.logo, // Preserve existing logo
-      description: existingProject?.description, // Preserve existing description
+      // Use null or defaults for optional fields to avoid 'undefined' error in Firestore
+      netlifySiteId: existingProject?.netlifySiteId || null,
+      deployedUrl: existingProject?.deployedUrl || null,
+      previewImage: existingProject?.previewImage || null,
+      logo: existingProject?.logo || null,
+      description: existingProject?.description || "",
+      category: existingProject?.category || "uncategorized",
+      author: sessionUser.displayName || sessionUser.email?.split('@')[0] || "Anon",
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
     try {
-      setSavedProjects(prev => [projectData, ...prev.filter(p => p.id !== projectId)]);
-      await setDoc(doc(db, "projects", projectId.toString()), { ...projectData, updated_at: serverTimestamp() }, { merge: true });
+      // 1. Sanitize Data: JSON methods strip undefined values automatically
+      const cleanData = JSON.parse(JSON.stringify(projectData));
+
+      // 2. Optimistic UI update
+      setSavedProjects(prev => [cleanData, ...prev.filter(p => p.id !== projectId)]);
+      
+      // 3. Firestore Save
+      await setDoc(doc(db, "projects", projectId.toString()), { 
+          ...cleanData, 
+          updated_at: serverTimestamp() 
+      }, { merge: true });
+      
       setProject(prev => ({ ...prev, currentProjectId: projectId }));
       
       setShowSaveSuccess(true);
       setTimeout(() => setShowSaveSuccess(false), 2500);
 
-    } catch (error: any) { alert("Erro ao salvar projeto."); } finally { setIsSaving(false); }
+    } catch (error: any) { 
+        console.error("Erro detalhado ao salvar:", error);
+        setToastError(`Erro ao salvar projeto: ${error.message}`);
+    } finally { 
+        setIsSaving(false); 
+    }
   }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
 
   const handleRenameProject = useCallback(async (newName: string) => {
@@ -566,7 +585,8 @@ export const App: React.FC = () => {
     const currentCredits = userSettings?.credits || 0;
     
     // IMAGE GENERATION HANDLER
-    const isImageRequest = /gerar imagem|criar imagem|generate image|create image|fazer imagem/i.test(prompt);
+    // Updated Regex to handle conjugations: "crie", "gera", "desenhe", etc.
+    const isImageRequest = /(\b(gerar|gera|criar|crie|fazer|faça|desenhar|desenhe)\b.*\bimagem\b)|(\b(generate|create|make|draw)\b.*\bimage\b)/i.test(prompt);
     
     if (isImageRequest) {
         if (currentCredits < 40) {
@@ -585,7 +605,7 @@ export const App: React.FC = () => {
             chatMessages: [
                 ...activeProjectState.chatMessages,
                 { role: 'user', content: prompt },
-                { role: 'assistant', content: 'Gerando imagem...', isThinking: true, isImageGenerator: true }
+                { role: 'assistant', content: 'Gerando imagem (1:1)...', isThinking: true, isImageGenerator: true }
             ]
         });
 
