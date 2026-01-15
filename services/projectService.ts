@@ -1,4 +1,3 @@
-
 import { ProjectFile } from '../types';
 import JSZip from 'jszip';
 
@@ -6,7 +5,13 @@ export const createProjectZip = async (files: ProjectFile[]): Promise<Blob> => {
   const zip = new JSZip();
 
   files.forEach(file => {
-    zip.file(file.name, file.content);
+    if (file.content.startsWith('data:image/')) {
+        // Extract base64 part
+        const base64Data = file.content.split(',')[1];
+        zip.file(file.name, base64Data, { base64: true });
+    } else {
+        zip.file(file.name, file.content);
+    }
   });
 
   return zip.generateAsync({ type: 'blob' });

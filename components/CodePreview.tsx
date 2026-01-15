@@ -27,6 +27,45 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, on
 
       let htmlContent = indexHtml.content;
 
+      // Inject Images: Replace local paths with Data URIs
+      files.forEach(file => {
+          if (/\.(jpg|jpeg|png|gif|ico|svg|webp|bmp)$/i.test(file.name)) {
+              // Create versions of the path to match potential src attributes
+              // 1. Precise relative match if index.html is root: "assets/logo.png"
+              // 2. Root relative match: "/assets/logo.png"
+              // 3. Dot relative match: "./assets/logo.png"
+              
+              const filename = file.name.split('/').pop();
+              const possiblePaths = [
+                  file.name, // full path e.g. "public/logo.png" or "src/assets/icon.svg"
+                  `/${file.name}`,
+                  `./${file.name}`,
+                  filename, // e.g. "logo.png"
+                  `/${filename}`,
+                  `./${filename}`
+              ];
+
+              // Handle "public/" folder specifically if index.html is in root
+              if (file.name.startsWith('public/')) {
+                  const nameWithoutPublic = file.name.replace('public/', '');
+                  possiblePaths.push(nameWithoutPublic);
+                  possiblePaths.push(`/${nameWithoutPublic}`);
+                  possiblePaths.push(`./${nameWithoutPublic}`);
+              }
+
+              // Simple replace for all occurrences in src attributes
+              // Note: This is a basic replacement and might be aggressive, but suitable for generated previews
+              possiblePaths.forEach(path => {
+                  if(!path) return;
+                  // Escape special regex chars in path
+                  const escapedPath = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  // Look for src="path" or src='path'
+                  const regex = new RegExp(`src=["']${escapedPath}["']`, 'g');
+                  htmlContent = htmlContent.replace(regex, `src="${file.content}"`);
+              });
+          }
+      });
+
       // Basic CSS injection for styling if needed
       const cssFiles = files.filter(f => f.name.endsWith('.css'));
       const styles = cssFiles.map(f => `<style>${f.content}</style>`).join('\n');

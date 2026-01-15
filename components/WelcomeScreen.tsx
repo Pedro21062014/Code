@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon, SunIcon, MoonIcon, AppLogo } from './Icons';
 import { ProjectFile, SavedProject, AIModel, Theme, ChatMode } from '../types';
@@ -136,19 +135,34 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       const filePromises = Array.from(selectedFiles).map((file: File) => {
           return new Promise<ProjectFile | null>((resolve) => {
-              if (file.size > 2 * 1024 * 1024) { 
+              // Ignore git folders and node_modules
+              if (file.webkitRelativePath.includes('.git/') || file.webkitRelativePath.includes('node_modules/')) {
                   resolve(null);
                   return;
               }
+
+              if (file.size > 2 * 1024 * 1024) { 
+                  // Skip large files
+                  resolve(null);
+                  return;
+              }
+
+              const isImage = /\.(jpg|jpeg|png|gif|ico|svg|webp|bmp)$/i.test(file.name);
+              
               const reader = new FileReader();
               reader.onload = () => {
                   resolve({
                       name: (file as any).webkitRelativePath || file.name,
-                      language: 'plaintext', // Simplificado
+                      language: isImage ? 'image' : 'plaintext',
                       content: reader.result as string,
                   });
               };
-              reader.readAsText(file);
+              
+              if (isImage) {
+                  reader.readAsDataURL(file);
+              } else {
+                  reader.readAsText(file);
+              }
           });
       });
 
