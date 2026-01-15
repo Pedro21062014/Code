@@ -836,6 +836,75 @@ export const App: React.FC = () => {
     }
   }, [savedProjects, galleryProjects]);
 
+  const handleFileUpload = useCallback((newFiles: ProjectFile[]) => {
+      setProject(prev => {
+          const updatedFiles = [...prev.files];
+          // Simple merge strategy: Overwrite if exists, else append
+          newFiles.forEach(newFile => {
+              const idx = updatedFiles.findIndex(f => f.name === newFile.name);
+              if (idx >= 0) updatedFiles[idx] = newFile;
+              else updatedFiles.push(newFile);
+          });
+          return { ...prev, files: updatedFiles };
+      });
+      setToastSuccess(`Upload de ${newFiles.length} arquivos concluído.`);
+  }, []);
+
+  const handleRenameFile = useCallback((oldName: string, newName: string) => {
+      setProject(prev => {
+          // Verify if newName already exists (conflict)
+          if (prev.files.some(f => f.name === newName)) {
+              setToastError("Já existe um arquivo com esse nome.");
+              return prev;
+          }
+          
+          const updatedFiles = prev.files.map(f => {
+              if (f.name === oldName) return { ...f, name: newName };
+              // Also rename children if it's a folder rename logic (simple string startsWith check)
+              if (f.name.startsWith(oldName + '/')) {
+                  return { ...f, name: f.name.replace(oldName, newName) };
+              }
+              return f;
+          });
+          
+          const newActive = prev.activeFile === oldName ? newName : prev.activeFile;
+          return { ...prev, files: updatedFiles, activeFile: newActive };
+      });
+  }, []);
+
+  const handleMoveFile = useCallback((oldPath: string, newPath: string) => {
+      setProject(prev => {
+          // If new path exists, don't overwrite (simple safety)
+          if (prev.files.some(f => f.name === newPath)) {
+              setToastError("Destino já existe.");
+              return prev;
+          }
+
+          const updatedFiles = prev.files.map(f => {
+              if (f.name === oldPath) return { ...f, name: newPath };
+              // Handle folder moves
+              if (f.name.startsWith(oldPath + '/')) {
+                  return { ...f, name: f.name.replace(oldPath, newPath) };
+              }
+              return f;
+          });
+          
+          const newActive = prev.activeFile === oldPath ? newPath : prev.activeFile;
+          return { ...prev, files: updatedFiles, activeFile: newActive };
+      });
+  }, []);
+
+  const handleFileDelete = useCallback((fileName: string) => {
+      setProject(prev => {
+          const updatedFiles = prev.files.filter(f => f.name !== fileName && !f.name.startsWith(fileName + '/'));
+          return { 
+              ...prev, 
+              files: updatedFiles, 
+              activeFile: prev.activeFile === fileName ? null : prev.activeFile 
+          };
+      });
+  }, []);
+
   const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
 
   const handleOpenProjectSettings = () => {
@@ -1045,13 +1114,15 @@ export const App: React.FC = () => {
                     
                     <div 
                         onMouseDown={startResizing}
-                        className="w-1.5 h-full bg-[#121214] hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-[#27272a]"
+                        className="w-1 h-full bg-transparent hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-gray-200 dark:border-[#27272a]"
+                        title="Redimensionar Painel"
                     />
 
                     <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
                       <EditorView 
                         files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                        onFileSelect={n => setProject(p => ({...p, activeFile: n}))} onFileDelete={() => {}} 
+                        onFileSelect={n => setProject(p => ({...p, activeFile: n}))} 
+                        onFileDelete={handleFileDelete}
                         onRunLocally={() => setPublishModalOpen(true)}
                         onSyncGithub={() => setGithubSyncModalOpen(true)}
                         onShare={() => setShareModalOpen(true)}
@@ -1074,6 +1145,10 @@ export const App: React.FC = () => {
                         chatMode={chatMode}
                         projectHistory={history}
                         onRestoreVersion={handleRestoreVersion}
+                        // New Props
+                        onFileUpload={handleFileUpload}
+                        onRenameFile={handleRenameFile}
+                        onMoveFile={handleMoveFile}
                       />
                     </main>
                   </div>
