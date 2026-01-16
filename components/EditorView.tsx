@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ProjectFile, Theme, ChatMode, ProjectVersion } from '../types';
 import { CodePreview } from './CodePreview';
@@ -411,6 +412,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 title="Download"
             >
                 <DownloadIcon className="w-4 h-4" />
+            </button>
+
+            <button
+                onClick={onSyncGithub}
+                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                title="Sincronizar com GitHub"
+            >
+                <GithubIcon className="w-4 h-4" />
             </button>
             
             <button 
