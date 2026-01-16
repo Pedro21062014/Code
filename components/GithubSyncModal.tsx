@@ -202,16 +202,19 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
-      <div className="bg-[#09090b] rounded-2xl shadow-2xl w-full max-w-xl border border-[#27272a] overflow-hidden animate-slideInUp flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
+      <div 
+        className="bg-white dark:bg-[#09090b] rounded-2xl shadow-2xl w-full max-w-xl border border-gray-200 dark:border-[#27272a] overflow-hidden animate-slideInUp flex flex-col max-h-[85vh] transition-colors"
+        onClick={e => e.stopPropagation()}
+      >
         
         {/* Header */}
-        <div className="px-6 py-5 border-b border-[#27272a] flex justify-between items-center bg-[#0c0c0e]">
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-[#27272a] flex justify-between items-center bg-gray-50 dark:bg-[#0c0c0e]">
           <div className="flex items-center gap-2">
-            <GithubIcon className="w-5 h-5 text-white" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-widest">Version Control</h2>
+            <GithubIcon className="w-5 h-5 text-gray-900 dark:text-white" />
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Version Control</h2>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-black dark:hover:text-white transition-colors">
             <CloseIcon className="w-4 h-4" />
           </button>
         </div>
@@ -221,10 +224,10 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
           
           {!githubToken ? (
             <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
-               <div className="w-16 h-16 rounded-2xl bg-[#18181b] flex items-center justify-center border border-[#27272a]">
-                 <GithubIcon className="w-8 h-8 text-gray-500" />
+               <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-[#18181b] flex items-center justify-center border border-gray-200 dark:border-[#27272a]">
+                 <GithubIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                </div>
-              <p className="text-gray-400 text-sm max-w-xs mx-auto">
+              <p className="text-gray-600 dark:text-gray-400 text-sm max-w-xs mx-auto">
                   Token do GitHub não configurado. Adicione-o aqui para sincronizar seus projetos.
               </p>
               
@@ -234,12 +237,12 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                     placeholder="ghp_..."
                     value={manualToken}
                     onChange={(e) => setManualToken(e.target.value)}
-                    className="w-full p-2 bg-[#121214] border border-[#27272a] rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full p-2 bg-white dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <button 
                     onClick={handleSaveToken}
                     disabled={!manualToken.trim()}
-                    className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:opacity-80 transition-colors disabled:opacity-50"
                   >
                     Salvar e Continuar
                   </button>
@@ -247,11 +250,11 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
             </div>
           ) : syncing ? (
              <div className="py-4 space-y-4">
-                 <div className="flex items-center gap-3 text-white">
+                 <div className="flex items-center gap-3 text-gray-900 dark:text-white">
                      <LoaderIcon className="w-5 h-5 animate-spin text-blue-500" />
                      <span className="font-mono text-sm">Executando operação git...</span>
                  </div>
-                 <div className="bg-[#000] rounded-lg border border-[#27272a] p-4 h-48 overflow-y-auto font-mono text-[10px] text-gray-400 space-y-1 custom-scrollbar">
+                 <div className="bg-gray-50 dark:bg-[#000] rounded-lg border border-gray-200 dark:border-[#27272a] p-4 h-48 overflow-y-auto font-mono text-[10px] text-gray-600 dark:text-gray-400 space-y-1 custom-scrollbar">
                      {logs.map((log, i) => <div key={i}>{log}</div>)}
                  </div>
              </div>
@@ -260,22 +263,22 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                   <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
                       <CheckCircleIcon className="w-8 h-8 text-green-500" />
                   </div>
-                  <h3 className="text-white font-medium">Sincronização Concluída</h3>
+                  <h3 className="text-gray-900 dark:text-white font-medium">Sincronização Concluída</h3>
                   <p className="text-gray-500 text-sm">{success}</p>
               </div>
           ) : (
             <>
               {/* Tab Switcher */}
-              <div className="flex bg-[#121214] p-1 rounded-lg border border-[#27272a]">
+              <div className="flex bg-gray-100 dark:bg-[#121214] p-1 rounded-lg border border-gray-200 dark:border-[#27272a]">
                 <button 
                   onClick={() => setIsCreating(false)}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${!isCreating ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${!isCreating ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Push Existente
                 </button>
                 <button 
                   onClick={() => setIsCreating(true)}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${isCreating ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-md transition-all ${isCreating ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                 >
                   Criar Novo
                 </button>
@@ -285,13 +288,13 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                 <div className="space-y-5 animate-fadeIn">
                   <div className="space-y-1">
                     <label className="text-[10px] font-mono text-gray-500 uppercase ml-1">Repository Name</label>
-                    <div className="flex items-center bg-[#121214] border border-[#27272a] rounded-lg px-3 focus-within:border-blue-500 transition-colors">
+                    <div className="flex items-center bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-lg px-3 focus-within:border-blue-500 transition-colors">
                         <span className="text-gray-500 text-sm font-mono mr-1">git/</span>
                         <input 
                             type="text" 
                             value={newRepoName}
                             onChange={e => setNewRepoName(e.target.value)}
-                            className="flex-1 bg-transparent py-3 text-white text-sm focus:outline-none font-mono"
+                            className="flex-1 bg-transparent py-3 text-gray-900 dark:text-white text-sm focus:outline-none font-mono"
                             placeholder="project-name"
                         />
                     </div>
@@ -300,24 +303,24 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                   <div className="grid grid-cols-2 gap-3">
                     <button 
                       onClick={() => setIsPrivate(true)}
-                      className={`py-3 px-4 rounded-lg border text-left transition-all ${isPrivate ? 'bg-blue-900/10 border-blue-500/50' : 'bg-[#121214] border-[#27272a] hover:border-gray-600'}`}
+                      className={`py-3 px-4 rounded-lg border text-left transition-all ${isPrivate ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-500/50' : 'bg-gray-50 dark:bg-[#121214] border-gray-200 dark:border-[#27272a] hover:border-gray-400 dark:hover:border-gray-600'}`}
                     >
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Visibilidade</div>
-                        <div className={`text-sm font-medium ${isPrivate ? 'text-blue-400' : 'text-white'}`}>Privado</div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Visibilidade</div>
+                        <div className={`text-sm font-medium ${isPrivate ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>Privado</div>
                     </button>
                     <button 
                       onClick={() => setIsPrivate(false)}
-                      className={`py-3 px-4 rounded-lg border text-left transition-all ${!isPrivate ? 'bg-green-900/10 border-green-500/50' : 'bg-[#121214] border-[#27272a] hover:border-gray-600'}`}
+                      className={`py-3 px-4 rounded-lg border text-left transition-all ${!isPrivate ? 'bg-green-50 dark:bg-green-900/10 border-green-500/50' : 'bg-gray-50 dark:bg-[#121214] border-gray-200 dark:border-[#27272a] hover:border-gray-400 dark:hover:border-gray-600'}`}
                     >
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Visibilidade</div>
-                        <div className={`text-sm font-medium ${!isPrivate ? 'text-green-400' : 'text-white'}`}>Público</div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Visibilidade</div>
+                        <div className={`text-sm font-medium ${!isPrivate ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>Público</div>
                     </button>
                   </div>
 
                   <button 
                     onClick={handleCreateAndPush}
                     disabled={!newRepoName}
-                    className="w-full bg-white text-black py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
+                    className="w-full bg-black dark:bg-white text-white dark:text-black py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-80 transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
                   >
                     <PlusIcon className="w-4 h-4" />
                     Inicializar Repositório
@@ -330,24 +333,24 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     placeholder="Filtrar seus repositórios..."
-                    className="w-full bg-[#121214] border border-[#27272a] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-all font-mono placeholder-gray-600"
+                    className="w-full bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 dark:focus:border-white/20 transition-all font-mono placeholder-gray-400 dark:placeholder-gray-600"
                   />
                   
-                  <div className="h-48 overflow-y-auto custom-scrollbar border border-[#27272a] rounded-lg bg-[#0c0c0e]">
+                  <div className="h-48 overflow-y-auto custom-scrollbar border border-gray-200 dark:border-[#27272a] rounded-lg bg-gray-50 dark:bg-[#0c0c0e]">
                     {loadingRepos ? (
-                      <div className="h-full flex items-center justify-center"><LoaderIcon className="w-5 h-5 animate-spin text-gray-600" /></div>
+                      <div className="h-full flex items-center justify-center"><LoaderIcon className="w-5 h-5 animate-spin text-gray-500" /></div>
                     ) : (
                       repositories.filter(r => r.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(repo => (
                         <button 
                           key={repo.id}
                           onClick={() => pushFilesToRepo(repo.owner.login, repo.name)}
-                          className="w-full text-left px-4 py-3 border-b border-[#27272a] last:border-0 hover:bg-[#18181b] transition-colors group flex items-center justify-between"
+                          className="w-full text-left px-4 py-3 border-b border-gray-200 dark:border-[#27272a] last:border-0 hover:bg-gray-100 dark:hover:bg-[#18181b] transition-colors group flex items-center justify-between"
                         >
                           <div className="flex flex-col">
-                            <span className="text-sm font-mono text-gray-300 group-hover:text-white transition-colors">{repo.full_name}</span>
-                            <span className="text-[10px] text-gray-600">{repo.private ? 'Private' : 'Public'}</span>
+                            <span className="text-sm font-mono text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white transition-colors">{repo.full_name}</span>
+                            <span className="text-[10px] text-gray-500 dark:text-gray-600">{repo.private ? 'Private' : 'Public'}</span>
                           </div>
-                          <span className="text-[10px] text-white font-bold bg-[#27272a] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">PUSH</span>
+                          <span className="text-[10px] text-white font-bold bg-black dark:bg-[#27272a] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">PUSH</span>
                         </button>
                       ))
                     )}
