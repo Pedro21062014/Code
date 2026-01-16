@@ -33,6 +33,7 @@ export interface ChatMessage {
   isThinking?: boolean;
   isImageGenerator?: boolean; // Indicates this message is an image generation task
   image?: string; // Base64 string of the generated image
+  filesModified?: string[]; // List of files modified or created in this step
   groundingMetadata?: {
     groundingChunks: Array<{
       web?: {

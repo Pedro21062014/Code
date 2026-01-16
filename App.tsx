@@ -835,6 +835,9 @@ export const App: React.FC = () => {
             
             const updatedFiles = Array.from(map.values());
 
+            // NEW: Extract modified/created filenames for UI
+            const modifiedFileNames = result.files ? result.files.map((f: ProjectFile) => f.name) : [];
+
             // DEEP COPY updatedFiles for history to ensure immutability
             const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
 
@@ -856,7 +859,8 @@ export const App: React.FC = () => {
                     summary: result.summary, 
                     isThinking: false,
                     // Preserve metadata if it exists on the thinking message
-                    groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata 
+                    groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
+                    filesModified: modifiedFileNames // Populate new field
                 }],
                 history: [...(p.history || []), newVersion]
             };
@@ -1288,5 +1292,3 @@ export const App: React.FC = () => {
     </div>
   );
 };
-
-export default App;
