@@ -30,22 +30,59 @@ const generateCodeStreamWithServer = async (
       signal: signal,
     });
 
-    if (!response.ok || !response.body) {
+    if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(errorText || `HTTP error! status: ${response.status}`);
+      // Try to parse JSON error if possible
+      try {
+          const errJson = JSON.parse(errorText);
+          throw new Error(errJson.error || `HTTP error! status: ${response.status}`);
+      } catch (e) {
+          throw new Error(errorText || `HTTP error! status: ${response.status}`);
+      }
     }
+
+    if (!response.body) throw new Error("Response body is empty");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullResponse = "";
+    let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       
-      const chunkText = decoder.decode(value, { stream: true });
-      fullResponse += chunkText;
-      onChunk(chunkText);
+      const chunkRaw = decoder.decode(value, { stream: true });
+      
+      // OpenAI-compatible providers (OpenAI, DeepSeek, OpenRouter) return SSE streams via the proxy
+      if ([AIProvider.OpenRouter, AIProvider.OpenAI, AIProvider.DeepSeek].includes(provider)) {
+          buffer += chunkRaw;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ""; // Keep the incomplete line in the buffer
+
+          for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed === "data: [DONE]") continue;
+              
+              if (trimmed.startsWith("data: ")) {
+                  try {
+                      const jsonStr = trimmed.substring(6);
+                      const data = JSON.parse(jsonStr);
+                      const content = data.choices?.[0]?.delta?.content;
+                      if (content) {
+                          fullResponse += content;
+                          onChunk(content);
+                      }
+                  } catch (e) {
+                      console.debug("SSE Parse Error (ignoring):", trimmed);
+                  }
+              }
+          }
+      } else {
+          // Fallback for providers that return raw text
+          fullResponse += chunkRaw;
+          onChunk(chunkRaw);
+      }
     }
     
     return fullResponse;
@@ -57,11 +94,17 @@ const generateCodeStreamWithServer = async (
     }
     console.error(`Error calling backend proxy for ${provider}:`, error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    
+    // Check for rate limits or quota
+    let friendlyMessage = errorMessage;
+    if (errorMessage.includes("429")) friendlyMessage = "Muitas requisições. Tente novamente em alguns instantes.";
+    if (errorMessage.includes("402") || errorMessage.includes("credit")) friendlyMessage = "Créditos insuficientes no provedor.";
+
     const errorJson = JSON.stringify({
-        message: `Ocorreu um erro: ${errorMessage}.`,
+        message: `Ocorreu um erro: ${friendlyMessage}`,
         files: existingFiles
     });
-    onChunk(errorJson);
+    // Do not call onChunk with error JSON, as it might corrupt code view if mid-stream
     return errorJson;
   }
 };

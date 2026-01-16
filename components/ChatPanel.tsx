@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel, ChatMode } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -252,7 +252,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   ];
 
   // Determine if we should show the empty state
-  // We ignore the initial system message if it's the only one
   const showEmptyState = messages.length === 0 || (messages.length === 1 && messages[0].role === 'assistant');
 
   return (
@@ -313,7 +312,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                     {msg.isImageGenerator ? (
                                         <div className="mt-2">
                                             {msg.isThinking ? (
-                                                <ImageGeneratingPreview />
+                                                <div className="flex items-center gap-3 p-2">
+                                                    <div className="relative flex h-3 w-3">
+                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
+                                                    </div>
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 font-bold animate-shine text-sm">
+                                                        Gerando Arte...
+                                                    </span>
+                                                </div>
                                             ) : msg.image ? (
                                                 <div className="group relative w-full max-w-[280px]">
                                                     <img 
@@ -340,12 +347,42 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         /* Standard Text/Code Response */
                                         <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90">
                                             {msg.isThinking ? (
-                                                <div className="flex items-center gap-2 text-gray-500 italic">
-                                                    <LoaderIcon className="w-3 h-3 animate-spin" />
-                                                    <span>Processando alterações...</span>
+                                                <div className="flex items-center gap-3 p-2">
+                                                    <div className="relative flex h-3 w-3">
+                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                                                    </div>
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 font-bold animate-shine text-sm">
+                                                        Pensando...
+                                                    </span>
                                                 </div>
                                             ) : (
-                                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                                <>
+                                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                                    
+                                                    {/* File Changes List */}
+                                                    {msg.filesModified && msg.filesModified.length > 0 && (
+                                                        <div className="mt-4 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-sm max-w-xs">
+                                                            <div className="bg-gray-50 dark:bg-[#202023] px-3 py-2 border-b border-gray-100 dark:border-[#27272a] flex items-center gap-2">
+                                                                <TerminalIcon className="w-3.5 h-3.5 text-gray-500" />
+                                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Arquivos Alterados</span>
+                                                            </div>
+                                                            <div className="p-1 max-h-40 overflow-y-auto custom-scrollbar">
+                                                                {msg.filesModified.map((file, i) => (
+                                                                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#27272a] rounded-sm transition-colors cursor-default">
+                                                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                                            file.endsWith('css') ? 'bg-blue-400' : 
+                                                                            file.endsWith('json') ? 'bg-yellow-400' : 
+                                                                            file.endsWith('html') ? 'bg-orange-400' :
+                                                                            'bg-purple-400'
+                                                                        }`}></div>
+                                                                        <span className="truncate">{file}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     )}
@@ -446,7 +483,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             className={`p-2 rounded-lg transition-all text-white shadow-md
                                 ${isGenerating 
                                     ? 'bg-red-500 hover:bg-red-600'
-                                    : 'bg-black dark:bg-white dark:text-black hover:opacity-80 disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]'
+                                    : 'bg-black dark:bg-white dark:text-black hover:opacity-80 disabled:opacity-30 disabled:disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]'
                                 }
                             `}
                             title={isGenerating ? "Parar geração" : "Enviar mensagem"}

@@ -22,6 +22,11 @@ ${file.content}
 - The file structure should be logical (e.g., components/, services/, assets/).
 - **NETLIFY CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works on Netlify.
 
+- **CRITICAL FOR DEPLOYMENT (WHITE SCREEN FIX)**:
+  - In \`index.html\`, ensure you have \`<div id="root"></div>\`.
+  - The script tag MUST use an absolute path starting with slash: \`<script type="module" src="/src/main.tsx"></script>\`. Do NOT use "./src/main.tsx" or "src/main.tsx".
+  - In \`src/main.tsx\`, ensure you import React and ReactDOM properly and mount to the 'root' element with a null check: \`ReactDOM.createRoot(document.getElementById('root')!).render(...)\`.
+
 - **IMPORTANT: ARCHITECTURE FOR FULL-STACK APPS**:
   - You are generating a Client-Side Single Page Application (SPA) that runs in a browser preview.
   - **DO NOT** generate a separate Node.js/Express backend (e.g., \`server.js\`) because it cannot run in the browser preview environment.

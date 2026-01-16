@@ -32,6 +32,11 @@ ${file.content}
   - **NETLIFY CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works on Netlify.
   - **IMPORTANT**: Every file in the "files" array must have a full relative path (e.g., "src/components/Navbar.tsx").
 
+- **CRITICAL FOR DEPLOYMENT (WHITE SCREEN FIX)**:
+  - In \`index.html\`, ensure you have \`<div id="root"></div>\`.
+  - The script tag MUST use an absolute path starting with slash: \`<script type="module" src="/src/main.tsx"></script>\`. Do NOT use "./src/main.tsx" or "src/main.tsx".
+  - In \`src/main.tsx\`, ensure you import React and ReactDOM properly and mount to the 'root' element with a null check: \`ReactDOM.createRoot(document.getElementById('root')!).render(...)\`.
+
 - **ARCHITECTURE (NODE.JS + VITE)**:
   - You are running in a **WebContainer** environment.
   - You MUST generate a \`package.json\` with \`vite\` as a dependency and scripts: \`"dev": "vite"\`.
