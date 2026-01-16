@@ -74,7 +74,8 @@ export const generateCodeStream = async (
   modelId: string,
   attachments: { data: string; mimeType: string }[] = [],
   apiKey?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onMetadata?: (metadata: any) => void
 ): Promise<string> => {
   const modelDef = AI_MODELS.find(m => m.id === modelId);
   const provider = modelDef?.provider;
@@ -90,7 +91,8 @@ export const generateCodeStream = async (
           modelId,
           apiKey,
           attachments,
-          signal
+          signal,
+          onMetadata
       );
   }
 
