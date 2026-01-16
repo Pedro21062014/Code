@@ -212,6 +212,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || AI_MODELS[0].id);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [isPlanMode, setIsPlanMode] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -225,7 +226,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         return;
     }
     if (!input.trim() && !isGenerating) return;
-    onSendMessage(input, AIProvider.Gemini, selectedModel, [], activeMode);
+    
+    // Append plan tag if plan mode is active
+    const finalPrompt = isPlanMode ? `<tools/plan> ${input}` : input;
+    
+    onSendMessage(finalPrompt, AIProvider.Gemini, selectedModel, [], activeMode);
     setInput('');
   };
 
@@ -292,7 +297,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             
                             {msg.role === 'user' ? (
                                 <div className="max-w-[90%] bg-gray-100 dark:bg-[#1f1f22] text-gray-900 dark:text-gray-200 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm border border-gray-200 dark:border-[#27272a] whitespace-pre-wrap">
-                                    {msg.content}
+                                    {msg.content.replace('<tools/plan> ', '')}
                                 </div>
                             ) : (
                                 <div className="w-full text-sm text-gray-700 dark:text-gray-300 pl-2 border-l-2 border-gray-200 dark:border-[#27272a] ml-1">
@@ -421,11 +426,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       <div className="flex items-center gap-2">
                           <button 
                             type="button" 
-                            onClick={() => setInput(prev => "<tools/plan> " + prev)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 text-[10px] font-bold uppercase tracking-wider hover:bg-cyan-100 dark:hover:bg-cyan-900/40 transition-colors"
-                            title="Criar Plano"
+                            onClick={() => setIsPlanMode(!isPlanMode)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm
+                                ${isPlanMode 
+                                    ? 'bg-blue-600 text-white shadow-blue-500/30' 
+                                    : 'bg-white text-gray-500 hover:bg-gray-100 dark:bg-[#18181b] dark:text-gray-400 dark:hover:bg-[#27272a] border border-gray-200 dark:border-[#27272a]'
+                                }
+                            `}
+                            title="Modo Planejamento"
                           >
-                              <LightbulbIcon className="w-3.5 h-3.5" />
+                              <LightbulbIcon className={`w-3.5 h-3.5 ${isPlanMode ? 'text-white' : 'text-blue-500'}`} />
                               Plan
                           </button>
 

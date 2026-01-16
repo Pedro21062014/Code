@@ -86,22 +86,11 @@ export const CloudSimpleIcon = ({ className = "w-6 h-6" }: IconProps) => (
 
 // Ícone Oficial do Google Gemini
 export const GeminiIcon = ({ className = "w-5 h-5" }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 0C12 0 8.5 8 0 12C8.5 16 12 24 12 24C12 24 15.5 16 24 12C15.5 8 12 0 12 0Z" fill="url(#gemini_official_gradient)" />
-        <defs>
-            <linearGradient id="gemini_official_gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#4E7BEE" />
-                <stop offset="50%" stopColor="#9867F0" />
-                <stop offset="100%" stopColor="#ED4E45" />
-            </linearGradient>
-        </defs>
-    </svg>
+    <img src="https://img.icons8.com/?size=100&id=mrNoLXFmvXDX&format=png&color=000000" alt="Gemini" className={className} />
 );
 
 export const OpenAIIcon = ({ className = "w-5 h-5" }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-         <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 9.5267 2a6.0282 6.0282 0 0 0-5.7931 4.1017 6.1892 6.1892 0 0 0-.8913 5.8617A5.9922 5.9922 0 0 0 3.355 16.891a6.0505 6.0505 0 0 0 6.5173 2.9037 6.0543 6.0543 0 0 0 5.7275-3.0125 6.0271 6.0271 0 0 0 5.7963-4.1026 6.0792 6.0792 0 0 0 .8858-2.8585Zm-4.8872-3.111c.7176.6219 1.1396 1.4883 1.1892 2.438l-2.9238 1.6888c-.2863-.9904-.9697-1.7826-1.8797-2.1812l3.6143-1.9456ZM19.53 11.235c-.1907.9351-.6924 1.7672-1.42 2.348l-1.9806-3.7667 3.4006-1.83v3.2487ZM14.4754 3.125a4.4146 4.4146 0 0 1 2.3887 1.2828l-3.3768 2.0191c-.9118-.3946-1.5977-1.1831-1.8845-2.1697l2.8726-1.1322Zm-6.5204.6657c.5996-.7238 1.4328-1.2224 2.3686-1.4116l1.832 3.4054-3.2519 1.7508-1.9298-3.5828.9811-.1618Zm-3.532 4.0416c-.193.935-.067 1.907.3601 2.771l3.3736-2.0163c.2872-.9881.9723-1.7786 1.884-2.176l-3.6154-1.943-2.0023 3.3643Zm.6521 6.556c.7176.623 1.6212.9228 2.5298.8406l-1.9298-3.5855 3.3985-1.8288-1.83 3.4026-2.1685 1.1711Zm6.2862 3.8443c-.5985.7227-1.4316 1.2202-2.3664 1.4095l-1.831-3.4037 3.2508-1.7508 1.9299 3.5828-.9833.1622Zm3.533-4.0437c.1919-.9351.066-1.9082-.3611-2.772l-3.3736 2.018c-.2862.9881-.9712 1.7776-1.8829 2.1749l3.6165 1.9442 2.0011-3.3651Zm.9083-2.9048-2.5852 1.3916-2.6738-1.543 2.582-1.3895 2.677 1.541Z"/>
-    </svg>
+    <img src="https://img.icons8.com/?size=100&id=fO5yVwARGUEB&format=png&color=000000" alt="OpenAI" className={className} />
 );
 
 export const DeepSeekIcon = ({ className = "w-5 h-5" }: IconProps) => (
@@ -114,9 +103,7 @@ export const DeepSeekIcon = ({ className = "w-5 h-5" }: IconProps) => (
 );
 
 export const NetlifyIcon = ({ className = "w-5 h-5" }: IconProps) => (
-    <svg className={className} viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M62.624 37.07L23.013 75.485L70.07 122.54l40.355-52.47zM117.425 200.772l69.255-39.986l-39.23-42.37l-30.025 82.356zM192.3 154.02l-38.412-41.487l40.75-55.935l40.065 40.066z" />
-    </svg>
+    <img src="https://img.icons8.com/?size=100&id=rD15EcpCkinR&format=png&color=000000" alt="Netlify" className={className} />
 );
 
 export const CloudflareIcon = ({ className = "w-5 h-5" }: IconProps) => (
@@ -144,16 +131,11 @@ export const LinkedInIcon = ({ className = "w-5 h-5" }: IconProps) => (
 );
 
 export const GithubIcon = ({ className = "w-5 h-5" }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-    </svg>
+    <img src="https://img.icons8.com/?size=100&id=fmFqQmR0UdsR&format=png&color=000000" alt="GitHub" className={className} />
 );
 
 export const StripeIcon = ({ className = "w-6 h-6" }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10.155 2.592L6.155 21.408C8.324 21.798 13.987 20.803 16.633 15.602C19.279 10.4 18.283 4.74 17.848 2.592H10.155Z" />
-        <path d="M12.001 2.592H4.309C3.874 4.74 2.878 10.4 5.524 15.602C8.17 20.803 13.833 21.798 16.002 21.408L12.001 2.592Z" fillOpacity="0.5"/>
-    </svg>
+    <img src="https://img.icons8.com/?size=100&id=7IT9Vpb5ZZUC&format=png&color=000000" alt="Stripe" className={className} />
 );
 
 export const GoogleIcon = ({ className = "w-5 h-5" }: IconProps) => (
@@ -312,9 +294,7 @@ export const PaperclipIcon = ({ className = "w-6 h-6" }: IconProps) => (
 );
 
 export const SupabaseIcon = ({ className = "w-6 h-6" }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12.5001 2.37646C12.4461 2.37646 12.3929 2.39296 12.3481 2.42366L3.84814 8.42366C3.76564 8.48166 3.73114 8.59116 3.76614 8.68666L5.34814 13.4332L2.61064 13.9027C2.51614 13.9192 2.44114 13.9897 2.41864 14.0827C2.39614 14.1757 2.43214 14.2732 2.50864 14.3317L11.5086 21.3317C11.5836 21.3887 11.6856 21.3992 11.7706 21.3572C11.8561 21.3152 11.9106 21.2282 11.9106 21.1332V13.6332H19.9106C20.0071 13.6332 20.0956 13.5792 20.1376 13.4927C20.1796 13.4062 20.1691 13.3042 20.1091 13.2277L13.1091 4.22766C13.0641 4.16916 12.9966 4.13316 12.9226 4.13316H12.5001V2.37646Z" fill="currentColor"/>
-    </svg>
+    <img src="https://img.icons8.com/?size=100&id=sH0rW2TvYdr9&format=png&color=000000" alt="Supabase" className={className} />
 );
 
 export const LogInIcon = ({ className = "w-6 h-6" }: IconProps) => (

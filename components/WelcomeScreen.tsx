@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon, SunIcon, MoonIcon, AppLogo } from './Icons';
+import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon, SunIcon, MoonIcon, AppLogo, LightbulbIcon } from './Icons';
 import { ProjectFile, SavedProject, AIModel, Theme, ChatMode } from '../types';
 
 interface WelcomeScreenProps {
@@ -65,6 +66,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   // Set default to the OpenRouter Free Gemini model
   const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [isPlanMode, setIsPlanMode] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -114,7 +116,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         });
 
         const attachments = await Promise.all(filePromises);
-        onPromptSubmit(prompt.trim(), selectedModel, attachments, 'general');
+        
+        // Append plan tag if plan mode is active
+        const finalPrompt = isPlanMode ? `<tools/plan> ${prompt.trim()}` : prompt.trim();
+        
+        onPromptSubmit(finalPrompt, selectedModel, attachments, 'general');
         setPrompt('');
         setAttachedFiles([]);
     } catch (error) {
@@ -262,6 +268,23 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 </div>
                             )}
                         </div>
+
+                        <div className="h-4 w-px bg-gray-300 dark:bg-[#3f3f46] mx-1"></div>
+
+                        <button 
+                            type="button" 
+                            onClick={() => setIsPlanMode(!isPlanMode)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm
+                                ${isPlanMode 
+                                    ? 'bg-blue-600 text-white shadow-blue-500/30' 
+                                    : 'bg-white text-gray-500 hover:bg-gray-100 dark:bg-[#18181b] dark:text-gray-400 dark:hover:bg-[#27272a] border border-gray-200 dark:border-[#27272a]'
+                                }
+                            `}
+                            title="Modo Planejamento"
+                        >
+                            <LightbulbIcon className={`w-3.5 h-3.5 ${isPlanMode ? 'text-white' : 'text-blue-500'}`} />
+                            Plan
+                        </button>
                     </div>
 
                     <button 
