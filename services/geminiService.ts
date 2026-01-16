@@ -58,7 +58,8 @@ export const generateCodeStreamWithGemini = async (
   modelId: string,
   apiKey: string,
   attachments?: { data: string; mimeType: string }[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onMetadata?: (metadata: any) => void
 ): Promise<string> => {
   try {
     // Note: guidelines suggest process.env.API_KEY, but we support the provided apiKey as fallback
@@ -97,6 +98,11 @@ export const generateCodeStreamWithGemini = async (
       if (chunkText) {
           fullResponse += chunkText;
           onChunk(chunkText);
+      }
+      
+      // Handle metadata
+      if (onMetadata && chunk.candidates?.[0]?.groundingMetadata) {
+          onMetadata(chunk.candidates[0].groundingMetadata);
       }
     }
     

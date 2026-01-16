@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
@@ -633,9 +634,16 @@ export const App: React.FC = () => {
     
     const currentCredits = userSettings?.credits || 0;
     
-    const isImageRequest = /(\b(gerar|gera|criar|crie|fazer|faça|desenhar|desenhe)\b.*\bimagem\b)|(\b(generate|create|make|draw)\b.*\bimage\b)/i.test(prompt);
+    // TOOL PARSING
+    const imageTagMatch = prompt.match(/<tools\/image>(.*?)<\/tools\/image>/is);
+    const deployTagMatch = prompt.match(/<tools\/deploy\s*\/>/i);
+    const fixTagMatch = prompt.match(/<tools\/fix>(.*?)<\/tools\/fix>/is);
+    const planTagMatch = prompt.match(/<tools\/plan>/i);
     
-    if (isImageRequest) {
+    // --- TOOL: IMAGE GENERATION ---
+    if (imageTagMatch) {
+        const imagePrompt = imageTagMatch[1].trim();
+        
         if (currentCredits < 40) {
             setToastError("Créditos insuficientes para gerar imagem (necessário: 40).");
             return;
@@ -650,7 +658,7 @@ export const App: React.FC = () => {
             ...activeProjectState,
             chatMessages: [
                 ...activeProjectState.chatMessages,
-                { role: 'user', content: prompt },
+                { role: 'user', content: `[Ferramenta Imagem] ${imagePrompt}` },
                 { role: 'assistant', content: 'Gerando imagem (1:1)...', isThinking: true, isImageGenerator: true }
             ]
         });
@@ -664,7 +672,7 @@ export const App: React.FC = () => {
 
             const apiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
             
-            const images = await generateImagesWithImagen(prompt, apiKey, 1, "1:1");
+            const images = await generateImagesWithImagen(imagePrompt, apiKey, 1, "1:1");
             
             if (images.length > 0) {
                 setProject(p => ({
@@ -673,7 +681,7 @@ export const App: React.FC = () => {
                         ...p.chatMessages.slice(0, -1),
                         { 
                             role: 'assistant', 
-                            content: `Imagem gerada para: "${prompt}"`, 
+                            content: `Imagem gerada para: "${imagePrompt}"`, 
                             isThinking: false, 
                             isImageGenerator: true,
                             image: images[0]
@@ -698,6 +706,21 @@ export const App: React.FC = () => {
         return;
     }
 
+    // --- TOOL: DEPLOY ---
+    if (deployTagMatch) {
+        setPublishModalOpen(true);
+        setProject(p => ({
+            ...p,
+            chatMessages: [
+                ...p.chatMessages,
+                { role: 'user', content: '[Ferramenta Deploy] Iniciando publicação...' },
+                { role: 'assistant', content: 'Abrindo painel de publicação...', isThinking: false }
+            ]
+        }));
+        return;
+    }
+
+    // --- STANDARD GENERATION (or FIX/PLAN mode) ---
     if (currentCredits <= 0) {
         setToastError("Você não tem créditos suficientes. Por favor, recarregue.");
         return;
@@ -709,7 +732,20 @@ export const App: React.FC = () => {
     }
 
     let adjustedPrompt = prompt;
-    if (mode === 'design') {
+    
+    // Handle Fix Tool
+    if (fixTagMatch) {
+        const fixPrompt = fixTagMatch[1].trim();
+        adjustedPrompt = `[FIX MODE] Identify and fix errors based on this request: ${fixPrompt}. Review current files carefully.`;
+    } 
+    // Handle Plan Tool
+    else if (planTagMatch) {
+        // Remove the tag and use the context to generate a plan
+        const userIntent = prompt.replace('<tools/plan>', '').trim();
+        const planContext = userIntent ? `User Intent: ${userIntent}` : "Analyze the current project state.";
+        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a comprehensive, step-by-step implementation plan for the requested feature or project. \n\nIMPORTANT: Return the plan as a Markdown list with checkboxes (e.g., "- [ ] Step 1"). Ensure the steps are granular and actionable. Do not generate code yet, just the plan.`;
+    }
+    else if (mode === 'design') {
         adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus heavily on aesthetics, modern design patterns, Tailwind CSS best practices, responsiveness, and animations. Ensure the UI is beautiful and polished. User request: ${prompt}`;
     } else if (mode === 'backend') {
         adjustedPrompt = `[BACKEND EXPERT MODE] Act as a senior Backend/Data engineer. Focus on data structure, API logic, Supabase/Firebase integration, security, and performance. User request: ${prompt}`;
@@ -737,6 +773,21 @@ export const App: React.FC = () => {
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
         : userSettings?.openrouter_api_key; 
 
+      // Define callback for grounding metadata
+      const handleMetadata = (metadata: any) => {
+          setProject(p => {
+              const lastMsgIndex = p.chatMessages.length - 1;
+              const msgs = [...p.chatMessages];
+              if (msgs[lastMsgIndex] && msgs[lastMsgIndex].role === 'assistant') {
+                  msgs[lastMsgIndex] = {
+                      ...msgs[lastMsgIndex],
+                      groundingMetadata: metadata
+                  };
+              }
+              return { ...p, chatMessages: msgs };
+          });
+      };
+
       const fullResponse = await generateCodeStream(
           adjustedPrompt, 
           activeProjectState.files, 
@@ -763,7 +814,8 @@ export const App: React.FC = () => {
           modelId, 
           attachments,
           apiKey,
-          abortControllerRef.current.signal
+          abortControllerRef.current.signal,
+          handleMetadata // Pass metadata callback
       );
       
       const result = extractAndParseJson(fullResponse);
@@ -798,7 +850,14 @@ export const App: React.FC = () => {
                 ...p, 
                 files: updatedFiles, 
                 activeFile: newActiveFile, 
-                chatMessages: [...p.chatMessages.slice(0, -1), { role: 'assistant', content: result.message, summary: result.summary, isThinking: false }],
+                chatMessages: [...p.chatMessages.slice(0, -1), { 
+                    role: 'assistant', 
+                    content: result.message, 
+                    summary: result.summary, 
+                    isThinking: false,
+                    // Preserve metadata if it exists on the thinking message
+                    groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata 
+                }],
                 history: [...(p.history || []), newVersion]
             };
         });

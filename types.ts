@@ -33,6 +33,14 @@ export interface ChatMessage {
   isThinking?: boolean;
   isImageGenerator?: boolean; // Indicates this message is an image generation task
   image?: string; // Base64 string of the generated image
+  groundingMetadata?: {
+    groundingChunks: Array<{
+      web?: {
+        uri: string;
+        title: string;
+      };
+    }>;
+  };
 }
 
 // UserSettings reflecting Firestore 'users' collection

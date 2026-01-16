@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, AIProvider, AIModel, ChatMode } from '../types';
 import { AI_MODELS } from '../constants';
-import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -153,6 +154,57 @@ const EmptyState: React.FC<{ mode: ChatMode }> = ({ mode }) => {
     );
 };
 
+// Component for rendering Google Search Grounding Metadata
+const GroundingMetadata: React.FC<{ metadata: NonNullable<ChatMessage['groundingMetadata']> }> = ({ metadata }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    
+    if (!metadata || !metadata.groundingChunks || metadata.groundingChunks.length === 0) return null;
+
+    const sources = metadata.groundingChunks.filter(c => c.web).map(c => c.web!);
+    if (sources.length === 0) return null;
+
+    return (
+        <div className="mt-2 mb-1">
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="flex items-center gap-2 px-2 py-1 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-[#27272a] rounded-full hover:bg-gray-100 dark:hover:bg-[#202023] transition-colors group"
+                >
+                    <GoogleIcon className="w-4 h-4" />
+                    <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200">
+                        {sources.length} fonte{sources.length !== 1 ? 's' : ''} encontrada{sources.length !== 1 ? 's' : ''}
+                    </span>
+                    <ChevronUpIcon className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+            </div>
+
+            {isExpanded && (
+                <div className="mt-2 pl-2 space-y-1 animate-fadeIn">
+                    {sources.map((source, idx) => (
+                        <a 
+                            key={idx} 
+                            href={source.uri} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-[#1a1a1c] transition-colors group"
+                        >
+                            <span className="text-[10px] font-mono text-gray-400 mt-0.5">{idx + 1}.</span>
+                            <div className="flex flex-col overflow-hidden">
+                                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 truncate group-hover:underline">
+                                    {source.title}
+                                </span>
+                                <span className="text-[10px] text-gray-400 truncate">
+                                    {source.uri}
+                                </span>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, generatingFile, isGenerating, onStopGeneration,
     onOpenSupabase, onOpenGithub, availableModels = AI_MODELS, activeMode = 'general', onModeChange 
@@ -172,7 +224,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         onStopGeneration();
         return;
     }
-    if (!input.trim() || isGenerating) return;
+    if (!input.trim() && !isGenerating) return;
     onSendMessage(input, AIProvider.Gemini, selectedModel, [], activeMode);
     setInput('');
   };
@@ -239,16 +291,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <div key={index} className={`flex flex-col gap-2 animate-fadeIn ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                             
                             {msg.role === 'user' ? (
-                                <div className="max-w-[90%] bg-gray-100 dark:bg-[#1f1f22] text-gray-900 dark:text-gray-200 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm border border-gray-200 dark:border-[#27272a]">
+                                <div className="max-w-[90%] bg-gray-100 dark:bg-[#1f1f22] text-gray-900 dark:text-gray-200 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm border border-gray-200 dark:border-[#27272a] whitespace-pre-wrap">
                                     {msg.content}
                                 </div>
                             ) : (
                                 <div className="w-full text-sm text-gray-700 dark:text-gray-300 pl-2 border-l-2 border-gray-200 dark:border-[#27272a] ml-1">
                                     <div className="flex items-center gap-2 mb-1 opacity-50">
-                                        <BotIcon className="w-3.5 h-3.5 text-blue-500" />
-                                        <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
+                                        <LightbulbIcon className="w-4 h-4 text-blue-500" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">AI Architect</span>
                                     </div>
                                     
+                                    {/* Grounding Metadata (Google Search Results) */}
+                                    {msg.groundingMetadata && <GroundingMetadata metadata={msg.groundingMetadata} />}
+
                                     {/* Image Generation State */}
                                     {msg.isImageGenerator ? (
                                         <div className="mt-2">
@@ -311,6 +366,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* Input Area (Fixed Bottom) */}
       <div className="p-4 bg-[#fbfbfb] dark:bg-[#0c0c0e] border-t border-gray-200 dark:border-[#27272a] z-10">
           <form onSubmit={handleSubmit} className="relative group">
+              
               <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
               <div className="relative bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50 transition-all flex flex-col">
                   <textarea 
@@ -320,9 +376,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     placeholder={
                         activeMode === 'design' ? "Descreva o visual e estilo..." :
                         activeMode === 'backend' ? "Descreva a lógica e dados..." :
-                        "Digite suas instruções..."
+                        "Digite instruções..."
                     }
-                    className="w-full bg-transparent px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none min-h-[50px] max-h-[150px]"
+                    className="w-full bg-transparent px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none min-h-[50px] max-h-[150px] font-sans"
                     rows={1}
                   />
                   
@@ -362,24 +418,36 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                           </div>
                       </div>
                       
-                      <button 
-                        type={isGenerating ? "button" : "submit"}
-                        onClick={isGenerating && onStopGeneration ? onStopGeneration : undefined}
-                        disabled={(!input.trim() && !isGenerating)}
-                        className={`p-2 rounded-lg transition-all text-white shadow-md
-                            ${isGenerating 
-                                ? 'bg-red-500 hover:bg-red-600'
-                                : 'bg-black dark:bg-white dark:text-black hover:opacity-80 disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]'
-                            }
-                        `}
-                        title={isGenerating ? "Parar geração" : "Enviar mensagem"}
-                      >
-                          {isGenerating ? (
-                              <StopIcon className="w-4 h-4" />
-                          ) : (
-                              <PlusIcon className="w-4 h-4 rotate-90" />
-                          )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                          <button 
+                            type="button" 
+                            onClick={() => setInput(prev => "<tools/plan> " + prev)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 text-[10px] font-bold uppercase tracking-wider hover:bg-cyan-100 dark:hover:bg-cyan-900/40 transition-colors"
+                            title="Criar Plano"
+                          >
+                              <LightbulbIcon className="w-3.5 h-3.5" />
+                              Plan
+                          </button>
+
+                          <button 
+                            type={isGenerating ? "button" : "submit"}
+                            onClick={isGenerating && onStopGeneration ? onStopGeneration : undefined}
+                            disabled={(!input.trim() && !isGenerating)}
+                            className={`p-2 rounded-lg transition-all text-white shadow-md
+                                ${isGenerating 
+                                    ? 'bg-red-500 hover:bg-red-600'
+                                    : 'bg-black dark:bg-white dark:text-black hover:opacity-80 disabled:opacity-30 disabled:bg-gray-300 dark:disabled:bg-[#3f3f46]'
+                                }
+                            `}
+                            title={isGenerating ? "Parar geração" : "Enviar mensagem"}
+                          >
+                              {isGenerating ? (
+                                  <StopIcon className="w-4 h-4" />
+                              ) : (
+                                  <PlusIcon className="w-4 h-4 rotate-90" />
+                              )}
+                          </button>
+                      </div>
                   </div>
               </div>
           </form>
