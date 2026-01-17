@@ -96,6 +96,12 @@ export interface SavedProject {
   env_vars: Record<string, string>;
   created_at: string;
   updated_at: string;
+  githubRepo?: {
+    owner: string;
+    name: string;
+    branch: string;
+    url: string;
+  } | null;
 }
 
 export type ChatMode = 'general' | 'design' | 'backend';
