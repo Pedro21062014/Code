@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GithubIcon, CloseIcon, PlusIcon, LoaderIcon, CheckCircleIcon, TerminalIcon, KeyIcon } from './Icons';
+import { GithubIcon, CloseIcon, PlusIcon, LoaderIcon, CheckCircleIcon, TerminalIcon, KeyIcon, LogOutIcon } from './Icons';
 import { ProjectFile } from '../types';
 
 interface GithubRepo {
@@ -9,6 +9,7 @@ interface GithubRepo {
   full_name: string;
   private: boolean;
   owner: { login: string };
+  html_url: string;
 }
 
 interface GithubSyncModalProps {
@@ -19,9 +20,15 @@ interface GithubSyncModalProps {
   onOpenSettings: () => void;
   projectName: string;
   onSaveToken?: (token: string) => void;
+  connectedRepo?: { owner: string; name: string; branch: string; url: string } | null;
+  onConnect?: (repo: { owner: string; name: string; branch: string; url: string }) => void;
+  onDisconnect?: () => void;
 }
 
-export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClose, files, githubToken, onOpenSettings, projectName, onSaveToken }) => {
+export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ 
+    isOpen, onClose, files, githubToken, onOpenSettings, projectName, onSaveToken,
+    connectedRepo, onConnect, onDisconnect
+}) => {
   const [repositories, setRepositories] = useState<GithubRepo[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingRepos, setLoadingRepos] = useState(false);
@@ -34,15 +41,21 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
   const [logs, setLogs] = useState<string[]>([]);
   const [manualToken, setManualToken] = useState('');
 
+  // Local state to track connection within the modal session if props update
+  const [activeRepo, setActiveRepo] = useState(connectedRepo);
+
   useEffect(() => {
-    if (isOpen && githubToken) {
-      fetchRepos();
-      setSuccess(null);
-      setError(null);
-      setLogs([]);
-      setNewRepoName(projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+    if (isOpen) {
+        setActiveRepo(connectedRepo); // Reset to prop state on open
+        if (githubToken && !connectedRepo) {
+            fetchRepos();
+        }
+        setSuccess(null);
+        setError(null);
+        setLogs([]);
+        setNewRepoName(projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
     }
-  }, [isOpen, githubToken, projectName]);
+  }, [isOpen, githubToken, projectName, connectedRepo]);
 
   const addLog = (msg: string) => setLogs(prev => [...prev, `> ${msg}`]);
 
@@ -71,7 +84,15 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
       }
   };
 
-  const pushFilesToRepo = async (owner: string, repo: string) => {
+  const handleDisconnect = () => {
+      if (window.confirm("Isso removerá o vínculo deste projeto com o repositório GitHub. O código no GitHub permanecerá intacto.")) {
+          if (onDisconnect) onDisconnect();
+          setActiveRepo(null);
+          fetchRepos(); // Load list for new selection
+      }
+  };
+
+  const pushFilesToRepo = async (owner: string, repo: string, repoUrl?: string) => {
     setSyncing(true);
     setError(null);
     setLogs([`Iniciando sincronização com ${owner}/${repo}...`]);
@@ -87,6 +108,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
       if(!repoResp.ok) throw new Error("Repositório não acessível");
       const repoInfo = await repoResp.json();
       const branch = repoInfo.default_branch || 'main';
+      const url = repoUrl || repoInfo.html_url;
 
       addLog(`Preparando ${files.length} arquivos para upload...`);
       // Create blobs concurrently
@@ -158,6 +180,12 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
 
       addLog("Sincronização concluída com sucesso.");
       setSuccess(`Código enviado para ${owner}/${repo}`);
+      
+      // Save Connection Preference
+      if (onConnect) {
+          onConnect({ owner, name: repo, branch, url });
+      }
+
       setTimeout(onClose, 2500);
     } catch (err: any) {
       addLog(`ERRO: ${err.message}`);
@@ -192,7 +220,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
       addLog("Repositório criado. Aguardando propagação...");
       // Wait a bit for GitHub to initialize the repo
       await new Promise(r => setTimeout(r, 2000));
-      await pushFilesToRepo(newRepo.owner.login, newRepo.name);
+      await pushFilesToRepo(newRepo.owner.login, newRepo.name, newRepo.html_url);
     } catch (err: any) {
       setError(err.message);
       setSyncing(false);
@@ -266,7 +294,44 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                   <h3 className="text-gray-900 dark:text-white font-medium">Sincronização Concluída</h3>
                   <p className="text-gray-500 text-sm">{success}</p>
               </div>
+          ) : activeRepo ? (
+              // CONNECTED STATE VIEW
+              <div className="flex flex-col items-center justify-center space-y-6 py-4">
+                  <div className="w-full bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-xl p-5 flex flex-col items-center text-center relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+                      <div className="w-12 h-12 bg-white dark:bg-[#1a1a1c] rounded-full flex items-center justify-center mb-3 shadow-sm">
+                          <GithubIcon className="w-6 h-6 text-black dark:text-white" />
+                      </div>
+                      <h3 className="font-bold text-lg text-gray-900 dark:text-white">{activeRepo.owner}/{activeRepo.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                              branch: {activeRepo.branch}
+                          </span>
+                          <a href={activeRepo.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">Ver no GitHub</a>
+                      </div>
+                  </div>
+
+                  <div className="w-full space-y-3">
+                      <button 
+                          onClick={() => pushFilesToRepo(activeRepo.owner, activeRepo.name, activeRepo.url)}
+                          className="w-full flex items-center justify-center gap-2 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg"
+                      >
+                          <TerminalIcon className="w-4 h-4" />
+                          Sincronizar Agora (Push)
+                      </button>
+                      
+                      <button 
+                          onClick={handleDisconnect}
+                          className="w-full flex items-center justify-center gap-2 py-3 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium text-xs hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                      >
+                          <LogOutIcon className="w-3.5 h-3.5" />
+                          Desconectar Repositório
+                      </button>
+                  </div>
+              </div>
           ) : (
+            // SELECT / CREATE VIEW
             <>
               {/* Tab Switcher */}
               <div className="flex bg-gray-100 dark:bg-[#121214] p-1 rounded-lg border border-gray-200 dark:border-[#27272a]">
@@ -343,7 +408,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({ isOpen, onClos
                       repositories.filter(r => r.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(repo => (
                         <button 
                           key={repo.id}
-                          onClick={() => pushFilesToRepo(repo.owner.login, repo.name)}
+                          onClick={() => pushFilesToRepo(repo.owner.login, repo.name, repo.html_url)}
                           className="w-full text-left px-4 py-3 border-b border-gray-200 dark:border-[#27272a] last:border-0 hover:bg-gray-100 dark:hover:bg-[#18181b] transition-colors group flex items-center justify-between"
                         >
                           <div className="flex flex-col">

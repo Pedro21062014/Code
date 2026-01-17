@@ -424,6 +424,8 @@ export const App: React.FC = () => {
       author: sessionUser.displayName || sessionUser.email?.split('@')[0] || "Anon",
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      // Preserve githubRepo if it exists on the saved project, as it's not in the main ProjectState
+      githubRepo: existingProject?.githubRepo || null, 
     };
 
     try {
@@ -545,6 +547,34 @@ export const App: React.FC = () => {
       setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
       setGalleryProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   }, [setSavedProjects]);
+
+  // Handlers for GitHub Sync connection
+  const handleGithubConnect = useCallback(async (repoData: { owner: string, name: string, branch: string, url: string }) => {
+      if (!currentProjectId) {
+          await handleSaveProject(); // Ensure saved before linking
+      }
+      if (currentProjectId) {
+          const updates = { githubRepo: repoData };
+          handleProjectMetaUpdate(currentProjectId, updates); // Update local state immediately
+          try {
+              await updateDoc(doc(db, "projects", currentProjectId.toString()), updates);
+          } catch (e) {
+              console.error("Failed to save github repo link", e);
+          }
+      }
+  }, [currentProjectId, handleSaveProject, handleProjectMetaUpdate]);
+
+  const handleGithubDisconnect = useCallback(async () => {
+      if (currentProjectId) {
+          const updates = { githubRepo: null };
+          handleProjectMetaUpdate(currentProjectId, updates); // Update local state immediately
+          try {
+              await updateDoc(doc(db, "projects", currentProjectId.toString()), updates);
+          } catch (e) {
+              console.error("Failed to disconnect github repo", e);
+          }
+      }
+  }, [currentProjectId, handleProjectMetaUpdate]);
 
   const handleToggleLike = useCallback(async (projectId: number) => {
       if (!sessionUser) {
@@ -1270,6 +1300,9 @@ export const App: React.FC = () => {
         githubToken={userSettings?.github_access_token} 
         onOpenSettings={() => setView('settings')} 
         onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
+        connectedRepo={currentSavedProject?.githubRepo}
+        onConnect={handleGithubConnect}
+        onDisconnect={handleGithubDisconnect}
       />
       
       <ShareModal 
