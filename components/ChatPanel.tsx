@@ -349,10 +349,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                             {msg.isThinking ? (
                                                 <div className="flex items-center gap-3 p-2">
                                                     <div className="relative flex h-3 w-3">
-                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black dark:bg-white opacity-75"></span>
+                                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-black dark:bg-white"></span>
                                                     </div>
-                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 font-bold animate-shine text-sm">
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-black via-gray-500 to-black dark:from-white dark:via-gray-400 dark:to-white font-bold animate-shine text-sm">
                                                         Pensando...
                                                     </span>
                                                 </div>

@@ -132,16 +132,16 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 
   return (
      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
-      <div className="bg-[#09090b] border border-[#27272a] rounded-2xl w-full max-w-2xl overflow-hidden animate-slideInUp shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] rounded-2xl w-full max-w-2xl overflow-hidden animate-slideInUp shadow-2xl flex flex-col max-h-[90vh] transition-colors" onClick={e => e.stopPropagation()}>
         
-        <div className="px-6 py-5 border-b border-[#27272a] bg-[#0c0c0e] flex justify-between items-center">
-            <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#0c0c0e] flex justify-between items-center">
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
                 <TerminalIcon className="w-4 h-4 text-purple-500" /> Publicar Aplicação
             </h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors"><CloseIcon className="w-4 h-4"/></button>
+            <button onClick={onClose} className="text-gray-500 hover:text-black dark:hover:text-white transition-colors"><CloseIcon className="w-4 h-4"/></button>
         </div>
         
-        <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+        <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar bg-white dark:bg-[#09090b]">
             
             {deployStatus === 'success' ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
@@ -149,26 +149,26 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                         <CheckCircleIcon className="w-10 h-10 text-green-500" />
                     </div>
                     <div>
-                        <h3 className="text-2xl font-bold text-white mb-2">Aplicação Online!</h3>
-                        <p className="text-gray-400">Seu projeto foi publicado com sucesso no Netlify.</p>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Aplicação Online!</h3>
+                        <p className="text-gray-600 dark:text-gray-400">Seu projeto foi publicado com sucesso no Netlify.</p>
                         <p className="text-xs text-gray-500 mt-2">Agora você pode publicá-lo na Galeria.</p>
                     </div>
                     
-                    <div className="flex items-center gap-3 w-full max-w-md bg-[#121214] border border-[#27272a] p-3 rounded-xl">
+                    <div className="flex items-center gap-3 w-full max-w-md bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] p-3 rounded-xl">
                         <div className="flex-1 truncate text-left">
-                            <a href={deployUrl!} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline font-mono text-sm truncate">
+                            <a href={deployUrl!} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm truncate">
                                 {deployUrl}
                             </a>
                         </div>
                         <button 
                             onClick={() => { navigator.clipboard.writeText(deployUrl!); }}
-                            className="px-3 py-1.5 bg-[#27272a] hover:bg-[#3f3f46] text-white text-xs font-bold rounded-lg transition-colors"
+                            className="px-3 py-1.5 bg-gray-200 dark:bg-[#27272a] hover:bg-gray-300 dark:hover:bg-[#3f3f46] text-gray-900 dark:text-white text-xs font-bold rounded-lg transition-colors"
                         >
                             Copiar
                         </button>
                     </div>
 
-                    <button onClick={() => { setDeployStatus('idle'); onClose(); }} className="text-gray-500 hover:text-white text-sm">Fechar</button>
+                    <button onClick={() => { setDeployStatus('idle'); onClose(); }} className="text-gray-500 hover:text-black dark:hover:text-white text-sm">Fechar</button>
                 </div>
             ) : (
                 <div className="space-y-6">
@@ -177,13 +177,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                         <button 
                             onClick={() => !isLoading && setActiveTarget('netlify')}
                             disabled={isLoading}
-                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${activeTarget === 'netlify' ? 'bg-[#1a1a1c] border-[#00C7B7]' : 'bg-[#121214] border-[#27272a] hover:border-[#00C7B7]/50 hover:bg-[#1a1a1c]'} ${isLoading && activeTarget !== 'netlify' ? 'opacity-30' : ''}`}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${
+                                activeTarget === 'netlify' 
+                                ? 'bg-gray-50 dark:bg-[#1a1a1c] border-[#00C7B7]' 
+                                : 'bg-white dark:bg-[#121214] border-gray-200 dark:border-[#27272a] hover:border-[#00C7B7]/50 hover:bg-gray-50 dark:hover:bg-[#1a1a1c]'
+                            } ${isLoading && activeTarget !== 'netlify' ? 'opacity-30' : ''}`}
                         >
                             <div className="w-14 h-14 bg-[#00C7B7]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <NetlifyIcon className="w-8 h-8 text-[#00C7B7]" />
                             </div>
                             <div className="text-center">
-                                <h3 className="font-bold text-white mb-1">Netlify</h3>
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-1">Netlify</h3>
                                 <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{existingSiteId ? 'Atualizar Deploy' : 'Instant Deploy'}</p>
                             </div>
                         </button>
@@ -192,36 +196,36 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                         <button 
                             onClick={handleCloudflareClick}
                             disabled={isLoading}
-                            className={`flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214] border border-[#27272a] hover:border-[#F38020]/50 hover:bg-[#1a1a1c] transition-all group gap-4 ${isLoading ? 'opacity-30' : ''}`}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl bg-white dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] hover:border-[#F38020]/50 hover:bg-gray-50 dark:hover:bg-[#1a1a1c] transition-all group gap-4 ${isLoading ? 'opacity-30' : ''}`}
                         >
                             <div className="w-14 h-14 bg-[#F38020]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <CloudflareIcon className="w-8 h-8 text-[#F38020]" />
                             </div>
                             <div className="text-center">
-                                <h3 className="font-bold text-white mb-1">Cloudflare Pages</h3>
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-1">Cloudflare Pages</h3>
                                 <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Manual Upload</p>
                             </div>
                         </button>
 
                         {/* Option 3: Codegen Studio (Coming Soon) */}
-                        <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#121214]/50 border border-[#27272a] gap-4 relative opacity-60 cursor-not-allowed">
-                            <div className="absolute top-3 right-3 bg-[#27272a] text-white text-[9px] font-bold px-2 py-1 rounded border border-white/5">EM BREVE</div>
+                        <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-gray-50 dark:bg-[#121214]/50 border border-gray-200 dark:border-[#27272a] gap-4 relative opacity-60 cursor-not-allowed">
+                            <div className="absolute top-3 right-3 bg-gray-200 dark:bg-[#27272a] text-gray-600 dark:text-white text-[9px] font-bold px-2 py-1 rounded border border-gray-300 dark:border-white/5">EM BREVE</div>
                             <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center">
                                 <AppLogo className="w-8 h-8 text-blue-500" />
                             </div>
                             <div className="text-center">
                                 <h3 className="font-bold text-gray-400 mb-1">Codegen Studio</h3>
-                                <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wider">Managed Hosting</p>
+                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Managed Hosting</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Netlify Config Section - Only shows if Netlify is selected */}
                     {activeTarget === 'netlify' && (
-                        <div className="bg-[#121214] border border-[#27272a] rounded-xl p-4 animate-slideInUp">
+                        <div className="bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-xl p-4 animate-slideInUp">
                             {!netlifyToken && (
                                 <div className="mb-4">
-                                    <label className="block text-xs font-medium text-gray-400 mb-2">
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
                                         Token de Acesso Netlify (Não configurado)
                                     </label>
                                     <input 
@@ -230,7 +234,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                                         onChange={(e) => setManualToken(e.target.value)}
                                         placeholder="Cole seu token 'nfp_...' aqui"
                                         disabled={isLoading}
-                                        className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#00C7B7] disabled:opacity-50"
+                                        className="w-full bg-white dark:bg-[#09090b] border border-gray-300 dark:border-[#27272a] rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#00C7B7] disabled:opacity-50 transition-colors"
                                     />
                                     <p className="text-[10px] text-gray-500 mt-2">
                                         Seu token será salvo automaticamente para futuros deploys.
@@ -256,19 +260,19 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             )}
 
             {errorMessage && (
-                <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+                <div className="mt-6 p-4 bg-red-100 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-sm text-center">
                     {errorMessage}
                 </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-[#27272a] flex items-center justify-between">
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-[#27272a] flex items-center justify-between">
                 <div className="flex flex-col">
-                    <span className="text-white font-medium text-sm">Exportar Código Fonte</span>
+                    <span className="text-gray-900 dark:text-white font-medium text-sm">Exportar Código Fonte</span>
                     <span className="text-gray-500 text-xs">Baixe o .zip completo para rodar localmente.</span>
                 </div>
                 <button 
                     onClick={onDownload}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#27272a] hover:bg-[#3f3f46] text-white text-xs font-bold rounded-lg transition-colors border border-white/5"
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-[#27272a] hover:bg-gray-200 dark:hover:bg-[#3f3f46] text-gray-900 dark:text-white text-xs font-bold rounded-lg transition-colors border border-gray-200 dark:border-white/5"
                 >
                     <DownloadIcon className="w-4 h-4" /> Download ZIP
                 </button>

@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regras para Usuários (apenas o dono lê/escreve seu perfil)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Regras para Projetos
+    match /projects/{projectId} {
+      
+      // Funções auxiliares
+      function isOwner() {
+        return request.auth != null && request.auth.uid == resource.data.ownerId;
+      }
+      
+      function isShared() {
+        // Verifica se o UID ou o Email do usuário está na lista shared_with
+        return request.auth != null && resource.data.shared_with is list && (
+          request.auth.uid in resource.data.shared_with || 
+          request.auth.token.email in resource.data.shared_with
+        );
+      }
+
+      // Qualquer um pode ler (para a galeria). 
+      // Se quiser privacidade estrita, mude para: if isOwner() || isShared() || resource.data.is_public_in_gallery == true;
+      allow read: if true;
+      
+      // Apenas autenticado pode criar
+      allow create: if request.auth != null;
+      
+      // Apenas o dono pode deletar
+      allow delete: if isOwner();
+      
+      // Atualização:
+      // 1. Dono ou Colaborador (Shared) podem editar tudo (arquivos, config, etc)
+      // 2. Qualquer autenticado pode atualizar apenas likes/views
+      allow update: if 
+        isOwner() || 
+        isShared() || 
+        (
+          request.auth != null && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'updated_at'])
+        );
+    }
+  }
+}
