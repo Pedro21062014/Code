@@ -29,7 +29,17 @@ ${file.content}
   - Hooks in \`src/hooks/\`.
   - Utils/Services in \`src/lib/\` or \`src/services/\`.
   - Assets in \`public/\`.
-  - **NETLIFY CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works on Netlify.
+  - **NETLIFY CONFIG**: You MUST generate a \`netlify.toml\` file in the root with the following content to configure build settings and routing:
+    \`\`\`toml
+    [build]
+      command = "npm run build"
+      publish = "dist"
+    
+    [[redirects]]
+      from = "/*"
+      to = "/index.html"
+      status = 200
+    \`\`\`
   - **IMPORTANT**: Every file in the "files" array must have a full relative path (e.g., "src/components/Navbar.tsx").
 
 - **CRITICAL FOR DEPLOYMENT (WHITE SCREEN FIX)**:
@@ -39,7 +49,7 @@ ${file.content}
 
 - **ARCHITECTURE (NODE.JS + VITE)**:
   - You are running in a **WebContainer** environment.
-  - You MUST generate a \`package.json\` with \`vite\` as a dependency and scripts: \`"dev": "vite"\`.
+  - You MUST generate a \`package.json\` with \`vite\` as a dependency and scripts: \`"dev": "vite", "build": "vite build", "preview": "vite preview"\`.
   - Typical dependencies: \`react\`, \`react-dom\`, \`lucide-react\`, \`react-router-dom\`, \`framer-motion\`, \`clsx\`, \`tailwind-merge\`.
   - Place your React entry point at \`src/main.tsx\`.
   - The \`index.html\` must point to \`/src/main.tsx\`.

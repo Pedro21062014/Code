@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { CloseIcon, LoaderIcon, CheckCircleIcon, GalleryIcon, UsersIcon, GlobeIcon } from './Icons';
 import { db } from '../services/firebase';
-import { collection, query, where, getDocs, limit, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ interface ShareModalProps {
 
 export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare, onToggleGallery, projectName, projectId }) => {
   const [email, setEmail] = useState('');
-  const [isChecking, setIsChecking] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPublicInGallery, setIsPublicInGallery] = useState(false);
@@ -52,26 +52,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
     
     if (!targetEmail) return;
 
-    setIsChecking(true);
+    setIsSharing(true);
     try {
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", targetEmail), limit(1));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        setError("Usuário não encontrado.");
-        setIsChecking(false);
-        return;
-      }
-
-      const targetUserDoc = querySnapshot.docs[0];
-      await onShare(targetUserDoc.id, targetEmail);
+      // Direct share by email (Rules will allow this email to edit)
+      // We pass email as both ID and email arguments since we are switching to email-based auth for sharing
+      await onShare(targetEmail, targetEmail);
       setSuccess("Convite enviado.");
       setEmail('');
     } catch (err: any) {
       setError(err.message || "Erro ao compartilhar.");
     } finally {
-      setIsChecking(false);
+      setIsSharing(false);
     }
   };
 
@@ -149,6 +140,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
                     <UsersIcon className="w-4 h-4" />
                     <span>Convidar Colaborador</span>
                 </div>
+                <p className="text-xs text-gray-500">Adicione um e-mail para permitir acesso de edição.</p>
                 <div className="space-y-2">
                     <input 
                         type="email" 
@@ -163,11 +155,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
                 {success && <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 text-[10px]"><CheckCircleIcon className="w-3 h-3"/> {success}</div>}
 
                 <button 
-                    disabled={isChecking || !email.trim()}
+                    disabled={isSharing || !email.trim()}
                     className="w-full bg-black dark:bg-white text-white dark:text-black h-10 rounded-lg font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                    {isChecking && <LoaderIcon className="w-3 h-3 animate-spin" />}
-                    {isChecking ? 'Verificando...' : 'Enviar Convite'}
+                    {isSharing && <LoaderIcon className="w-3 h-3 animate-spin" />}
+                    {isSharing ? 'Enviando...' : 'Enviar Convite'}
                 </button>
             </form>
         </div>

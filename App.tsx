@@ -253,13 +253,25 @@ export const App: React.FC = () => {
 
   useEffect(() => { document.documentElement.className = theme; }, [theme]);
 
-  const fetchUserProjects = useCallback(async (userId: string) => {
+  const fetchUserProjects = useCallback(async (userId: string, userEmail?: string) => {
     if (!isFirebaseAvailable.current) return;
     try {
         const projectsMap = new Map<string, SavedProject>();
+        
+        // Query projects owned by user
         const qOwner = query(collection(db, "projects"), where("ownerId", "==", userId));
-        const qShared = query(collection(db, "projects"), where("shared_with", "array-contains", userId));
-        const results = await Promise.allSettled([getDocs(qOwner), getDocs(qShared)]);
+        
+        // Query projects shared with user UID (legacy)
+        const qSharedUid = query(collection(db, "projects"), where("shared_with", "array-contains", userId));
+        
+        // Query projects shared with user Email (new standard)
+        const qSharedEmail = userEmail ? query(collection(db, "projects"), where("shared_with", "array-contains", userEmail)) : null;
+
+        const promises = [getDocs(qOwner), getDocs(qSharedUid)];
+        if (qSharedEmail) promises.push(getDocs(qSharedEmail));
+
+        const results = await Promise.allSettled(promises);
+        
         results.forEach((res) => {
           if (res.status === 'fulfilled') {
             const snapshot = (res as any).value;
@@ -509,11 +521,12 @@ export const App: React.FC = () => {
       }
   }, [currentProjectId, setSavedProjects]);
 
-  const handleShareProject = useCallback(async (targetUid: string, email: string) => {
+  const handleShareProject = useCallback(async (targetEmail: string, _unusedEmail: string) => {
     if (!currentProjectId) await handleSaveProject();
     if (currentProjectId) {
       try {
-        await updateDoc(doc(db, "projects", currentProjectId.toString()), { shared_with: arrayUnion(targetUid) });
+        // Now sharing directly via email array
+        await updateDoc(doc(db, "projects", currentProjectId.toString()), { shared_with: arrayUnion(targetEmail) });
       } catch (error: any) { throw new Error(error.message); }
     }
   }, [currentProjectId, handleSaveProject]);
@@ -601,7 +614,7 @@ export const App: React.FC = () => {
         setSessionUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL });
         const settings = await fetchUserSettings(user.uid);
         setUserSettings(settings);
-        fetchUserProjects(user.uid);
+        fetchUserProjects(user.uid, user.email);
         localStorage.setItem('codegen-has-visited', 'true');
         setView(current => (current === 'landing' || current === 'auth') ? 'welcome' : current);
       } else {

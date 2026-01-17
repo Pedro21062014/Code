@@ -16,7 +16,17 @@ const getSystemPrompt = (files: any[], envVars = {}) => {
 - For React projects, use functional components, TypeScript (.tsx), and hooks.
 - For styling, you can use Tailwind CSS via CDN in index.html or generate separate CSS files, whichever is more appropriate for the user's request.
 - The file structure should be logical (e.g., components/, services/, assets/).
-- **NETLIFY DEPLOYMENT CONFIG**: You MUST generate a \`public/_redirects\` file with the content \`/* /index.html 200\` to ensure client-side routing works correctly after deployment.
+- **NETLIFY CONFIG**: You MUST generate a \`netlify.toml\` file in the root with the following content to configure build settings and routing:
+  \`\`\`toml
+  [build]
+    command = "npm run build"
+    publish = "dist"
+  
+  [[redirects]]
+    from = "/*"
+    to = "/index.html"
+    status = 200
+  \`\`\`
 
 - **CRITICAL FOR DEPLOYMENT (WHITE SCREEN FIX)**:
   - In \`index.html\`, ensure you have \`<div id="root"></div>\`.
