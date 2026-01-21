@@ -6,7 +6,8 @@ import {
     CloseIcon, SunIcon, MoonIcon, SparklesIcon, TerminalIcon, GithubIcon, ChatIcon, 
     FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
-    PlusIcon, EditIcon, UsersIcon, HomeIcon, ClockIcon, ImageIcon, UploadIcon, TrashIcon
+    PlusIcon, EditIcon, UsersIcon, HomeIcon, ClockIcon, ImageIcon, UploadIcon, TrashIcon,
+    SmartphoneIcon, MonitorIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
@@ -104,6 +105,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, path: string, type: 'file' | 'folder' } | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -256,6 +258,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
       const isSelected = activeFile === node.path;
       const isImage = isImageFile(node.name);
       
+      // Feature: Pastel Blue Decal Animation for generating file
+      const isBeingGenerated = isGenerating && node.path === generatingFile;
+      
       if (node.type === 'folder') {
         return (
           <div 
@@ -292,19 +297,26 @@ export const EditorView: React.FC<EditorViewProps> = ({
           onDragStart={(e) => handleDragStart(e, node.path)}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, node.path, false)}
-          className={`flex items-center gap-2 px-3 py-1 text-[12px] transition-all border-l-2 mx-1 rounded-r-sm ${
+          className={`flex items-center gap-2 px-3 py-1 text-[12px] transition-all border-l-2 mx-1 rounded-r-sm relative overflow-hidden ${
             isSelected 
             ? 'bg-gray-100 dark:bg-[#1a1a1c] text-black dark:text-white border-blue-500' 
-            : 'text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-[#121214] hover:text-gray-900 dark:hover:text-gray-300 border-transparent'
+            : isBeingGenerated 
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-400'
+                : 'text-gray-500 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-[#121214] hover:text-gray-900 dark:hover:text-gray-300 border-transparent'
           }`}
           style={{ paddingLeft: `${(level * 12) + 26}px` }}
         >
-          {isImage ? (
-              <ImageIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-purple-500' : 'opacity-50'}`} />
-          ) : (
-              <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-blue-500' : 'opacity-50'}`} />
+          {/* Decal Animation for generating files */}
+          {isBeingGenerated && (
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-blue-400/10 animate-shine pointer-events-none" />
           )}
-          <span className="truncate flex-1 text-left">{node.name}</span>
+
+          {isImage ? (
+              <ImageIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected || isBeingGenerated ? 'text-purple-500' : 'opacity-50'}`} />
+          ) : (
+              <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected || isBeingGenerated ? 'text-blue-500' : 'opacity-50'}`} />
+          )}
+          <span className="truncate flex-1 text-left relative z-10">{node.name}</span>
         </button>
       );
     });
@@ -465,18 +477,40 @@ export const EditorView: React.FC<EditorViewProps> = ({
             {viewMode === 'code' ? (
                 <div className="h-full flex flex-col">
                     {/* Code Tab Bar */}
-                    <div className="h-9 border-b border-gray-200 dark:border-[#27272a] flex items-center px-0 bg-white dark:bg-[#0a0a0a] overflow-x-auto no-scrollbar">
+                    <div className="h-9 border-b border-gray-200 dark:border-[#27272a] flex items-center px-0 bg-white dark:bg-[#0a0a0a] overflow-x-auto no-scrollbar relative">
                         <button onClick={() => setShowExplorer(!showExplorer)} className="px-3 h-full flex items-center border-r border-gray-200 dark:border-[#27272a] text-gray-500 hover:bg-gray-50 dark:hover:bg-[#121214]">
                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         {activeFile && (
-                            <div className="px-4 h-full flex items-center gap-2 border-r border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#121214] text-xs font-mono text-gray-700 dark:text-gray-300 border-t-2 border-t-blue-500 min-w-fit">
+                            <div className="px-4 h-full flex items-center gap-2 border-r border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#121214] text-xs font-mono text-gray-700 dark:text-gray-300 border-t-2 border-t-blue-500 min-w-fit relative">
                                 {isImageFile(activeFile) ? <ImageIcon className="w-3 h-3 opacity-70" /> : <FileIcon className="w-3 h-3 opacity-70" />}
                                 {activeFile}
                                 <button className="ml-2 hover:text-red-500"><CloseIcon className="w-3 h-3" /></button>
+                                
+                                {/* Feature: Real-time Editing Indicator in Tab */}
+                                {isGenerating && generatingFile === activeFile && (
+                                    <span className="absolute right-1 top-1 flex h-1.5 w-1.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                                    </span>
+                                )}
                             </div>
                         )}
                     </div>
+                    
+                    {/* Feature: Live Editing Banner over Code Area */}
+                    {isGenerating && generatingFile === activeFile && (
+                        <div className="absolute top-9 left-0 w-full z-20 pointer-events-none">
+                            <div className="h-1 w-full bg-blue-500/20 overflow-hidden">
+                                <div className="h-full bg-blue-500 animate-[progress_1s_ease-in-out_infinite] origin-left"></div>
+                            </div>
+                            <div className="absolute right-4 top-2 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-2 animate-fadeIn">
+                                <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                                AI WRITING...
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex-1 overflow-auto custom-scrollbar bg-white dark:bg-[#0a0a0a]">
                         {selectedFile ? (
                             isImageFile(selectedFile.name) ? (
@@ -513,10 +547,25 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                 </button>
                             </div>
                         </div>
-                        <div className="w-10"></div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setPreviewDevice('desktop')}
+                                className={`p-1.5 rounded-md transition-colors ${previewDevice === 'desktop' ? 'bg-gray-200 dark:bg-[#27272a] text-black dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                                title="Desktop View"
+                            >
+                                <MonitorIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                                onClick={() => setPreviewDevice('mobile')}
+                                className={`p-1.5 rounded-md transition-colors ${previewDevice === 'mobile' ? 'bg-gray-200 dark:bg-[#27272a] text-black dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                                title="Mobile View"
+                            >
+                                <SmartphoneIcon className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex-1 relative bg-white">
+                    <div className={`flex-1 relative bg-white transition-all duration-300 mx-auto ${previewDevice === 'mobile' ? 'w-[375px] my-4 border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl h-[calc(100%-2rem)]' : 'w-full h-full'}`}>
                         <CodePreview 
                             files={files} 
                             onError={onError} 

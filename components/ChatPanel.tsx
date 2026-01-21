@@ -23,6 +23,61 @@ interface ChatPanelProps {
   onModeChange?: (mode: ChatMode) => void; // Callback prop
 }
 
+// Component to render the Plan Timeline
+const PlanTimeline: React.FC<{ content: string }> = ({ content }) => {
+    // Regex to find list items: "- [ ] Text" or "- [x] Text"
+    const lines = content.split('\n');
+    const steps = lines.map(line => {
+        const todoMatch = line.match(/^- \[ \]\s+(.*)/);
+        const doneMatch = line.match(/^- \[x\]\s+(.*)/);
+        
+        if (doneMatch) return { status: 'done', text: doneMatch[1] };
+        if (todoMatch) return { status: 'pending', text: todoMatch[1] };
+        return null;
+    }).filter(Boolean) as { status: 'done' | 'pending', text: string }[];
+
+    if (steps.length === 0) return <p className="whitespace-pre-wrap">{content}</p>;
+
+    return (
+        <div className="flex flex-col space-y-0 relative ml-2 mt-2">
+            {/* Vertical Line */}
+            <div className="absolute left-[7px] top-2 bottom-4 w-0.5 bg-gray-200 dark:bg-[#27272a]" />
+            
+            {steps.map((step, idx) => {
+                // Determine active step (first pending)
+                const isNext = step.status === 'pending' && (idx === 0 || steps[idx - 1].status === 'done');
+                
+                return (
+                    <div key={idx} className={`relative flex items-start gap-3 py-2 ${step.status === 'done' ? 'opacity-50' : 'opacity-100'}`}>
+                        {/* Dot */}
+                        <div className={`
+                            relative z-10 w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5
+                            ${step.status === 'done' 
+                                ? 'bg-green-500 border-green-500' 
+                                : isNext 
+                                    ? 'bg-blue-500 border-blue-500 animate-pulse' 
+                                    : 'bg-white dark:bg-[#18181b] border-gray-300 dark:border-gray-600'
+                            }
+                        `}>
+                            {step.status === 'done' && (
+                                <svg className="w-3 h-3 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </div>
+                        
+                        {/* Text */}
+                        <div className={`text-sm ${isNext ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>
+                            {step.text}
+                            {isNext && <span className="ml-2 text-[10px] text-blue-500 font-mono tracking-wider uppercase animate-pulse">EM PROGRESSO</span>}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 const ImageGeneratingPreview = () => {
     const [progress, setProgress] = useState(0);
 
@@ -32,7 +87,7 @@ const ImageGeneratingPreview = () => {
                 if (prev >= 99) return 99;
                 return prev + 1;
             });
-        }, 150); // Aumentado para 150ms (mais lento)
+        }, 150);
         return () => clearInterval(interval);
     }, []);
 
@@ -45,10 +100,9 @@ const ImageGeneratingPreview = () => {
                     100% { background-position: 0% 50%; }
                 }
                 .bg-pastel-animated {
-                    /* Cores pastéis mais suaves e harmoniosas */
                     background: linear-gradient(270deg, #ffdde1, #ee9ca7, #e0c3fc, #d4fc79, #8ec5fc);
                     background-size: 400% 400%;
-                    animation: pastelFlow 15s ease-in-out infinite; /* Animação mais lenta e fluida */
+                    animation: pastelFlow 15s ease-in-out infinite;
                 }
             `}</style>
             <div className="absolute inset-0 bg-pastel-animated flex flex-col items-center justify-center text-white/90">
@@ -68,7 +122,6 @@ const Typewriter: React.FC<{ words: string[] }> = ({ words }) => {
     const [blink, setBlink] = useState(true);
     const [reverse, setReverse] = useState(false);
 
-    // Blinking cursor
     useEffect(() => {
         const timeout2 = setTimeout(() => {
             setBlink((prev) => !prev);
@@ -117,7 +170,6 @@ const EmptyState: React.FC<{ mode: ChatMode }> = ({ mode }) => {
         },
         design: {
             title: "Design Studio",
-            // Removed animate-pulse, using a static gradient
             titleClass: "text-4xl font-light italic text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 tracking-wide font-serif",
             font: "font-serif",
             suggestions: [
@@ -251,7 +303,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       { id: 'backend', icon: <CloudSimpleIcon className="w-4 h-4" />, label: 'Cloud', tooltip: 'Especialista em Backend e Dados' },
   ];
 
-  // Determine if we should show the empty state
   const showEmptyState = messages.length === 0 || (messages.length === 1 && messages[0].role === 'assistant');
 
   return (
@@ -313,10 +364,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         <div className="mt-2">
                                             {msg.isThinking ? (
                                                 <div className="flex items-center gap-3 p-2">
-                                                    <div className="relative flex h-3 w-3">
-                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
-                                                    </div>
                                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 font-bold animate-shine text-sm">
                                                         Gerando Arte...
                                                     </span>
@@ -347,18 +394,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         /* Standard Text/Code Response */
                                         <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90">
                                             {msg.isThinking ? (
-                                                <div className="flex items-center gap-3 p-2">
-                                                    <div className="relative flex h-3 w-3">
-                                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black dark:bg-white opacity-75"></span>
-                                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-black dark:bg-white"></span>
-                                                    </div>
-                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-black via-gray-500 to-black dark:from-white dark:via-gray-400 dark:to-white font-bold animate-shine text-sm">
+                                                <div className="flex items-center gap-2 p-2">
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-600 via-black to-gray-600 dark:from-gray-300 dark:via-white dark:to-gray-300 font-bold animate-shine text-sm">
                                                         Pensando...
                                                     </span>
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                                    {/* If Plan Mode, show timeline */}
+                                                    {msg.content.includes('- [ ]') || msg.content.includes('- [x]') ? (
+                                                        <PlanTimeline content={msg.content} />
+                                                    ) : (
+                                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                                                    )}
                                                     
                                                     {/* File Changes List */}
                                                     {msg.filesModified && msg.filesModified.length > 0 && (
