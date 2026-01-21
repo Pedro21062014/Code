@@ -21,6 +21,7 @@ interface ChatPanelProps {
   credits?: number;
   activeMode?: ChatMode; // Now a prop
   onModeChange?: (mode: ChatMode) => void; // Callback prop
+  onClearChat?: () => void;
 }
 
 // Component to render the Plan Timeline
@@ -259,7 +260,7 @@ const GroundingMetadata: React.FC<{ metadata: NonNullable<ChatMessage['grounding
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, generatingFile, isGenerating, onStopGeneration,
-    onOpenSupabase, onOpenGithub, availableModels = AI_MODELS, activeMode = 'general', onModeChange 
+    onOpenSupabase, onOpenGithub, availableModels = AI_MODELS, activeMode = 'general', onModeChange, onClearChat
 }) => {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || AI_MODELS[0].id);
@@ -308,8 +309,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb] dark:bg-[#0c0c0e] relative transition-colors duration-300 w-full font-sans">
       
-      {/* Header with Mode Selector */}
-      <div className="flex items-center justify-center p-3 border-b border-gray-200 dark:border-[#27272a] bg-[#fbfbfb] dark:bg-[#0c0c0e] z-10">
+      {/* Header with Mode Selector and New Chat Button */}
+      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-[#27272a] bg-[#fbfbfb] dark:bg-[#0c0c0e] z-10">
+          <div className="w-8"></div> {/* Spacer for centering mode selector */}
           <div className="flex bg-gray-200 dark:bg-[#18181b] p-1 rounded-lg">
               {modes.map((mode) => {
                   const isActive = activeMode === mode.id;
@@ -330,6 +332,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   );
               })}
           </div>
+          <button 
+            onClick={onClearChat} 
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-[#18181b] text-gray-500 hover:text-black dark:hover:text-white transition-colors"
+            title="Nova Conversa"
+          >
+            <PlusIcon className="w-5 h-5" />
+          </button>
       </div>
 
       {/* Stream / Messages Area */}
