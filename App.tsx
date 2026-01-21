@@ -678,6 +678,15 @@ export const App: React.FC = () => {
       }
   }, []);
 
+  const handleClearChat = useCallback(() => {
+      if (window.confirm("Iniciar nova conversa? O histórico atual será limpo e você começará do zero.")) {
+          setProject(prev => ({
+              ...prev,
+              chatMessages: [{ role: 'assistant', content: INITIAL_CHAT_MESSAGE }]
+          }));
+      }
+  }, [setProject]);
+
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = [], mode: ChatMode = 'general') => {
     if (!sessionUser) { setView('auth'); return; }
     
@@ -1221,6 +1230,7 @@ export const App: React.FC = () => {
                           onOpenSettings={() => setView('settings')}
                           activeMode={chatMode} 
                           onModeChange={setChatMode}
+                          onClearChat={handleClearChat}
                       />
                     </div>
                     

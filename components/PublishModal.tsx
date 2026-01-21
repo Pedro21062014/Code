@@ -13,7 +13,7 @@ interface PublishModalProps {
   projectName: string;
   projectId: number | null;
   files?: ProjectFile[];
-  onSaveRequired: () => Promise<void>;
+  onSaveRequired: () => Promise<number | null | void>;
   netlifyToken?: string; // Token vindo das settings
   existingSiteId?: string; // ID do site já deployado
   onSaveToken?: (token: string) => void; // Nova prop para salvar o token
@@ -54,7 +54,14 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     setErrorMessage(null);
 
     try {
-        if (!projectId) await onSaveRequired();
+        let activeProjectId = projectId;
+        
+        if (!activeProjectId) {
+            const result = await onSaveRequired();
+            if (typeof result === 'number') {
+                activeProjectId = result;
+            }
+        }
         
         setDeployStatus('compressing');
         // Pequeno delay para a UI atualizar
@@ -94,8 +101,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             onSaveToken(manualToken);
         }
 
-        // Atualizar o projeto no Firestore E no estado local
-        if (projectId && data.url) {
+        // Atualizar o projeto no Firestore E no estado local usando activeProjectId
+        if (activeProjectId && data.url) {
             const updates = {
                 deployedUrl: data.url,
                 updated_at: new Date().toISOString(),
@@ -104,11 +111,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 
             // Atualiza estado local imediatamente (importante para redeploy funcionar sem recarregar)
             if (onProjectUpdate) {
-                onProjectUpdate(projectId, updates);
+                onProjectUpdate(activeProjectId, updates);
             }
 
             try {
-                const projectRef = doc(db, "projects", projectId.toString());
+                const projectRef = doc(db, "projects", activeProjectId.toString());
                 await updateDoc(projectRef, updates);
             } catch (dbError) {
                 console.error("Erro ao salvar URL do deploy no banco:", dbError);
