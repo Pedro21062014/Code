@@ -396,9 +396,9 @@ export const App: React.FC = () => {
       }
   }, [sessionUser, userSettings]);
 
-  const handleSaveProject = useCallback(async () => {
-    if (!sessionUser) { setAuthModalOpen(true); return; }
-    if (files.length === 0) return;
+  const handleSaveProject = useCallback(async (): Promise<number | null> => {
+    if (!sessionUser) { setAuthModalOpen(true); return null; }
+    if (files.length === 0) return null;
     setIsSaving(true);
     const projectId = currentProjectId || Date.now();
     
@@ -455,10 +455,13 @@ export const App: React.FC = () => {
       
       setShowSaveSuccess(true);
       setTimeout(() => setShowSaveSuccess(false), 2500);
+      
+      return projectId;
 
     } catch (error: any) { 
         console.error("Erro detalhado ao salvar:", error);
         setToastError(`Erro ao salvar projeto: ${error.message}`);
+        return null;
     } finally { 
         setIsSaving(false); 
     }
@@ -550,14 +553,17 @@ export const App: React.FC = () => {
 
   // Handlers for GitHub Sync connection
   const handleGithubConnect = useCallback(async (repoData: { owner: string, name: string, branch: string, url: string }) => {
-      if (!currentProjectId) {
-          await handleSaveProject(); // Ensure saved before linking
+      let projectId = currentProjectId;
+      if (!projectId) {
+          // Await the promise to get the ID, state update might lag
+          projectId = await handleSaveProject(); 
       }
-      if (currentProjectId) {
+      
+      if (projectId) {
           const updates = { githubRepo: repoData };
-          handleProjectMetaUpdate(currentProjectId, updates); // Update local state immediately
+          handleProjectMetaUpdate(projectId, updates); // Update local state immediately
           try {
-              await updateDoc(doc(db, "projects", currentProjectId.toString()), updates);
+              await updateDoc(doc(db, "projects", projectId.toString()), updates);
           } catch (e) {
               console.error("Failed to save github repo link", e);
           }

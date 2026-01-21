@@ -25,34 +25,33 @@ ${file.content}
   - Core files in root: \`index.html\`, \`package.json\`, \`vite.config.ts\`, \`tsconfig.json\`, \`tailwind.config.js\`.
   - Source code MUST be in \`src/\`.
   - Components in \`src/components/\`.
-  - Styles in \`src/styles/\`.
-  - Hooks in \`src/hooks/\`.
-  - Utils/Services in \`src/lib/\` or \`src/services/\`.
   - Assets in \`public/\`.
-  - **NETLIFY CONFIG**: You MUST generate a \`netlify.toml\` file in the root with the following content to configure build settings and routing:
-    \`\`\`toml
-    [build]
-      command = "npm run build"
-      publish = "dist"
-    
-    [[redirects]]
-      from = "/*"
-      to = "/index.html"
-      status = 200
-    \`\`\`
   - **IMPORTANT**: Every file in the "files" array must have a full relative path (e.g., "src/components/Navbar.tsx").
 
-- **CRITICAL FOR DEPLOYMENT (WHITE SCREEN FIX)**:
-  - In \`index.html\`, ensure you have \`<div id="root"></div>\`.
-  - The script tag MUST use an absolute path starting with slash: \`<script type="module" src="/src/main.tsx"></script>\`. Do NOT use "./src/main.tsx" or "src/main.tsx".
-  - In \`src/main.tsx\`, ensure you import React and ReactDOM properly and mount to the 'root' element with a null check: \`ReactDOM.createRoot(document.getElementById('root')!).render(...)\`.
+- **CRITICAL FOR DEPLOYMENT (AVOID BLANK SCREENS)**:
+  1. **index.html**: 
+     - MUST be in the root directory.
+     - MUST contain \`<div id="root"></div>\`.
+     - MUST script tag: \`<script type="module" src="/src/main.tsx"></script>\` (absolute path).
+  2. **vite.config.ts**:
+     - MUST include \`base: '/'\` in the config object.
+  3. **netlify.toml**:
+     - You MUST generate a \`netlify.toml\` file in the root for React Router to work on Netlify. Content:
+     \`\`\`toml
+     [build]
+       command = "npm run build"
+       publish = "dist"
+     
+     [[redirects]]
+       from = "/*"
+       to = "/index.html"
+       status = 200
+     \`\`\`
 
 - **ARCHITECTURE (NODE.JS + VITE)**:
-  - You are running in a **WebContainer** environment.
   - You MUST generate a \`package.json\` with \`vite\` as a dependency and scripts: \`"dev": "vite", "build": "vite build", "preview": "vite preview"\`.
-  - Typical dependencies: \`react\`, \`react-dom\`, \`lucide-react\`, \`react-router-dom\`, \`framer-motion\`, \`clsx\`, \`tailwind-merge\`.
   - Place your React entry point at \`src/main.tsx\`.
-  - The \`index.html\` must point to \`/src/main.tsx\`.
+  - Ensure \`ReactDOM.createRoot(document.getElementById('root')!).render(...)\` is used with a non-null assertion.
 
 - **GOAL**: Respond with a valid JSON object containing "message", "files" (array with "name", "language", "content"), and optionally "summary", "environmentVariables".
 - **LATENCY**: Be concise. Only generate/update necessary files. No placeholders.
