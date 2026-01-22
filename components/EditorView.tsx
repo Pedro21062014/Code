@@ -111,6 +111,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [isTerminalOpen, setIsTerminalOpen] = useState(true);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [terminalInput, setTerminalInput] = useState('');
+  const [isProcessingCommand, setIsProcessingCommand] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -140,7 +141,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   useEffect(() => {
       setTerminalLogs([
           "> Codegen Studio Terminal v1.0.0",
-          "> Environment initialized.",
+          "> Local & Cloud Environment initialized.",
           "> Type 'help' to see available commands."
       ]);
   }, []);
@@ -154,74 +155,83 @@ export const EditorView: React.FC<EditorViewProps> = ({
       // Add user command to log
       setTerminalLogs(prev => [...prev, `$ ${command}`]);
       setTerminalInput('');
+      setIsProcessingCommand(true);
 
       const args = command.split(' ');
       const cmd = args[0].toLowerCase();
 
-      switch (cmd) {
-          case 'clear':
-          case 'cls':
-              setTerminalLogs([]);
-              break;
-          
-          case 'help':
-              setTerminalLogs(prev => [
-                  ...prev,
-                  "Available commands:",
-                  "  status, health  - Check Cloudflare backend health",
-                  "  ls              - List files",
-                  "  cat [file]      - Show file content",
-                  "  clear           - Clear terminal",
-                  "  date            - Show current date"
-              ]);
-              break;
-
-          case 'ls':
-              const fileList = files.map(f => f.name).join('\n');
-              setTerminalLogs(prev => [...prev, fileList || "(empty)"]);
-              break;
-
-          case 'cat':
-              if (args[1]) {
-                  const targetFile = files.find(f => f.name === args[1]);
-                  if (targetFile) {
-                      const contentPreview = targetFile.content.length > 500 
-                          ? targetFile.content.substring(0, 500) + "\n... (truncated)" 
-                          : targetFile.content;
-                      setTerminalLogs(prev => [...prev, contentPreview]);
-                  } else {
-                      setTerminalLogs(prev => [...prev, `File not found: ${args[1]}`]);
-                  }
-              } else {
-                  setTerminalLogs(prev => [...prev, "Usage: cat [filename]"]);
-              }
-              break;
-
-          case 'date':
-              setTerminalLogs(prev => [...prev, new Date().toString()]);
-              break;
-
-          case 'status':
-          case 'health':
-              setTerminalLogs(prev => [...prev, "Checking server status..."]);
-              try {
-                  const res = await fetch('/api/health');
-                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                  const data = await res.json();
+      // Local Commands (Client-Side)
+      if (['clear', 'cls', 'help', 'ls', 'cat', 'open'].includes(cmd)) {
+          switch (cmd) {
+              case 'clear':
+              case 'cls':
+                  setTerminalLogs([]);
+                  break;
+              
+              case 'help':
                   setTerminalLogs(prev => [
-                      ...prev, 
-                      `[OK] Status: ${data.status}`,
-                      `     Message: ${data.message}`,
-                      `     Location: ${data.location}`,
-                      `     Timestamp: ${data.timestamp}`
+                      ...prev,
+                      "Local Commands:",
+                      "  ls              - List files (virtual)",
+                      "  cat [file]      - Show file content (virtual)",
+                      "  clear           - Clear terminal",
+                      "Server Commands (Cloudflare):",
+                      "  status, health  - Check server health",
+                      "  whoami, uname   - Server system info",
+                      "  date, env, ip   - Server details"
                   ]);
-              } catch (err: any) {
-                  setTerminalLogs(prev => [...prev, `[ERROR] Failed to reach /api/health: ${err.message}`]);
-              }
-              break;
+                  break;
 
-          default:
-              setTerminalLogs(prev => [...prev, `Command not found: ${cmd}`]);
+              case 'ls':
+                  const fileList = files.map(f => f.name).join('\n');
+                  setTerminalLogs(prev => [...prev, fileList || "(empty project)"]);
+                  break;
+
+              case 'cat':
+                  if (args[1]) {
+                      const targetFile = files.find(f => f.name === args[1]);
+                      if (targetFile) {
+                          const contentPreview = targetFile.content.length > 500 
+                              ? targetFile.content.substring(0, 500) + "\n... (truncated)" 
+                              : targetFile.content;
+                          setTerminalLogs(prev => [...prev, contentPreview]);
+                      } else {
+                          setTerminalLogs(prev => [...prev, `File not found locally: ${args[1]}`]);
+                      }
+                  } else {
+                      setTerminalLogs(prev => [...prev, "Usage: cat [filename]"]);
+                  }
+                  break;
+          }
+          setIsProcessingCommand(false);
+          return;
+      }
+
+      // Server Commands (Sent to /api/terminal)
+      try {
+          // Visual indicator for network call
+          // const loadingId = Date.now();
+          // setTerminalLogs(prev => [...prev, `...`]); 
+          
+          const res = await fetch('/api/terminal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ command: command })
+          });
+
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          
+          const data = await res.json();
+          if (data.output) {
+              setTerminalLogs(prev => [...prev, data.output]);
+          } else {
+              setTerminalLogs(prev => [...prev, "(no output)"]);
+          }
+
+      } catch (err: any) {
+          setTerminalLogs(prev => [...prev, `Error: Failed to communicate with server terminal. ${err.message}`]);
+      } finally {
+          setIsProcessingCommand(false);
       }
   };
 
@@ -641,6 +651,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                 <div className="flex items-center gap-2">
                                     <TerminalIcon className="w-3.5 h-3.5 text-gray-500" />
                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Terminal</span>
+                                    {isProcessingCommand && <LoaderIcon className="w-3 h-3 animate-spin text-gray-400" />}
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <button 
@@ -672,6 +683,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                         onChange={(e) => setTerminalInput(e.target.value)}
                                         className="flex-1 bg-transparent border-none outline-none text-gray-800 dark:text-gray-200 font-mono text-[11px]"
                                         autoFocus
+                                        disabled={isProcessingCommand}
                                     />
                                 </form>
                                 <div ref={terminalEndRef} />
