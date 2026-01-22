@@ -1,5 +1,5 @@
 
-export const onRequest = async (context) => {
+export const onRequest = async (context: any) => {
   // Exemplo de como acessar informações da requisição ou variáveis
   const url = new URL(context.request.url);
   
