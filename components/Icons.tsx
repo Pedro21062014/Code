@@ -286,9 +286,17 @@ export const TerminalIcon = ({ className = "w-6 h-6" }: IconProps) => (
   </svg>
 );
 
+export const ConsoleIcon = ({ className = "w-6 h-6" }: IconProps) => (
+  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
+    <rect width="18" height="14" x="3" y="5" rx="2" ry="2" />
+    <path d="m7 15 3-3-3-3" />
+    <path d="M13 15h4" />
+  </svg>
+);
+
 export const PaperclipIcon = ({ className = "w-6 h-6" }: IconProps) => (
   <svg {...defaultProps} className={className} viewBox="0 0 24 24">
-    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49" />
   </svg>
 );
 
