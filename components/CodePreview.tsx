@@ -52,7 +52,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
       });
       // Ensure index.html exists for static template
       if (!fileMap['index.html']) {
-          fileMap['index.html'] = { code: '<!DOCTYPE html><html><body><h1>Loading...</h1></body></html>' };
+          fileMap['index.html'] = { code: '<!DOCTYPE html><html style="height:100%"> <body style="height:100%;margin:0;display:flex;justify-content:center;align-items:center;"><h1>Loading...</h1></body></html>' };
       }
       return fileMap;
   }, []); // Apenas na montagem inicial, FileSynchronizer cuida das atualizações
@@ -73,8 +73,32 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
       );
   }
 
+  // Force light theme background for the wrapper div to ensure full white canvas
   return (
-    <div className="w-full h-full bg-white dark:bg-[#1e1e1e] relative flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-white relative flex flex-col overflow-hidden">
+      {/* Force overrides for Sandpack internal classes that might be stubborn */}
+      <style>{`
+          .sp-wrapper, .sp-layout, .sp-stack {
+              height: 100% !important;
+              width: 100% !important;
+              display: flex !important;
+              flex-direction: column !important;
+          }
+          .sp-preview {
+              height: 100% !important;
+              flex: 1 !important;
+          }
+          .sp-preview-container {
+              height: 100% !important;
+              display: flex !important;
+              flex-direction: column !important;
+              flex: 1 !important;
+          }
+          .sp-preview-iframe {
+              height: 100% !important;
+              flex-grow: 1 !important;
+          }
+      `}</style>
       <SandpackProvider 
         template="static"
         theme={theme === 'dark' ? 'dark' : 'light'}
@@ -83,21 +107,21 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
             activeFile: "/index.html", 
             externalResources: ["https://cdn.tailwindcss.com"],
             classes: {
-                "sp-layout": "h-full !border-none !rounded-none block",
-                "sp-preview": "h-full !border-none bg-white flex-1",
-                "sp-preview-iframe": "h-full w-full",
+                "sp-layout": "h-full w-full !border-none !rounded-none flex flex-col bg-white",
+                "sp-preview": "flex-1 !border-none bg-white h-full",
+                "sp-preview-iframe": "w-full h-full border-none bg-white",
             }
         }}
       >
         <FileSynchronizer files={files} />
         
-        <SandpackLayout style={{ height: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column' }}>
+        <SandpackLayout style={{ height: '100%', width: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column' }}>
             <SandpackPreview 
                 showOpenInCodeSandbox={false} 
-                showRefreshButton={false} // Hide default refresh to keep "Quadro" look clean
-                showRestartButton={false} // Hide default restart
-                showNavigator={false}     // Hide default URL bar (we have our own "Quadro" chrome)
-                style={{ height: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
+                showRefreshButton={false} 
+                showRestartButton={false} 
+                showNavigator={false}     
+                style={{ height: '100%', flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'white' }}
             />
             
             {/* Console Integrado do Sandpack (Real Node/Browser Output) */}
