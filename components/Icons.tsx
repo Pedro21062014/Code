@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 
 // Re-export UserMenu to be available easily
@@ -476,28 +475,5 @@ export const MonitorIcon = ({ className = "w-6 h-6" }: IconProps) => (
     <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
     <line x1="8" y1="21" x2="16" y2="21" />
     <line x1="12" y1="17" x2="12" y2="21" />
-  </svg>
-);
-
-export const ConsoleIcon = ({ className = "w-6 h-6" }: IconProps) => (
-  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
-    <rect width="20" height="14" x="2" y="5" rx="2" ry="2" />
-    <path d="m8 15 2-2-2-2" />
-    <path d="M12 15h4" />
-  </svg>
-);
-
-export const EraserIcon = ({ className = "w-6 h-6" }: IconProps) => (
-  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
-    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
-    <path d="M22 21H7" />
-    <path d="m5 11 9 9" />
-  </svg>
-);
-
-export const PanelBottomIcon = ({ className = "w-6 h-6" }: IconProps) => (
-  <svg {...defaultProps} className={className} viewBox="0 0 24 24">
-    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-    <line x1="3" x2="21" y1="15" y2="15" />
   </svg>
 );
