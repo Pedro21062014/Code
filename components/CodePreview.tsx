@@ -1,6 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { ProjectFile, Theme, ChatMode } from '../types';
-import { AppLogo, NetlifyIcon, LoaderIcon, GlobeIcon, EditIcon } from './Icons';
+import { 
+    SandpackProvider, 
+    SandpackLayout, 
+    SandpackPreview, 
+    SandpackConsole,
+    useSandpack
+} from "@codesandbox/sandpack-react";
+import { GlobeIcon, ConsoleIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
 
 interface CodePreviewProps {
   files: ProjectFile[]; 
@@ -12,210 +20,132 @@ interface CodePreviewProps {
   chatMode?: ChatMode; 
 }
 
-export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, onDeploy, theme, chatMode }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInspecting, setIsInspecting] = useState(false);
-  const [hoveredElementRect, setHoveredElementRect] = useState<{ top: number, left: number, width: number, height: number, tagName: string } | null>(null);
-  
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+// Componente auxiliar para injetar arquivos dinamicamente
+const FileSynchronizer = ({ files }: { files: ProjectFile[] }) => {
+    const { sandpack } = useSandpack();
+    
+    useEffect(() => {
+        const sandpackFiles = files.reduce((acc, file) => {
+            // Remove leading slash if present
+            const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
+            // Sandpack updateFile lida melhor com strings simples para atualizações
+            acc[fileName] = file.content;
+            return acc;
+        }, {} as Record<string, string>);
+        
+        sandpack.updateFile(sandpackFiles);
+    }, [files, sandpack]);
 
-  // Construct srcDoc for local preview (allowing inspection)
-  const srcDoc = React.useMemo(() => {
-      // Find entry point
-      const indexHtml = files.find(f => f.name === 'index.html' || f.name === 'public/index.html');
-      if (!indexHtml) return `<html><body><h1>No index.html found</h1></body></html>`;
+    return null;
+};
 
-      let htmlContent = indexHtml.content;
+export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, theme, chatMode }) => {
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [isConsoleExpanded, setIsConsoleExpanded] = useState(true);
 
-      // Inject Images: Replace local paths with Data URIs
+  // Prepara arquivos iniciais para o Sandpack
+  const initialFiles = React.useMemo(() => {
+      const fileMap: Record<string, any> = {};
       files.forEach(file => {
-          if (/\.(jpg|jpeg|png|gif|ico|svg|webp|bmp)$/i.test(file.name)) {
-              // Create versions of the path to match potential src attributes
-              // 1. Precise relative match if index.html is root: "assets/logo.png"
-              // 2. Root relative match: "/assets/logo.png"
-              // 3. Dot relative match: "./assets/logo.png"
-              
-              const filename = file.name.split('/').pop();
-              const possiblePaths = [
-                  file.name, // full path e.g. "public/logo.png" or "src/assets/icon.svg"
-                  `/${file.name}`,
-                  `./${file.name}`,
-                  filename, // e.g. "logo.png"
-                  `/${filename}`,
-                  `./${filename}`
-              ];
-
-              // Handle "public/" folder specifically if index.html is in root
-              if (file.name.startsWith('public/')) {
-                  const nameWithoutPublic = file.name.replace('public/', '');
-                  possiblePaths.push(nameWithoutPublic);
-                  possiblePaths.push(`/${nameWithoutPublic}`);
-                  possiblePaths.push(`./${nameWithoutPublic}`);
-              }
-
-              // Simple replace for all occurrences in src attributes
-              // Note: This is a basic replacement and might be aggressive, but suitable for generated previews
-              possiblePaths.forEach(path => {
-                  if(!path) return;
-                  // Escape special regex chars in path
-                  const escapedPath = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                  // Look for src="path" or src='path'
-                  const regex = new RegExp(`src=["']${escapedPath}["']`, 'g');
-                  htmlContent = htmlContent.replace(regex, `src="${file.content}"`);
-              });
-          }
+          const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
+          fileMap[fileName] = { code: file.content };
       });
+      // Ensure index.html exists for static template
+      if (!fileMap['index.html']) {
+          fileMap['index.html'] = { code: '<html><body><h1>Loading...</h1></body></html>' };
+      }
+      return fileMap;
+  }, []); // Apenas na montagem inicial, FileSynchronizer cuida das atualizações
 
-      // Basic CSS injection for styling if needed
-      const cssFiles = files.filter(f => f.name.endsWith('.css'));
-      const styles = cssFiles.map(f => `<style>${f.content}</style>`).join('\n');
-      htmlContent = htmlContent.replace('</head>', `${styles}</head>`);
-
-      // Script injection (Naive approach for simple projects, WebContainer handles complex ones better)
-      // This is a simulation for visual inspection purposes if not deployed
-      // For a robust local preview without WebContainer, we rely on basic HTML/CSS/JS structure
-      const jsFiles = files.filter(f => f.name.endsWith('.js') && !f.name.includes('vite') && !f.name.includes('config'));
-      const scripts = jsFiles.map(f => `<script>${f.content}</script>`).join('\n');
-      htmlContent = htmlContent.replace('</body>', `${scripts}</body>`);
-
-      return htmlContent;
-  }, [files]);
-
-  // Effect to handle inspection events inside the iframe (only works with srcDoc or same-origin)
-  useEffect(() => {
-      const iframe = iframeRef.current;
-      if (!iframe || !isInspecting || deployedUrl) return;
-
-      const handleLoad = () => {
-          const doc = iframe.contentDocument;
-          if (!doc) return;
-
-          const handleMouseOver = (e: MouseEvent) => {
-              e.stopPropagation();
-              const target = e.target as HTMLElement;
-              // Ignore body/html to avoid selecting the whole page constantly
-              if (target.tagName === 'BODY' || target.tagName === 'HTML') return;
-
-              const rect = target.getBoundingClientRect();
-              setHoveredElementRect({
-                  top: rect.top,
-                  left: rect.left,
-                  width: rect.width,
-                  height: rect.height,
-                  tagName: target.tagName.toLowerCase()
-              });
-          };
-
-          const handleMouseOut = () => {
-              setHoveredElementRect(null);
-          };
-
-          doc.body.addEventListener('mouseover', handleMouseOver);
-          doc.body.addEventListener('mouseout', handleMouseOut);
-          
-          // Cleanup
-          return () => {
-              doc.body.removeEventListener('mouseover', handleMouseOver);
-              doc.body.removeEventListener('mouseout', handleMouseOut);
-          };
-      };
-
-      iframe.addEventListener('load', handleLoad);
-      // Try attaching immediately if already loaded
-      handleLoad();
-
-      return () => {
-          iframe.removeEventListener('load', handleLoad);
-      };
-  }, [isInspecting, srcDoc, deployedUrl]);
-
-  // Toggle Inspect Mode
-  const toggleInspect = () => {
-      setIsInspecting(!isInspecting);
-      setHoveredElementRect(null);
-  };
-
-  // Se houver URL de deploy, usamos ela (mas perdemos a capacidade de inspeção DOM profunda devido a CORS)
-  // Se estivermos no modo Design, preferimos o srcDoc se não houver deploy, ou avisamos.
-  const activeSrc = deployedUrl ? deployedUrl : undefined;
-  const activeSrcDoc = deployedUrl ? undefined : srcDoc;
-
-  // Use file length or hash to force re-render if updated
-  const versionKey = files.reduce((acc, f) => acc + f.content.length, 0);
+  if (deployedUrl) {
+      return (
+        <div className="w-full h-full bg-white relative group">
+            <iframe
+                title="Live Preview"
+                src={deployedUrl}
+                className="w-full h-full border-none bg-white block"
+            />
+            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/80 backdrop-blur text-white text-[10px] rounded-full font-medium border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <GlobeIcon className="w-3 h-3 text-green-400" />
+                Live via Netlify
+            </div>
+        </div>
+      );
+  }
 
   return (
-    <div className="w-full h-full bg-white relative group overflow-hidden">
-      <iframe
-        ref={iframeRef}
-        key={deployedUrl ? deployedUrl : `local-${versionKey}`}
-        title="Preview"
-        src={activeSrc}
-        srcDoc={activeSrcDoc}
-        className="w-full h-full border-none bg-white block"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-presentation allow-downloads"
-        onLoad={() => setIsLoading(false)}
-      />
-
-      {/* Design Inspector Layer */}
-      {chatMode === 'design' && !deployedUrl && (
-          <>
-            <button
-                onClick={toggleInspect}
-                className={`absolute top-4 right-4 z-50 p-2 rounded-lg shadow-lg transition-all border ${
-                    isInspecting 
-                    ? 'bg-blue-600 text-white border-blue-700 animate-pulse' 
-                    : 'bg-white dark:bg-[#18181b] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-[#27272a] hover:bg-gray-100'
-                }`}
-                title="Selecionar Elemento (Design Mode)"
-            >
-                <EditIcon className="w-5 h-5" />
-            </button>
-
-            {/* Selection Overlay */}
-            {isInspecting && hoveredElementRect && (
+    <div className="w-full h-full bg-[#1e1e1e] relative flex flex-col overflow-hidden">
+      <SandpackProvider 
+        template="static"
+        theme={theme === 'dark' ? 'dark' : 'light'}
+        files={initialFiles}
+        options={{
+            externalResources: ["https://cdn.tailwindcss.com"],
+            classes: {
+                "sp-layout": "h-full !border-none !rounded-none",
+                "sp-preview": "h-full !border-none bg-white",
+                "sp-preview-iframe": "h-full",
+            }
+        }}
+      >
+        <FileSynchronizer files={files} />
+        
+        <SandpackLayout style={{ height: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white' }}>
+            <SandpackPreview 
+                showOpenInCodeSandbox={false} 
+                showRefreshButton={false} // Hide default refresh to keep "Quadro" look clean
+                showRestartButton={false} // Hide default restart
+                showNavigator={false}     // Hide default URL bar (we have our own "Quadro" chrome)
+                style={{ height: '100%' }}
+            />
+            
+            {/* Console Integrado do Sandpack (Real Node/Browser Output) */}
+            {isConsoleOpen && (
                 <div 
-                    className="absolute z-40 pointer-events-none transition-all duration-75 ease-out border-2 border-blue-500 bg-blue-500/10"
-                    style={{
-                        top: hoveredElementRect.top,
-                        left: hoveredElementRect.left,
-                        width: hoveredElementRect.width,
-                        height: hoveredElementRect.height
-                    }}
+                    className={`absolute bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#151515] border-t border-gray-200 dark:border-[#27272a] transition-all duration-300 flex flex-col ${isConsoleExpanded ? 'h-48' : 'h-9'}`}
                 >
-                    <div className="absolute -top-6 left-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm uppercase tracking-wider">
-                        {hoveredElementRect.tagName}
+                    <div 
+                        className="flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-[#18181b] border-b border-gray-200 dark:border-[#27272a] cursor-pointer select-none"
+                        onClick={() => setIsConsoleExpanded(!isConsoleExpanded)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <ConsoleIcon className="w-3.5 h-3.5 text-gray-500" />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">DevTools Console</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setIsConsoleExpanded(!isConsoleExpanded); }}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500"
+                            >
+                                {isConsoleExpanded ? <ChevronDownIcon className="w-3.5 h-3.5" /> : <ChevronUpIcon className="w-3.5 h-3.5" />}
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setIsConsoleOpen(false); }}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500 hover:text-black dark:hover:text-white"
+                            >
+                                <GlobeIcon className="w-3.5 h-3.5 rotate-45" /> {/* Close Icon fallback */}
+                            </button>
+                        </div>
                     </div>
+                    {isConsoleExpanded && (
+                        <div className="flex-1 overflow-auto bg-white dark:bg-[#0c0c0e]">
+                            <SandpackConsole resetOnPreviewRestart />
+                        </div>
+                    )}
                 </div>
             )}
-          </>
-      )}
+        </SandpackLayout>
+      </SandpackProvider>
 
-      {/* Warning if using deployed URL in Design Mode */}
-      {chatMode === 'design' && deployedUrl && (
-          <div className="absolute top-4 right-4 z-50 bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs px-3 py-2 rounded shadow-lg">
-              Modo Design limitado em deploy live.
-          </div>
-      )}
-
-      {/* Loading State */}
-      {isLoading && (
-          <div className="absolute inset-0 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md flex items-center justify-center z-10">
-               <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                      <div className="absolute inset-0 bg-[#00C7B7] blur-xl opacity-20 animate-pulse"></div>
-                      <LoaderIcon className="w-8 h-8 text-[#00C7B7] animate-spin relative z-10" />
-                  </div>
-                  <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Carregando...</span>
-               </div>
-          </div>
-      )}
-      
-      {/* Live Indicator */}
-      {deployedUrl && !isInspecting && (
-          <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/80 backdrop-blur text-white text-[10px] rounded-full font-medium border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <GlobeIcon className="w-3 h-3 text-green-400" />
-              Live via Netlify
-          </div>
+      {/* Floating Toggle for Console */}
+      {!isConsoleOpen && (
+          <button 
+            onClick={() => { setIsConsoleOpen(true); setIsConsoleExpanded(true); }}
+            className="absolute bottom-4 left-4 z-30 p-2 bg-black/80 hover:bg-black text-white rounded-full shadow-lg border border-white/10 transition-transform hover:scale-105"
+            title="Abrir Console de Desenvolvimento"
+          >
+              <ConsoleIcon className="w-4 h-4" />
+          </button>
       )}
     </div>
   );
