@@ -4,10 +4,10 @@ import { ProjectFile, Theme, ChatMode, ProjectVersion } from '../types';
 import { CodePreview } from './CodePreview';
 import { 
     CloseIcon, SunIcon, MoonIcon, SparklesIcon, TerminalIcon, GithubIcon, ChatIcon, 
-    FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
+    FileIcon, FolderIcon, ChevronDownIcon, ChevronUpIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
     PlusIcon, EditIcon, UsersIcon, HomeIcon, ClockIcon, ImageIcon, UploadIcon, TrashIcon,
-    SmartphoneIcon, MonitorIcon
+    SmartphoneIcon, MonitorIcon, PanelBottomIcon, EraserIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
@@ -107,10 +107,123 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   
+  // Terminal State
+  const [isTerminalOpen, setIsTerminalOpen] = useState(true);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [terminalInput, setTerminalInput] = useState('');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+  const terminalInputRef = useRef<HTMLInputElement>(null);
 
   const selectedFile = files.find(f => f.name === activeFile);
+
+  // Auto-scroll terminal
+  useEffect(() => {
+      if (isTerminalOpen) {
+          terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+  }, [terminalLogs, isTerminalOpen]);
+
+  // Terminal logging logic for generation
+  useEffect(() => {
+      if (isGenerating) {
+          setTerminalLogs(prev => [...prev, `> Generating resources... ${new Date().toLocaleTimeString()}`]);
+      }
+      if (generatingFile) {
+          setTerminalLogs(prev => [...prev, `> Writing: ${generatingFile}`]);
+      }
+  }, [isGenerating, generatingFile]);
+
+  // Initialize terminal
+  useEffect(() => {
+      setTerminalLogs([
+          "> Codegen Studio Terminal v1.0.0",
+          "> Environment initialized.",
+          "> Type 'help' to see available commands."
+      ]);
+  }, []);
+
+  // Handle Terminal Command
+  const handleTerminalSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const command = terminalInput.trim();
+      if (!command) return;
+
+      // Add user command to log
+      setTerminalLogs(prev => [...prev, `$ ${command}`]);
+      setTerminalInput('');
+
+      const args = command.split(' ');
+      const cmd = args[0].toLowerCase();
+
+      switch (cmd) {
+          case 'clear':
+          case 'cls':
+              setTerminalLogs([]);
+              break;
+          
+          case 'help':
+              setTerminalLogs(prev => [
+                  ...prev,
+                  "Available commands:",
+                  "  status, health  - Check Cloudflare backend health",
+                  "  ls              - List files",
+                  "  cat [file]      - Show file content",
+                  "  clear           - Clear terminal",
+                  "  date            - Show current date"
+              ]);
+              break;
+
+          case 'ls':
+              const fileList = files.map(f => f.name).join('\n');
+              setTerminalLogs(prev => [...prev, fileList || "(empty)"]);
+              break;
+
+          case 'cat':
+              if (args[1]) {
+                  const targetFile = files.find(f => f.name === args[1]);
+                  if (targetFile) {
+                      const contentPreview = targetFile.content.length > 500 
+                          ? targetFile.content.substring(0, 500) + "\n... (truncated)" 
+                          : targetFile.content;
+                      setTerminalLogs(prev => [...prev, contentPreview]);
+                  } else {
+                      setTerminalLogs(prev => [...prev, `File not found: ${args[1]}`]);
+                  }
+              } else {
+                  setTerminalLogs(prev => [...prev, "Usage: cat [filename]"]);
+              }
+              break;
+
+          case 'date':
+              setTerminalLogs(prev => [...prev, new Date().toString()]);
+              break;
+
+          case 'status':
+          case 'health':
+              setTerminalLogs(prev => [...prev, "Checking server status..."]);
+              try {
+                  const res = await fetch('/api/health');
+                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  const data = await res.json();
+                  setTerminalLogs(prev => [
+                      ...prev, 
+                      `[OK] Status: ${data.status}`,
+                      `     Message: ${data.message}`,
+                      `     Location: ${data.location}`,
+                      `     Timestamp: ${data.timestamp}`
+                  ]);
+              } catch (err: any) {
+                  setTerminalLogs(prev => [...prev, `[ERROR] Failed to reach /api/health: ${err.message}`]);
+              }
+              break;
+
+          default:
+              setTerminalLogs(prev => [...prev, `Command not found: ${cmd}`]);
+      }
+  };
 
   // Close context menu on click outside
   useEffect(() => {
@@ -168,7 +281,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               const isImage = isImageFile(file.name);
               reader.onload = () => {
                   resolve({
-                      name: file.name, // Files uploaded via this button go to root
+                      name: file.name, 
                       content: reader.result as string,
                       language: isImage ? 'image' : 'plaintext'
                   });
@@ -179,6 +292,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
           Promise.all(filePromises).then(newFiles => {
               onFileUpload(newFiles);
+              setTerminalLogs(prev => [...prev, `> Uploaded ${newFiles.length} files.`]);
               if (fileInputRef.current) fileInputRef.current.value = '';
           });
       }
@@ -186,9 +300,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
   const handleRightClick = (e: React.MouseEvent, path: string, type: 'file' | 'folder') => {
       e.preventDefault();
-      e.stopPropagation(); // Crucial to prevent other click handlers
-      const x = Math.min(e.clientX, window.innerWidth - 170); // Prevent overflow right
-      const y = Math.min(e.clientY, window.innerHeight - 100); // Prevent overflow bottom
+      e.stopPropagation();
+      const x = Math.min(e.clientX, window.innerWidth - 170);
+      const y = Math.min(e.clientY, window.innerHeight - 100);
       setContextMenu({ x, y, path, type });
   };
 
@@ -202,6 +316,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
           pathParts.pop();
           const newPath = pathParts.length > 0 ? `${pathParts.join('/')}/${newName}` : newName;
           onRenameFile(oldName, newPath);
+          setTerminalLogs(prev => [...prev, `> Renamed ${oldName} to ${newPath}`]);
       }
       setContextMenu(null);
   };
@@ -210,6 +325,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       if (!contextMenu) return;
       if (window.confirm(`Tem certeza que deseja excluir ${contextMenu.path}?`)) {
           onFileDelete(contextMenu.path); 
+          setTerminalLogs(prev => [...prev, `> Deleted ${contextMenu.path}`]);
       }
       setContextMenu(null);
   };
@@ -221,7 +337,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-      e.preventDefault(); // Necessary to allow dropping
+      e.preventDefault(); 
   };
 
   const handleDrop = (e: React.DragEvent, targetPath: string, isFolder: boolean) => {
@@ -231,9 +347,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
       
       if (!sourcePath || sourcePath === targetPath || !onMoveFile) return;
 
-      // Calculate destination
-      // If dropped on a folder, move INTO that folder
-      // If dropped on a file, move into the SAME FOLDER as that file
       let destinationFolder = '';
       if (isFolder) {
           destinationFolder = targetPath;
@@ -248,6 +361,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
       if (sourcePath !== newPath) {
           onMoveFile(sourcePath, newPath);
+          setTerminalLogs(prev => [...prev, `> Moved ${sourcePath} to ${newPath}`]);
       }
       setDraggedItem(null);
   };
@@ -258,7 +372,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
       const isSelected = activeFile === node.path;
       const isImage = isImageFile(node.name);
       
-      // Feature: Pastel Blue Decal Animation for generating file
       const isBeingGenerated = isGenerating && node.path === generatingFile;
       
       if (node.type === 'folder') {
@@ -306,7 +419,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
           }`}
           style={{ paddingLeft: `${(level * 12) + 26}px` }}
         >
-          {/* Decal Animation for generating files */}
           {isBeingGenerated && (
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-blue-400/10 animate-shine pointer-events-none" />
           )}
@@ -340,12 +452,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
         
         {/* Left: Project Info */}
         <div className="flex items-center gap-3">
-            {/* Mobile Toggle */}
             <button onClick={onOpenProjects} className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22]">
                 <ProjectsIcon className="w-4 h-4" />
             </button>
 
-            {/* Home Icon */}
             <button 
                 onClick={onNavigateHome} 
                 className="p-1.5 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
@@ -464,7 +574,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             multiple 
                             className="hidden" 
                         />
-                        {/* Placeholder for New File Logic - currently automated via AI */}
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto pt-2 custom-scrollbar">
@@ -477,7 +586,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
             {viewMode === 'code' ? (
                 <div className="h-full flex flex-col">
                     {/* Code Tab Bar */}
-                    <div className="h-9 border-b border-gray-200 dark:border-[#27272a] flex items-center px-0 bg-white dark:bg-[#0a0a0a] overflow-x-auto no-scrollbar relative">
+                    <div className="h-9 border-b border-gray-200 dark:border-[#27272a] flex items-center px-0 bg-white dark:bg-[#0a0a0a] overflow-x-auto no-scrollbar relative flex-shrink-0">
                         <button onClick={() => setShowExplorer(!showExplorer)} className="px-3 h-full flex items-center border-r border-gray-200 dark:border-[#27272a] text-gray-500 hover:bg-gray-50 dark:hover:bg-[#121214]">
                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
@@ -487,7 +596,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                 {activeFile}
                                 <button className="ml-2 hover:text-red-500"><CloseIcon className="w-3 h-3" /></button>
                                 
-                                {/* Feature: Real-time Editing Indicator in Tab */}
+                                {/* Live Editing Indicator */}
                                 {isGenerating && generatingFile === activeFile && (
                                     <span className="absolute right-1 top-1 flex h-1.5 w-1.5">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
@@ -498,7 +607,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         )}
                     </div>
                     
-                    {/* Feature: Live Editing Banner over Code Area */}
+                    {/* Live Editing Banner */}
                     {isGenerating && generatingFile === activeFile && (
                         <div className="absolute top-9 left-0 w-full z-20 pointer-events-none">
                             <div className="h-1 w-full bg-blue-500/20 overflow-hidden">
@@ -524,6 +633,60 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             </div>
                         )}
                     </div>
+
+                    {/* TERMINAL PANEL */}
+                    {isTerminalOpen && (
+                        <div className="h-48 border-t border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#0c0c0e] flex flex-col flex-shrink-0" onClick={() => terminalInputRef.current?.focus()}>
+                            <div className="flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-[#18181b] border-b border-gray-200 dark:border-[#27272a]">
+                                <div className="flex items-center gap-2">
+                                    <TerminalIcon className="w-3.5 h-3.5 text-gray-500" />
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Terminal</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setTerminalLogs([]); }}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500 hover:text-red-500" 
+                                        title="Clear"
+                                    >
+                                        <EraserIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setIsTerminalOpen(false); }}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500 hover:text-black dark:hover:text-white"
+                                    >
+                                        <CloseIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-2 font-mono text-[11px] space-y-1 bg-white dark:bg-[#0a0a0a] cursor-text">
+                                {terminalLogs.map((log, i) => (
+                                    <div key={i} className="text-gray-600 dark:text-gray-400 break-all whitespace-pre-wrap">{log}</div>
+                                ))}
+                                
+                                <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                    <span className="text-blue-500 font-bold">$</span>
+                                    <input 
+                                        ref={terminalInputRef}
+                                        type="text" 
+                                        value={terminalInput}
+                                        onChange={(e) => setTerminalInput(e.target.value)}
+                                        className="flex-1 bg-transparent border-none outline-none text-gray-800 dark:text-gray-200 font-mono text-[11px]"
+                                        autoFocus
+                                    />
+                                </form>
+                                <div ref={terminalEndRef} />
+                            </div>
+                        </div>
+                    )}
+                    {!isTerminalOpen && (
+                        <button 
+                            onClick={() => setIsTerminalOpen(true)}
+                            className="absolute bottom-4 right-6 z-20 p-2 bg-gray-900/90 hover:bg-black text-white rounded-full shadow-lg border border-white/10 transition-transform hover:scale-105"
+                            title="Open Terminal"
+                        >
+                            <TerminalIcon className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="h-full w-full bg-[#f3f4f6] dark:bg-[#050505] relative flex flex-col">
@@ -576,8 +739,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             chatMode={chatMode} 
                         />
                     </div>
-                    
-                    {/* Generation Overlay REMOVED as requested */}
                 </div>
             )}
         </main>
