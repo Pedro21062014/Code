@@ -12,48 +12,49 @@ export const onRequestPost = async (context: any) => {
     
     let output = "";
     
-    // Simulação de Shell Server-Side no ambiente V8 Worker
+    // Este terminal roda no Cloudflare Workers (Serverless).
+    // Não é possível manter estado ou rodar 'npm install' aqui.
     switch (cmd) {
         case 'whoami':
-            output = "root@cloudflare-edge";
+            output = "root@cloudflare-pages-function";
             break;
         case 'uname':
-            output = `Cloudflare Pages / V8 Isolation (${context.request.cf?.httpProtocol || 'HTTP'})`;
-            break;
-        case 'uname -a':
-            output = `Linux cloudflare-edge 5.10.0 #1 SMP V8 Isolation`;
+            output = `Cloudflare V8 Runtime (Serverless)`;
             break;
         case 'date':
             output = new Date().toString();
             break;
         case 'pwd':
-            output = "/var/task/worker";
+            output = "/var/task";
             break;
-        case 'id':
-            output = "uid=0(root) gid=0(root) groups=0(root)";
+        case 'ls':
+            output = "Aviso: Este é um ambiente serverless efêmero. Seus arquivos do projeto estão no navegador (client-side), não neste servidor.";
             break;
-        case 'echo':
-            output = args.slice(1).join(' ');
-            break;
-        case 'env':
-            output = `NODE_ENV=production\nCF_REGION=${context.request.cf?.region || "unknown"}\nCF_CITY=${context.request.cf?.city || "unknown"}\nWORKER_TYPE=pages-function`;
-            break;
-        case 'ip':
-        case 'ifconfig':
-            output = `Client IP: ${context.request.headers.get('CF-Connecting-IP') || '127.0.0.1'}`;
+        case 'npm':
+        case 'node':
+        case 'yarn':
+        case 'pnpm':
+            output = `\x1b[33m[SERVERLESS ALERT]\x1b[0m\nEste terminal está conectado ao backend Cloudflare.\nPara rodar comandos do projeto (como 'npm install' ou 'npm run dev'), observe que eles são executados automaticamente pelo ambiente de Preview (Sandpack) no seu navegador.\n\nO servidor backend não persiste arquivos.`;
             break;
         case 'status':
         case 'health':
-            output = `[OK] Service Online\nRegion: ${context.request.cf?.regionCode || 'N/A'}\nTime: ${new Date().toISOString()}`;
+            output = `[OK] Cloudflare Pages Function Active\nRegion: ${context.request.cf?.regionCode || 'Global'}\nTime: ${new Date().toISOString()}`;
             break;
         case 'help':
-            output = "Supported Server Commands:\n  whoami, uname, date, pwd, echo, env, ip, health\n\nLocal Commands:\n  ls, cat, clear";
+            output = `
+Cloudflare Pages Terminal
+-------------------------
+Comandos disponíveis: whoami, uname, date, status, health
+
+NOTA: Para comandos de build (npm, node), utilize a visualização de código. 
+O projeto roda em um container Node.js dentro do seu navegador.
+`;
             break;
         default:
-            output = `bash: ${cmd}: command not found (on server)`;
+            output = `bash: ${cmd}: command not found (no ambiente serverless)`;
     }
 
-    return new Response(JSON.stringify({ output, user: "root", host: "edge" }), {
+    return new Response(JSON.stringify({ output, user: "root", host: "cloud" }), {
       headers: { "Content-Type": "application/json" }
     });
   } catch (e: any) {
