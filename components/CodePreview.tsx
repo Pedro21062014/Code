@@ -52,7 +52,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
       });
       // Ensure index.html exists for static template
       if (!fileMap['index.html']) {
-          fileMap['index.html'] = { code: '<html><body><h1>Loading...</h1></body></html>' };
+          fileMap['index.html'] = { code: '<!DOCTYPE html><html><body><h1>Loading...</h1></body></html>' };
       }
       return fileMap;
   }, []); // Apenas na montagem inicial, FileSynchronizer cuida das atualizações
@@ -74,29 +74,30 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
   }
 
   return (
-    <div className="w-full h-full bg-[#1e1e1e] relative flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-white dark:bg-[#1e1e1e] relative flex flex-col overflow-hidden">
       <SandpackProvider 
         template="static"
         theme={theme === 'dark' ? 'dark' : 'light'}
         files={initialFiles}
         options={{
+            activeFile: "/index.html", 
             externalResources: ["https://cdn.tailwindcss.com"],
             classes: {
-                "sp-layout": "h-full !border-none !rounded-none",
-                "sp-preview": "h-full !border-none bg-white",
-                "sp-preview-iframe": "h-full",
+                "sp-layout": "h-full !border-none !rounded-none block",
+                "sp-preview": "h-full !border-none bg-white flex-1",
+                "sp-preview-iframe": "h-full w-full",
             }
         }}
       >
         <FileSynchronizer files={files} />
         
-        <SandpackLayout style={{ height: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white' }}>
+        <SandpackLayout style={{ height: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column' }}>
             <SandpackPreview 
                 showOpenInCodeSandbox={false} 
                 showRefreshButton={false} // Hide default refresh to keep "Quadro" look clean
                 showRestartButton={false} // Hide default restart
                 showNavigator={false}     // Hide default URL bar (we have our own "Quadro" chrome)
-                style={{ height: '100%' }}
+                style={{ height: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}
             />
             
             {/* Console Integrado do Sandpack (Real Node/Browser Output) */}
