@@ -1,9 +1,0 @@
-
-name = "codegen-studio"
-compatibility_date = "2024-09-23"
-pages_build_output_dir = "dist"
-
-# Variáveis de ambiente locais (para desenvolvimento)
-# Você pode adicionar suas chaves aqui para testar localmente se não quiser usar o arquivo .dev.vars
-[vars]
-# OPENAI_API_KEY = "sk-..."
