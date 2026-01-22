@@ -79,6 +79,17 @@ const PlanTimeline: React.FC<{ content: string }> = ({ content }) => {
     );
 };
 
+const getFileIconColor = (fileName: string) => {
+    if (fileName.endsWith('.tsx') || fileName.endsWith('.ts')) return 'text-blue-500';
+    if (fileName.endsWith('.jsx') || fileName.endsWith('.js')) return 'text-yellow-500';
+    if (fileName.endsWith('.css') || fileName.endsWith('.scss')) return 'text-sky-400';
+    if (fileName.endsWith('.html')) return 'text-orange-500';
+    if (fileName.endsWith('.json')) return 'text-yellow-400';
+    if (fileName.endsWith('.md')) return 'text-gray-400';
+    if (/\.(png|jpg|jpeg|svg|gif)$/i.test(fileName)) return 'text-purple-500';
+    return 'text-gray-500';
+};
+
 const ImageGeneratingPreview = () => {
     const [progress, setProgress] = useState(0);
 
@@ -405,7 +416,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                             {msg.isThinking ? (
                                                 <div className="flex items-center gap-2 p-2">
                                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-600 via-black to-gray-600 dark:from-gray-300 dark:via-white dark:to-gray-300 font-bold animate-shine text-sm">
-                                                        Pensando...
+                                                        {msg.content === 'Pensando...' || msg.content === 'Processando...' ? msg.content : (
+                                                            // Se já tem algum conteúdo (streaming), mostra o conteúdo mesmo "thinking"
+                                                            <div className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">
+                                                                {msg.content}
+                                                                <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-blue-500 animate-pulse"></span>
+                                                            </div>
+                                                        )}
                                                     </span>
                                                 </div>
                                             ) : (
@@ -414,26 +431,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                     {msg.content.includes('- [ ]') || msg.content.includes('- [x]') ? (
                                                         <PlanTimeline content={msg.content} />
                                                     ) : (
-                                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                                                        <p className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">{msg.content}</p>
                                                     )}
                                                     
-                                                    {/* File Changes List */}
+                                                    {/* File Changes List - Styled as Explorer */}
                                                     {msg.filesModified && msg.filesModified.length > 0 && (
-                                                        <div className="mt-4 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-sm max-w-xs">
-                                                            <div className="bg-gray-50 dark:bg-[#202023] px-3 py-2 border-b border-gray-100 dark:border-[#27272a] flex items-center gap-2">
-                                                                <TerminalIcon className="w-3.5 h-3.5 text-gray-500" />
-                                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Arquivos Alterados</span>
+                                                        <div className="mt-6 border border-gray-200 dark:border-[#27272a] rounded-lg overflow-hidden bg-white dark:bg-[#121214] shadow-sm max-w-sm">
+                                                            <div className="bg-gray-50 dark:bg-[#1a1a1c] px-3 py-2 border-b border-gray-200 dark:border-[#27272a] flex items-center gap-2">
+                                                                <TerminalIcon className="w-3.5 h-3.5 text-blue-500" />
+                                                                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Alterações ({msg.filesModified.length})</span>
                                                             </div>
-                                                            <div className="p-1 max-h-40 overflow-y-auto custom-scrollbar">
+                                                            <div className="p-1 max-h-48 overflow-y-auto custom-scrollbar">
                                                                 {msg.filesModified.map((file, i) => (
-                                                                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#27272a] rounded-sm transition-colors cursor-default">
-                                                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                                                            file.endsWith('css') ? 'bg-blue-400' : 
-                                                                            file.endsWith('json') ? 'bg-yellow-400' : 
-                                                                            file.endsWith('html') ? 'bg-orange-400' :
-                                                                            'bg-purple-400'
-                                                                        }`}></div>
-                                                                        <span className="truncate">{file}</span>
+                                                                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#202023] rounded-md transition-colors cursor-default group">
+                                                                        <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${getFileIconColor(file)}`} />
+                                                                        <span className="truncate font-mono opacity-80 group-hover:opacity-100">{file}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
