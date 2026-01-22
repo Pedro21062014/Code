@@ -63,8 +63,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onThemeChange
 }) => {
   const [prompt, setPrompt] = useState('');
-  // Set default to the OpenRouter Free Gemini model
-  const [selectedModel, setSelectedModel] = useState('google/gemini-2.0-flash-exp:free');
+  // Set default to DeepSeek R1 (Free)
+  const [selectedModel, setSelectedModel] = useState('deepseek/deepseek-r1:free');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isPlanMode, setIsPlanMode] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -221,7 +221,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             {/* Animated Glow Border */}
             <div className="absolute -inset-[1px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-[2px]"></div>
             
-            <div className="relative bg-white dark:bg-[#121214] rounded-2xl border border-gray-200 dark:border-[#27272a] shadow-2xl flex flex-col overflow-hidden transition-shadow duration-300 group-hover:shadow-blue-500/10">
+            {/* REMOVED overflow-hidden to allow dropdown to overflow */}
+            <div className="relative bg-white dark:bg-[#121214] rounded-2xl border border-gray-200 dark:border-[#27272a] shadow-2xl flex flex-col transition-shadow duration-300 group-hover:shadow-blue-500/10">
                 <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
@@ -244,7 +245,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 )}
 
                 {/* Actions Bar */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 dark:bg-[#0c0c0e]/80 border-t border-gray-100 dark:border-[#27272a] backdrop-blur-md">
+                {/* ADDED rounded-b-2xl to maintain corner shape since overflow is gone */}
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 dark:bg-[#0c0c0e]/80 border-t border-gray-100 dark:border-[#27272a] backdrop-blur-md rounded-b-2xl">
                     <div className="flex items-center gap-2">
                         <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors" title="Anexar arquivo">
                             <PlusIcon className="w-5 h-5" />

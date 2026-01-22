@@ -53,28 +53,58 @@ const sanitizeFirestoreData = (data: any) => {
 const extractAndParseJson = (text: string): any => {
   if (!text) return { message: "Erro: Resposta vazia da IA.", files: [] };
   
-  let cleanText = text.trim();
-  cleanText = cleanText.replace(/^```json\s*/, '').replace(/^```\s*/, '');
-  cleanText = cleanText.replace(/```$/, '').trim();
+  // Remove markdown code blocks if present
+  let cleanText = text.trim()
+    .replace(/^```json\s*/, '')
+    .replace(/^```\s*/, '')
+    .replace(/```$/, '')
+    .trim();
 
   try {
+    // Attempt standard parsing
     return JSON.parse(cleanText);
   } catch (e) {
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
+    console.warn("JSON Parse Failed (Standard), attempting repair/fallback:", e);
+
+    // 1. Try to find the outermost JSON object bounds
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
     
-    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-       return { message: text, files: [] };
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+       const potentialJson = cleanText.substring(firstBrace, lastBrace + 1);
+       try {
+         return JSON.parse(potentialJson);
+       } catch (e2) {
+         // Continue to fallback
+       }
     }
-    
-    const jsonString = text.substring(firstBrace, lastBrace + 1);
-    
-    try {
-      return JSON.parse(jsonString);
-    } catch (innerError) {
-      console.error("JSON Parse Error:", innerError);
-      return { message: `Erro ao processar resposta da IA. Texto bruto: ${text.substring(0, 100)}...`, files: [] };
+
+    // 2. Regex Fallback for "message" content
+    // This allows us to display the text even if the JSON structure (e.g. files array) is broken/truncated
+    const messageMatch = cleanText.match(/"message":\s*"((?:[^"\\]|\\.)*)/);
+    let extractedMessage = text; // Default to full text if nothing matches
+
+    if (messageMatch) {
+        try {
+            // Reconstruct the string to handle escapes properly using JSON.parse on a string literal
+            extractedMessage = JSON.parse(`"${messageMatch[1]}"`); 
+        } catch (e) {
+            // If that fails, just do basic unescaping
+            extractedMessage = messageMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+        }
+    } else if (cleanText.includes('"message":')) {
+        // Fallback for when regex fails but key exists (unlikely but possible)
+        extractedMessage = cleanText.split('"message":')[1]?.split('"files":')[0]?.trim() || text;
     }
+
+    // Attempt to extract files if possible, otherwise return empty array to prevent crash
+    // We assume if JSON is broken, files might be corrupted, so it's safer to return [] than partial code
+    // unless we implement a sophisticated file parser fallback.
+    
+    return { 
+        message: extractedMessage, 
+        files: [] 
+    };
   }
 };
 
@@ -700,18 +730,16 @@ export const App: React.FC = () => {
     
     // --- TOOL: IMAGE GENERATION ---
     if (imageTagMatch) {
+        // ... (Image generation logic remains same)
         const imagePrompt = imageTagMatch[1].trim();
-        
         if (currentCredits < 40) {
             setToastError("Créditos insuficientes para gerar imagem (necessário: 40).");
             return;
         }
-
         let activeProjectState = project;
         if (view === 'welcome') {
             activeProjectState = { ...initialProjectState };
         }
-
         setProject({
             ...activeProjectState,
             chatMessages: [
@@ -720,18 +748,13 @@ export const App: React.FC = () => {
                 { role: 'assistant', content: 'Gerando imagem (1:1)...', isThinking: true, isImageGenerator: true }
             ]
         });
-
         if (view !== 'editor') setView('editor');
-        
         try {
             const newCredits = currentCredits - 40;
             setUserSettings(prev => prev ? { ...prev, credits: newCredits } : null);
             updateDoc(doc(db, "users", sessionUser.uid), { credits: increment(-40) }).catch(console.error);
-
             const apiKey = userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY;
-            
             const images = await generateImagesWithImagen(imagePrompt, apiKey, 1, "1:1");
-            
             if (images.length > 0) {
                 setProject(p => ({
                     ...p,
@@ -749,7 +772,6 @@ export const App: React.FC = () => {
             } else {
                 throw new Error("Nenhuma imagem retornada.");
             }
-
         } catch (e: any) {
             console.error(e);
             setToastError("Erro ao gerar imagem: " + e.message);
@@ -790,28 +812,23 @@ export const App: React.FC = () => {
     }
 
     let adjustedPrompt = prompt;
-    
-    // Handle Fix Tool
     if (fixTagMatch) {
         const fixPrompt = fixTagMatch[1].trim();
         adjustedPrompt = `[FIX MODE] Identify and fix errors based on this request: ${fixPrompt}. Review current files carefully.`;
-    } 
-    // Handle Plan Tool
-    else if (planTagMatch) {
-        // Remove the tag and use the context to generate a plan
+    } else if (planTagMatch) {
         const userIntent = prompt.replace('<tools/plan>', '').trim();
         const planContext = userIntent ? `User Intent: ${userIntent}` : "Analyze the current project state.";
-        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a comprehensive, step-by-step implementation plan for the requested feature or project. \n\nIMPORTANT: Return the plan as a Markdown list with checkboxes (e.g., "- [ ] Step 1"). Ensure the steps are granular and actionable. Do not generate code yet, just the plan.`;
-    }
-    else if (mode === 'design') {
-        adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus heavily on aesthetics, modern design patterns, Tailwind CSS best practices, responsiveness, and animations. Ensure the UI is beautiful and polished. User request: ${prompt}`;
+        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a comprehensive, step-by-step implementation plan. Return the plan as a Markdown list with checkboxes (e.g., "- [ ] Step 1").`;
+    } else if (mode === 'design') {
+        adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus on aesthetics and modern design. User request: ${prompt}`;
     } else if (mode === 'backend') {
-        adjustedPrompt = `[BACKEND EXPERT MODE] Act as a senior Backend/Data engineer. Focus on data structure, API logic, Supabase/Firebase integration, security, and performance. User request: ${prompt}`;
+        adjustedPrompt = `[BACKEND EXPERT MODE] Act as a senior Backend engineer. Focus on logic and data. User request: ${prompt}`;
     }
 
+    // Initial placeholder message - WILL BE UPDATED IN REAL-TIME
     setProject({ 
         ...activeProjectState, 
-        chatMessages: [...activeProjectState.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Processando...', isThinking: true }] 
+        chatMessages: [...activeProjectState.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Pensando...', isThinking: true }] 
     });
 
     if (view !== 'editor') setView('editor');
@@ -831,16 +848,13 @@ export const App: React.FC = () => {
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
         : userSettings?.openrouter_api_key; 
 
-      // Define callback for grounding metadata
+      // Callback for grounding metadata (Gemini)
       const handleMetadata = (metadata: any) => {
           setProject(p => {
-              const lastMsgIndex = p.chatMessages.length - 1;
               const msgs = [...p.chatMessages];
-              if (msgs[lastMsgIndex] && msgs[lastMsgIndex].role === 'assistant') {
-                  msgs[lastMsgIndex] = {
-                      ...msgs[lastMsgIndex],
-                      groundingMetadata: metadata
-                  };
+              const lastMsg = msgs[msgs.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant') {
+                  msgs[msgs.length - 1] = { ...lastMsg, groundingMetadata: metadata };
               }
               return { ...p, chatMessages: msgs };
           });
@@ -852,11 +866,47 @@ export const App: React.FC = () => {
           activeProjectState.envVars, 
           (chunk) => {
               accumulatedResponse += chunk;
+              
+              // --- STREAMING LOGIC FOR CHAT ---
+              // Try to extract the "message" field content from the growing JSON string
+              // This is a heuristic to show the message as it's being generated
+              const messageMatch = accumulatedResponse.match(/"message":\s*"((?:[^"\\]|\\.)*)/);
+              
+              setProject(current => {
+                  const msgs = [...current.chatMessages];
+                  const lastIndex = msgs.length - 1;
+                  const lastMsg = msgs[lastIndex];
+
+                  // Only update if it's the assistant's thinking message
+                  if (lastMsg.role === 'assistant' && lastMsg.isThinking) {
+                      let displayContent = lastMsg.content;
+                      
+                      // If we found the start of the message field in JSON
+                      if (messageMatch) {
+                          // Unescape the JSON string for display (basic handling)
+                          displayContent = messageMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                      } else if (accumulatedResponse.length > 50 && !accumulatedResponse.trim().startsWith('{')) {
+                          // Fallback: If it doesn't look like JSON starting, maybe the model is outputting raw text
+                          // causing a JSON parse error later, but we show it anyway to be safe.
+                          displayContent = accumulatedResponse;
+                      }
+
+                      // Update the message content in real-time
+                      // We keep isThinking=true until the very end to show the spinner/cursor if desired, 
+                      // or set to false to just show text. Let's keep it visually active.
+                      msgs[lastIndex] = { ...lastMsg, content: displayContent };
+                      return { ...current, chatMessages: msgs };
+                  }
+                  return current;
+              });
+
+              // --- AI Suggestions Logic (Existing) ---
               if (aiSuggestions.length === 0) {
                   const suggestionsMatch = accumulatedResponse.match(/"suggestions":\s*\[([\s\S]*?)\]/);
                   if (suggestionsMatch && suggestionsMatch[1]) {
                       try {
                           const rawArray = `[${suggestionsMatch[1]}]`;
+                          // Try parsing incomplete array
                           if (rawArray.split('"').length % 2 !== 0) {
                               const partial = rawArray.substring(0, rawArray.lastIndexOf('"') + 1) + ']';
                               const parsed = JSON.parse(partial);
@@ -873,7 +923,7 @@ export const App: React.FC = () => {
           attachments,
           apiKey,
           abortControllerRef.current.signal,
-          handleMetadata // Pass metadata callback
+          handleMetadata
       );
       
       const result = extractAndParseJson(fullResponse);
@@ -882,6 +932,7 @@ export const App: React.FC = () => {
           setAiSuggestions(result.suggestions);
       }
 
+      // FINAL STATE UPDATE
       setProject(p => {
             const map = new Map<string, ProjectFile>();
             p.files.forEach(f => map.set(f.name, f));
@@ -892,14 +943,9 @@ export const App: React.FC = () => {
             const newActiveFile = (result.files && result.files.length > 0) ? result.files[0].name : p.activeFile;
             
             const updatedFiles = Array.from(map.values());
-
-            // NEW: Extract modified/created filenames for UI
             const modifiedFileNames = result.files ? result.files.map((f: ProjectFile) => f.name) : [];
-
-            // DEEP COPY updatedFiles for history to ensure immutability
             const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
 
-            // Save to history automatically
             const newVersion: ProjectVersion = {
                 id: Date.now().toString(),
                 timestamp: Date.now(),
@@ -907,19 +953,22 @@ export const App: React.FC = () => {
                 message: prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '')
             };
 
+            // Replace the last "thinking" message with the final parsed message
+            const finalChatMessages = [...p.chatMessages];
+            finalChatMessages[finalChatMessages.length - 1] = {
+                role: 'assistant',
+                content: result.message, // Ensure we use the clean final message from JSON
+                summary: result.summary,
+                isThinking: false,
+                groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
+                filesModified: modifiedFileNames
+            };
+
             return { 
                 ...p, 
                 files: updatedFiles, 
                 activeFile: newActiveFile, 
-                chatMessages: [...p.chatMessages.slice(0, -1), { 
-                    role: 'assistant', 
-                    content: result.message, 
-                    summary: result.summary, 
-                    isThinking: false,
-                    // Preserve metadata if it exists on the thinking message
-                    groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
-                    filesModified: modifiedFileNames // Populate new field
-                }],
+                chatMessages: finalChatMessages,
                 history: [...(p.history || []), newVersion]
             };
         });
@@ -939,6 +988,7 @@ export const App: React.FC = () => {
     }
   }, [project, userSettings, sessionUser, view, aiSuggestions]);
 
+  // ... (rest of the file remains unchanged)
   const handleLoadProject = useCallback((projectId: number) => {
     let p = savedProjects.find(x => x.id === projectId);
     if (!p) p = galleryProjects.find(x => x.id === projectId);
