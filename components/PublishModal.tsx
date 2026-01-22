@@ -135,6 +135,57 @@ export const PublishModal: React.FC<PublishModalProps> = ({
       onClose();
   };
 
+  const handleCodegenDeploy = async () => {
+      setErrorMessage(null);
+      setActiveTarget('codegen');
+
+      try {
+          let activeProjectId = projectId;
+          
+          if (!activeProjectId) {
+              const result = await onSaveRequired();
+              if (typeof result === 'number') {
+                  activeProjectId = result;
+              } else {
+                  throw new Error("Salve o projeto antes de publicar.");
+              }
+          }
+          
+          setDeployStatus('compressing'); // Using compressing state for loading UI
+          await new Promise(r => setTimeout(r, 1500)); // Fake loading for feel
+
+          // Construct URL based on current origin and project ID
+          const url = `${window.location.origin}?p=${activeProjectId}`;
+
+          setDeployUrl(url);
+          setDeployStatus('success');
+
+          // Update project info
+          if (activeProjectId) {
+              const updates = {
+                  deployedUrl: url,
+                  updated_at: new Date().toISOString(),
+              };
+
+              if (onProjectUpdate) {
+                  onProjectUpdate(activeProjectId, updates);
+              }
+
+              try {
+                  const projectRef = doc(db, "projects", activeProjectId.toString());
+                  await updateDoc(projectRef, updates);
+              } catch (dbError) {
+                  console.error("Erro ao salvar URL:", dbError);
+              }
+          }
+
+      } catch (err: any) {
+          console.error("Deploy error:", err);
+          setErrorMessage(err.message || "Erro ao publicar no Codegen Studio.");
+          setDeployStatus('error');
+      }
+  };
+
   const isLoading = deployStatus === 'compressing' || deployStatus === 'uploading';
 
   return (
@@ -157,7 +208,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                     </div>
                     <div>
                         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Aplicação Online!</h3>
-                        <p className="text-gray-600 dark:text-gray-400">Seu projeto foi publicado com sucesso no Netlify.</p>
+                        <p className="text-gray-600 dark:text-gray-400">
+                            {activeTarget === 'netlify' 
+                                ? "Seu projeto foi publicado com sucesso no Netlify." 
+                                : "Seu projeto está disponível via link público do Codegen Studio."}
+                        </p>
                         <p className="text-xs text-gray-500 mt-2">Agora você pode publicá-lo na Galeria.</p>
                     </div>
                     
@@ -214,17 +269,25 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                             </div>
                         </button>
 
-                        {/* Option 3: Codegen Studio (Coming Soon) */}
-                        <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-gray-50 dark:bg-[#121214]/50 border border-gray-200 dark:border-[#27272a] gap-4 relative opacity-60 cursor-not-allowed">
-                            <div className="absolute top-3 right-3 bg-gray-200 dark:bg-[#27272a] text-gray-600 dark:text-white text-[9px] font-bold px-2 py-1 rounded border border-gray-300 dark:border-white/5">EM BREVE</div>
-                            <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center">
+                        {/* Option 3: Codegen Studio */}
+                        <button 
+                            onClick={() => !isLoading && handleCodegenDeploy()}
+                            disabled={isLoading}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${
+                                activeTarget === 'codegen' 
+                                ? 'bg-gray-50 dark:bg-[#1a1a1c] border-blue-500' 
+                                : 'bg-white dark:bg-[#121214] border-gray-200 dark:border-[#27272a] hover:border-blue-500/50 hover:bg-gray-50 dark:hover:bg-[#1a1a1c]'
+                            } ${isLoading && activeTarget !== 'codegen' ? 'opacity-30' : ''}`}
+                        >
+                            <div className="absolute top-3 right-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-2 py-1 rounded border border-blue-200 dark:border-blue-800">FAST</div>
+                            <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <AppLogo className="w-8 h-8 text-blue-500" />
                             </div>
                             <div className="text-center">
-                                <h3 className="font-bold text-gray-400 mb-1">Codegen Studio</h3>
-                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Managed Hosting</p>
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-1">Codegen Studio</h3>
+                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Preview Instantâneo</p>
                             </div>
-                        </div>
+                        </button>
                     </div>
 
                     {/* Netlify Config Section - Only shows if Netlify is selected */}
