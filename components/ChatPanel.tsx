@@ -371,10 +371,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 </div>
                             ) : (
                                 <div className="w-full text-sm text-gray-700 dark:text-gray-300 pl-2 border-l-2 border-gray-200 dark:border-[#27272a] ml-1">
-                                    <div className="flex items-center gap-2 mb-1 opacity-50">
-                                        <LightbulbIcon className="w-4 h-4 text-blue-500" />
-                                        <span className="text-[10px] font-bold uppercase tracking-wider">AI Architect</span>
-                                    </div>
                                     
                                     {/* Grounding Metadata (Google Search Results) */}
                                     {msg.groundingMetadata && <GroundingMetadata metadata={msg.groundingMetadata} />}
