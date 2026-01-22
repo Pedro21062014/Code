@@ -11,7 +11,6 @@ import {
 } from './Icons';
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
-import { SandpackProvider, SandpackConsole, useSandpack } from "@codesandbox/sandpack-react";
 
 interface EditorViewProps {
   files: ProjectFile[];
@@ -46,8 +45,10 @@ interface EditorViewProps {
   aiSuggestions: string[];
   deployedUrl?: string | undefined;
   chatMode?: ChatMode;
+  // History Props
   projectHistory?: ProjectVersion[];
   onRestoreVersion?: (version: ProjectVersion) => void;
+  // New Props for File Management
   onFileUpload?: (files: ProjectFile[]) => void;
   onRenameFile?: (oldName: string, newName: string) => void;
   onMoveFile?: (oldPath: string, newPath: string) => void;
@@ -59,24 +60,6 @@ interface FileNode {
   type: 'file' | 'folder';
   children?: FileNode[];
 }
-
-// Componente invisível para sincronizar o estado dos arquivos React -> Sandpack
-const FileSynchronizer = ({ files, activeFile }: { files: ProjectFile[], activeFile: string | null }) => {
-    const { sandpack } = useSandpack();
-    
-    // Sync files only when they change length or content significantly to avoid re-renders
-    useEffect(() => {
-        const sandpackFiles = files.reduce((acc, file) => {
-            const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
-            acc[fileName] = { code: file.content, active: fileName === activeFile };
-            return acc;
-        }, {} as Record<string, any>);
-        
-        sandpack.updateFile(sandpackFiles);
-    }, [files, sandpack]); // Removido activeFile do deps para evitar reload constante, active é apenas inicial
-
-    return null;
-};
 
 const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
     <pre className="p-4 md:p-6 text-[13px] text-gray-800 dark:text-gray-300 font-mono leading-relaxed overflow-x-auto selection:bg-blue-500/30 h-full">
@@ -108,49 +91,7 @@ const isImageFile = (filename: string) => {
     return /\.(jpg|jpeg|png|gif|ico|svg|webp|bmp)$/i.test(filename);
 };
 
-export const EditorView: React.FC<EditorViewProps> = (props) => {
-  // Setup inicial dos arquivos para o Sandpack (apenas na montagem)
-  const initialFiles = useMemo(() => {
-      const fileMap: Record<string, any> = {};
-      props.files.forEach(file => {
-          const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
-          fileMap[fileName] = { code: file.content };
-      });
-      return fileMap;
-  }, []);
-
-  return (
-      <SandpackProvider
-          template="vite-react-ts"
-          theme={props.theme === 'dark' ? 'dark' : 'light'}
-          files={initialFiles}
-          options={{
-              externalResources: ["https://cdn.tailwindcss.com"],
-              classes: {
-                  "sp-wrapper": "h-full",
-                  "sp-layout": "h-full",
-                  "sp-console": "h-full bg-white dark:bg-[#0a0a0a]"
-              }
-          }}
-          customSetup={{
-              dependencies: {
-                  "react": "^18.2.0",
-                  "react-dom": "^18.2.0",
-                  "lucide-react": "latest",
-                  "clsx": "latest",
-                  "tailwind-merge": "latest",
-                  "@radix-ui/react-slot": "latest",
-                  "react-router-dom": "latest"
-              }
-          }}
-      >
-          <FileSynchronizer files={props.files} activeFile={props.activeFile} />
-          <EditorContent {...props} />
-      </SandpackProvider>
-  );
-};
-
-const EditorContent: React.FC<EditorViewProps> = ({ 
+export const EditorView: React.FC<EditorViewProps> = ({ 
     files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, 
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
@@ -168,12 +109,131 @@ const EditorContent: React.FC<EditorViewProps> = ({
   
   // Terminal State
   const [isTerminalOpen, setIsTerminalOpen] = useState(true);
-  const { sandpack } = useSandpack(); // Acesso ao status do sandpack
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [terminalInput, setTerminalInput] = useState('');
+  const [isProcessingCommand, setIsProcessingCommand] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+  const terminalInputRef = useRef<HTMLInputElement>(null);
 
   const selectedFile = files.find(f => f.name === activeFile);
+
+  // Auto-scroll terminal
+  useEffect(() => {
+      if (isTerminalOpen) {
+          terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+  }, [terminalLogs, isTerminalOpen]);
+
+  // Terminal logging logic for generation
+  useEffect(() => {
+      if (isGenerating) {
+          setTerminalLogs(prev => [...prev, `> Generating resources... ${new Date().toLocaleTimeString()}`]);
+      }
+      if (generatingFile) {
+          setTerminalLogs(prev => [...prev, `> Writing: ${generatingFile}`]);
+      }
+  }, [isGenerating, generatingFile]);
+
+  // Initialize terminal
+  useEffect(() => {
+      setTerminalLogs([
+          "> Codegen Studio Terminal v1.0.0",
+          "> Local & Cloud Environment initialized.",
+          "> Type 'help' to see available commands."
+      ]);
+  }, []);
+
+  // Handle Terminal Command
+  const handleTerminalSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const command = terminalInput.trim();
+      if (!command) return;
+
+      // Add user command to log
+      setTerminalLogs(prev => [...prev, `$ ${command}`]);
+      setTerminalInput('');
+      setIsProcessingCommand(true);
+
+      const args = command.split(' ');
+      const cmd = args[0].toLowerCase();
+
+      // Local Commands (Client-Side)
+      if (['clear', 'cls', 'help', 'ls', 'cat', 'open'].includes(cmd)) {
+          switch (cmd) {
+              case 'clear':
+              case 'cls':
+                  setTerminalLogs([]);
+                  break;
+              
+              case 'help':
+                  setTerminalLogs(prev => [
+                      ...prev,
+                      "Local Commands:",
+                      "  ls              - List files (virtual)",
+                      "  cat [file]      - Show file content (virtual)",
+                      "  clear           - Clear terminal",
+                      "Server Commands (Cloudflare):",
+                      "  status, health  - Check server health",
+                      "  whoami, uname   - Server system info",
+                      "  date, env, ip   - Server details"
+                  ]);
+                  break;
+
+              case 'ls':
+                  const fileList = files.map(f => f.name).join('\n');
+                  setTerminalLogs(prev => [...prev, fileList || "(empty project)"]);
+                  break;
+
+              case 'cat':
+                  if (args[1]) {
+                      const targetFile = files.find(f => f.name === args[1]);
+                      if (targetFile) {
+                          const contentPreview = targetFile.content.length > 500 
+                              ? targetFile.content.substring(0, 500) + "\n... (truncated)" 
+                              : targetFile.content;
+                          setTerminalLogs(prev => [...prev, contentPreview]);
+                      } else {
+                          setTerminalLogs(prev => [...prev, `File not found locally: ${args[1]}`]);
+                      }
+                  } else {
+                      setTerminalLogs(prev => [...prev, "Usage: cat [filename]"]);
+                  }
+                  break;
+          }
+          setIsProcessingCommand(false);
+          return;
+      }
+
+      // Server Commands (Sent to /api/terminal)
+      try {
+          // Visual indicator for network call
+          // const loadingId = Date.now();
+          // setTerminalLogs(prev => [...prev, `...`]); 
+          
+          const res = await fetch('/api/terminal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ command: command })
+          });
+
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          
+          const data = await res.json();
+          if (data.output) {
+              setTerminalLogs(prev => [...prev, data.output]);
+          } else {
+              setTerminalLogs(prev => [...prev, "(no output)"]);
+          }
+
+      } catch (err: any) {
+          setTerminalLogs(prev => [...prev, `Error: Failed to communicate with server terminal. ${err.message}`]);
+      } finally {
+          setIsProcessingCommand(false);
+      }
+  };
 
   // Close context menu on click outside
   useEffect(() => {
@@ -242,6 +302,7 @@ const EditorContent: React.FC<EditorViewProps> = ({
 
           Promise.all(filePromises).then(newFiles => {
               onFileUpload(newFiles);
+              setTerminalLogs(prev => [...prev, `> Uploaded ${newFiles.length} files.`]);
               if (fileInputRef.current) fileInputRef.current.value = '';
           });
       }
@@ -265,6 +326,7 @@ const EditorContent: React.FC<EditorViewProps> = ({
           pathParts.pop();
           const newPath = pathParts.length > 0 ? `${pathParts.join('/')}/${newName}` : newName;
           onRenameFile(oldName, newPath);
+          setTerminalLogs(prev => [...prev, `> Renamed ${oldName} to ${newPath}`]);
       }
       setContextMenu(null);
   };
@@ -273,10 +335,12 @@ const EditorContent: React.FC<EditorViewProps> = ({
       if (!contextMenu) return;
       if (window.confirm(`Tem certeza que deseja excluir ${contextMenu.path}?`)) {
           onFileDelete(contextMenu.path); 
+          setTerminalLogs(prev => [...prev, `> Deleted ${contextMenu.path}`]);
       }
       setContextMenu(null);
   };
 
+  // Drag and Drop Logic
   const handleDragStart = (e: React.DragEvent, path: string) => {
       e.dataTransfer.setData('text/plain', path);
       setDraggedItem(path);
@@ -307,6 +371,7 @@ const EditorContent: React.FC<EditorViewProps> = ({
 
       if (sourcePath !== newPath) {
           onMoveFile(sourcePath, newPath);
+          setTerminalLogs(prev => [...prev, `> Moved ${sourcePath} to ${newPath}`]);
       }
       setDraggedItem(null);
   };
@@ -425,8 +490,8 @@ const EditorContent: React.FC<EditorViewProps> = ({
             <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
             
             <div className="flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full ${sandpack.status === 'running' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                <span className="text-[10px] text-gray-500 font-mono">{sandpack.status === 'running' ? 'Running' : sandpack.status}</span>
+                <span className={`w-2 h-2 rounded-full ${deployedUrl ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                <span className="text-[10px] text-gray-500 font-mono">{deployedUrl ? 'Live' : 'Draft'}</span>
             </div>
         </div>
 
@@ -579,15 +644,23 @@ const EditorContent: React.FC<EditorViewProps> = ({
                         )}
                     </div>
 
-                    {/* TERMINAL PANEL (REAL SANDPACK CONSOLE) */}
+                    {/* TERMINAL PANEL */}
                     {isTerminalOpen && (
-                        <div className="h-48 border-t border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#0c0c0e] flex flex-col flex-shrink-0">
+                        <div className="h-48 border-t border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#0c0c0e] flex flex-col flex-shrink-0" onClick={() => terminalInputRef.current?.focus()}>
                             <div className="flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-[#18181b] border-b border-gray-200 dark:border-[#27272a]">
                                 <div className="flex items-center gap-2">
                                     <TerminalIcon className="w-3.5 h-3.5 text-gray-500" />
-                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Terminal (WebContainer)</span>
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Terminal</span>
+                                    {isProcessingCommand && <LoaderIcon className="w-3 h-3 animate-spin text-gray-400" />}
                                 </div>
                                 <div className="flex items-center gap-1">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setTerminalLogs([]); }}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500 hover:text-red-500" 
+                                        title="Clear"
+                                    >
+                                        <EraserIcon className="w-3.5 h-3.5" />
+                                    </button>
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); setIsTerminalOpen(false); }}
                                         className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500 hover:text-black dark:hover:text-white"
@@ -596,9 +669,24 @@ const EditorContent: React.FC<EditorViewProps> = ({
                                     </button>
                                 </div>
                             </div>
-                            <div className="flex-1 overflow-hidden relative">
-                                {/* SandpackConsole automatically connects to the runtime */}
-                                <SandpackConsole resetOnPreviewRestart />
+                            <div className="flex-1 overflow-y-auto p-2 font-mono text-[11px] space-y-1 bg-white dark:bg-[#0a0a0a] cursor-text">
+                                {terminalLogs.map((log, i) => (
+                                    <div key={i} className="text-gray-600 dark:text-gray-400 break-all whitespace-pre-wrap">{log}</div>
+                                ))}
+                                
+                                <form onSubmit={handleTerminalSubmit} className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                    <span className="text-blue-500 font-bold">$</span>
+                                    <input 
+                                        ref={terminalInputRef}
+                                        type="text" 
+                                        value={terminalInput}
+                                        onChange={(e) => setTerminalInput(e.target.value)}
+                                        className="flex-1 bg-transparent border-none outline-none text-gray-800 dark:text-gray-200 font-mono text-[11px]"
+                                        autoFocus
+                                        disabled={isProcessingCommand}
+                                    />
+                                </form>
+                                <div ref={terminalEndRef} />
                             </div>
                         </div>
                     )}
@@ -623,7 +711,7 @@ const EditorContent: React.FC<EditorViewProps> = ({
                         </div>
                         <div className="flex-1 flex justify-center items-center gap-2">
                             <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a] flex justify-between items-center group">
-                                <span className="flex-1 text-center">{deployedUrl || 'localhost:3000'}</span>
+                                <span className="flex-1 text-center">{deployedUrl || 'localhost:3000 (Simulated)'}</span>
                                 {/* Clock Icon for Versioning */}
                                 <button 
                                     onClick={() => setIsHistoryModalOpen(true)}
@@ -653,7 +741,6 @@ const EditorContent: React.FC<EditorViewProps> = ({
                     </div>
 
                     <div className={`flex-1 relative bg-white transition-all duration-300 mx-auto ${previewDevice === 'mobile' ? 'w-[375px] my-4 border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl h-[calc(100%-2rem)]' : 'w-full h-full'}`}>
-                        {/* SandpackPreview already connects to the provider context */}
                         <CodePreview 
                             files={files} 
                             onError={onError} 
@@ -662,7 +749,6 @@ const EditorContent: React.FC<EditorViewProps> = ({
                             deployedUrl={deployedUrl}
                             onDeploy={onRunLocally}
                             chatMode={chatMode} 
-                            standalone={false} // Important: it uses the EditorView's provider
                         />
                     </div>
                 </div>
