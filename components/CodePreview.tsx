@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ProjectFile, Theme, ChatMode } from '../types';
 import { 
     SandpackProvider, 
@@ -9,6 +9,7 @@ import {
     useSandpack
 } from "@codesandbox/sandpack-react";
 import { GlobeIcon, ConsoleIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
+import { processFilesForStaticDeploy } from '../services/projectService';
 
 interface CodePreviewProps {
   files: ProjectFile[]; 
@@ -43,10 +44,14 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [isConsoleExpanded, setIsConsoleExpanded] = useState(true);
 
-  // Prepara arquivos iniciais para o Sandpack
+  // Processa os arquivos para injetar o Babel Standalone e corrigir imports
+  // Isso garante que o preview funcione igual ao ZIP baixado, suportando pastas e imports relativos sem extensão
+  const processedFiles = useMemo(() => processFilesForStaticDeploy(files), [files]);
+
+  // Prepara arquivos iniciais para o Sandpack usando os arquivos processados
   const initialFiles = React.useMemo(() => {
       const fileMap: Record<string, any> = {};
-      files.forEach(file => {
+      processedFiles.forEach(file => {
           const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
           fileMap[fileName] = { code: file.content };
       });
@@ -113,7 +118,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
             }
         }}
       >
-        <FileSynchronizer files={files} />
+        <FileSynchronizer files={processedFiles} />
         
         <SandpackLayout style={{ height: '100%', width: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column' }}>
             <SandpackPreview 
