@@ -29,7 +29,7 @@ import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, increment, arrayRemove } from "firebase/firestore";
 import { LoaderIcon } from './components/Icons';
 import { StripeModal } from './components/StripeModal';
@@ -41,19 +41,6 @@ import { NetlifyModal } from './components/NetlifyModal';
 import { SettingsPage } from './components/SettingsPage';
 import { ProjectSettingsModal } from './components/ProjectSettingsModal';
 import { GoogleDriveSaveModal } from './components/GoogleDriveSaveModal';
-
-// Declare Google Identity Services Types globally
-declare global {
-    interface Window {
-        google?: {
-            accounts: {
-                oauth2: {
-                    initTokenClient: (config: any) => any;
-                }
-            }
-        }
-    }
-}
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -177,7 +164,6 @@ export const App: React.FC = () => {
 
   // Google Drive State
   const [driveAccessToken, setDriveAccessToken] = useState<string | null>(null);
-  const tokenClient = useRef<any>(null);
 
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
@@ -202,31 +188,6 @@ export const App: React.FC = () => {
   const isResizingRef = useRef(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Load Google Identity Services Script
-  useEffect(() => {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-          if (window.google) {
-              tokenClient.current = window.google.accounts.oauth2.initTokenClient({
-                  client_id: GOOGLE_CLIENT_ID,
-                  scope: 'https://www.googleapis.com/auth/drive.file', // Apenas acesso a arquivos criados pelo app
-                  callback: (tokenResponse: any) => {
-                      if (tokenResponse && tokenResponse.access_token) {
-                          setDriveAccessToken(tokenResponse.access_token);
-                      }
-                  },
-              });
-          }
-      };
-      document.body.appendChild(script);
-      return () => {
-          document.body.removeChild(script);
-      };
-  }, []);
 
   const startResizing = useCallback(() => {
     isResizingRef.current = true;
@@ -468,22 +429,40 @@ export const App: React.FC = () => {
       }
   }, [sessionUser, userSettings]);
 
-  // Handle Google Drive Connection Trigger
-  const handleConnectGoogleDrive = useCallback(() => {
-      if (tokenClient.current) {
-          const options: any = {
-              prompt: '' // Tenta usar a sessão existente sem forçar o seletor se possível
-          };
-          
-          // Se o usuário já está logado no app com email (e possivelmente Google Auth),
-          // usamos esse email como dica para o fluxo do Google Drive.
-          if (sessionUser?.email) {
-              options.hint = sessionUser.email;
-          }
+  // Handle Google Drive Connection Trigger (Using Firebase Auth Scope)
+  const handleConnectGoogleDrive = useCallback(async () => {
+      const provider = new GoogleAuthProvider();
+      // Add the specific Drive scope needed to read/write files created by this app
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      
+      // If user is already logged in, use their email as a hint to avoid account selection screen if possible
+      if (sessionUser?.email) {
+          provider.setCustomParameters({
+              login_hint: sessionUser.email
+          });
+      }
 
-          tokenClient.current.requestAccessToken(options);
-      } else {
-          setToastError("Serviço do Google Drive não disponível. Tente recarregar.");
+      try {
+          // This will trigger the popup asking for permissions
+          const result = await signInWithPopup(auth, provider);
+          
+          // Get the credential which contains the access token
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          const accessToken = credential?.accessToken;
+
+          if (accessToken) {
+              setDriveAccessToken(accessToken);
+              setToastSuccess("Google Drive conectado com sucesso!");
+          } else {
+              setToastError("Não foi possível obter o token de acesso do Google Drive.");
+          }
+      } catch (error: any) {
+          console.error("Erro ao conectar Google Drive:", error);
+          if (error.code === 'auth/popup-closed-by-user') {
+              setToastError("Conexão cancelada.");
+          } else {
+              setToastError("Erro ao conectar: " + error.message);
+          }
       }
   }, [sessionUser]);
 
