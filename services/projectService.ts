@@ -2,8 +2,26 @@
 import { ProjectFile } from '../types';
 import JSZip from 'jszip';
 
+// Helper simples para resolver caminhos relativos
+const resolvePath = (basePath: string, relativePath: string) => {
+    // Remove filename do base path
+    const stack = basePath.split('/');
+    stack.pop();
+    
+    const parts = relativePath.split('/');
+    for (const part of parts) {
+        if (part === '.') continue;
+        if (part === '..') {
+            stack.pop();
+        } else {
+            stack.push(part);
+        }
+    }
+    return stack.join('/');
+};
+
 // Função auxiliar para injetar configurações de runtime no navegador
-const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[] => {
+export const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[] => {
     const processedFiles = [...files];
     const indexHtmlIndex = processedFiles.findIndex(f => f.name === 'index.html');
     
@@ -56,29 +74,42 @@ const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[] => {
 
         // 3. Corrigir importações relativas nos arquivos TSX/JS
         // Navegadores exigem extensões explícitas (ex: './App' -> './App.tsx')
-        // Esta é uma correção ingênua, mas resolve 90% dos casos simples gerados por IA
         processedFiles.forEach((file, idx) => {
             if (file.name.endsWith('.tsx') || file.name.endsWith('.ts') || file.name.endsWith('.jsx') || file.name.endsWith('.js')) {
                 let content = file.content;
                 
                 // Regex para encontrar imports relativos sem extensão: import ... from './Comp'
-                content = content.replace(/from\s+['"](\.[^'"]+)['"]/g, (match, path) => {
-                    if (path.endsWith('.css') || path.endsWith('.svg') || path.endsWith('.png')) return match;
+                content = content.replace(/from\s+['"](\.[^'"]+)['"]/g, (match, importPath) => {
+                    if (importPath.endsWith('.css') || importPath.endsWith('.svg') || importPath.endsWith('.png')) return match;
+                    if (importPath.endsWith('.tsx') || importPath.endsWith('.ts') || importPath.endsWith('.js')) return match;
                     
-                    // Tenta adivinhar a extensão baseada nos arquivos existentes
-                    const potentialPathTsx = `${path}.tsx`.replace(/^\.\//, ''); // Remove ./ para busca
-                    const potentialPathTs = `${path}.ts`.replace(/^\.\//, '');
+                    // Tenta resolver o caminho absoluto (virtual) do arquivo importado
+                    // Ex: file.name = "src/components/Header.tsx", importPath = "./Button"
+                    // Resolved = "src/components/Button"
+                    // Ex: file.name = "src/App.tsx", importPath = "./components/Header"
+                    // Resolved = "src/components/Header"
                     
-                    // Verifica se existe algum arquivo que combine com o path (simplificado)
-                    const targetFile = files.find(f => f.name.includes(potentialPathTsx) || f.name.includes(potentialPathTs));
+                    // Normaliza o nome do arquivo atual para não ter ./ no inicio se tiver
+                    const currentFilePath = file.name.startsWith('/') ? file.name.slice(1) : file.name;
+                    const resolvedPathBase = resolvePath(currentFilePath, importPath);
+
+                    // Procura o arquivo correspondente na lista de arquivos
+                    const targetFile = files.find(f => {
+                        const fName = f.name.startsWith('/') ? f.name.slice(1) : f.name;
+                        return fName === `${resolvedPathBase}.tsx` || 
+                               fName === `${resolvedPathBase}.ts` || 
+                               fName === `${resolvedPathBase}.jsx` || 
+                               fName === `${resolvedPathBase}.js`;
+                    });
                     
                     if (targetFile) {
-                        const ext = targetFile.name.endsWith('.tsx') ? '.tsx' : '.ts';
-                        return `from '${path}${ext}'`;
+                        // Se achou, pega a extensão correta
+                        const ext = targetFile.name.split('.').pop();
+                        return `from '${importPath}.${ext}'`;
                     }
                     
                     // Fallback padrão se não encontrar (assume .tsx para React)
-                    return `from '${path}.tsx'`;
+                    return `from '${importPath}.tsx'`;
                 });
 
                 processedFiles[idx] = { ...file, content };
