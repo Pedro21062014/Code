@@ -15,7 +15,9 @@ export const uploadProjectToDrive = async (
     existingFileId?: string
 ): Promise<{ id: string; webViewLink: string }> => {
     
-    const fileName = `${project.name.replace(/\s+/g, '_')}.ai`;
+    // Sanitize filename
+    const safeName = project.name.replace(/[^a-zA-Z0-9À-ÿ \-_]/g, '').trim() || 'Project';
+    const fileName = `${safeName}.ai`;
     const contentType = 'application/json';
     
     // Prepare the metadata part
@@ -23,26 +25,31 @@ export const uploadProjectToDrive = async (
         name: fileName,
         mimeType: contentType,
         description: `Codegen Studio Project: ${project.name}`,
-        // If creating a new file, we can specify parents (folder IDs) here if needed
-        // parents: ['root'] 
     };
 
     // Prepare the content part
     const content = JSON.stringify(project, null, 2);
 
-    // Construct the multipart body
+    // Construct the multipart body using Blob to handle UTF-8 correctly
     const boundary = '-------314159265358979323846';
     const delimiter = `\r\n--${boundary}\r\n`;
     const closeDelim = `\r\n--${boundary}--`;
 
-    const multipartRequestBody =
-        delimiter +
-        'Content-Type: application/json\r\n\r\n' +
-        JSON.stringify(metadata) +
-        delimiter +
-        `Content-Type: ${contentType}\r\n\r\n` +
-        content +
-        closeDelim;
+    const metadataHeader = `Content-Type: application/json\r\n\r\n`;
+    const contentHeader = `Content-Type: ${contentType}\r\n\r\n`;
+
+    const multipartBody = new Blob(
+        [
+            delimiter,
+            metadataHeader,
+            JSON.stringify(metadata),
+            delimiter,
+            contentHeader,
+            content,
+            closeDelim
+        ],
+        { type: 'multipart/related' }
+    );
 
     let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
     let method = 'POST';
@@ -59,21 +66,22 @@ export const uploadProjectToDrive = async (
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': `multipart/related; boundary=${boundary}`,
-                'Content-Length': multipartRequestBody.length.toString()
             },
-            body: multipartRequestBody
+            body: multipartBody
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Google Drive API Error: ${response.status} - ${errorText}`);
+            let errorText = "Erro desconhecido";
+            try {
+                const errJson = await response.json();
+                errorText = errJson.error?.message || response.statusText;
+            } catch (e) {
+                errorText = await response.text();
+            }
+            throw new Error(`Google Drive API Error (${response.status}): ${errorText}`);
         }
 
         const fileData = await response.json();
-        
-        // Get the webViewLink (need a separate call if not returned in upload response for v3, 
-        // usually upload returns id, name, mimeType. fields param can request more but multipart is tricky)
-        // For simplicity, we just return the ID, app logic can assume link structure or fetch details later.
         
         return {
             id: fileData.id,

@@ -217,7 +217,6 @@ export const App: React.FC = () => {
                   callback: (tokenResponse: any) => {
                       if (tokenResponse && tokenResponse.access_token) {
                           setDriveAccessToken(tokenResponse.access_token);
-                          // Auto close auth popup is handled by GSI
                       }
                   },
               });
@@ -487,6 +486,9 @@ export const App: React.FC = () => {
       }
 
       const projectId = currentProjectId || Date.now();
+      
+      // Safely find existing project without relying on closed-over state if possible, 
+      // but here we use savedProjects from closure which is updated via deps.
       const existingProject = savedProjects.find(p => p.id === projectId);
 
       const projectData: SavedProject = {
@@ -522,7 +524,7 @@ export const App: React.FC = () => {
           };
 
           // 3. Persist metadata to Firestore/Local State
-          // Even though content is in Drive, we keep a lightweight record in Firebase for the list
+          // Functional update to avoid stale state
           setSavedProjects(prev => {
               const others = prev.filter(p => p.id !== projectId);
               return [updatedProjectData, ...others];
@@ -533,15 +535,16 @@ export const App: React.FC = () => {
               updated_at: serverTimestamp() 
           }, { merge: true });
 
+          // Update current project state safely
           setProject(prev => ({ ...prev, currentProjectId: projectId }));
-          // Note: Toast handled by modal success state usually, but adding for safety
           
       } catch (e: any) {
-          if (e.message && e.message.includes("401")) {
+          console.error("Save to Drive Error in App.tsx:", e);
+          if (e.message && (e.message.includes("401") || e.message.includes("token"))) {
               setDriveAccessToken(null); // Force re-auth
               throw new Error("Sessão expirada. Por favor, conecte novamente.");
           }
-          throw e; // Propagate to modal
+          throw e; // Rethrow to let modal handle it
       }
   }, [sessionUser, currentProjectId, projectName, files, chatMessages, envVars, savedProjects, driveAccessToken, setSavedProjects, setProject]);
 
@@ -928,8 +931,7 @@ export const App: React.FC = () => {
     
     const currentCredits = userSettings?.credits || 0;
     
-    // ... [Logic kept intact] ...
-    
+    // ... [Original Logic Kept Intact] ...
     const imageTagMatch = prompt.match(/<tools\/image>(.*?)<\/tools\/image>/is);
     const deployTagMatch = prompt.match(/<tools\/deploy\s*\/>/i);
     const fixTagMatch = prompt.match(/<tools\/fix>(.*?)<\/tools\/fix>/is);
@@ -1155,7 +1157,6 @@ export const App: React.FC = () => {
 
   // Handle manual drive save click
   const onSaveToDriveClick = () => {
-      // Just open the modal, it handles the connection check visually
       setIsGoogleDriveModalOpen(true);
       setGoogleDriveModalReason('limit'); // default or change logic based on size
   };

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CloseIcon, GoogleDriveIcon, CloudSimpleIcon, CheckCircleIcon, LogInIcon } from './Icons';
 
 interface GoogleDriveSaveModalProps {
@@ -17,53 +17,56 @@ export const GoogleDriveSaveModal: React.FC<GoogleDriveSaveModalProps> = ({
     isOpen, onClose, reason, currentCount, currentSizeKB, isConnected, onConnect, onConfirmSave 
 }) => {
   const [status, setStatus] = React.useState<'idle' | 'connecting' | 'uploading' | 'success'>('idle');
+  const isMounted = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
+      isMounted.current = true;
       if (isOpen) setStatus('idle');
+      return () => { isMounted.current = false; };
   }, [isOpen]);
+
+  // Reset status to idle if we successfully connected but haven't saved yet
+  useEffect(() => {
+      if (isConnected && status === 'connecting' && isMounted.current) {
+          setStatus('idle');
+      }
+  }, [isConnected, status]);
 
   if (!isOpen) return null;
 
   const handleAction = async () => {
       if (!isConnected) {
           // Flow: Connect first
-          setStatus('connecting');
-          // Trigger the parent connect function
+          if (isMounted.current) setStatus('connecting');
           onConnect(); 
-          // Note: The parent component needs to detect connection success and re-render this modal 
-          // or we handle the success state when prop `isConnected` changes.
       } else {
           // Flow: Save
-          setStatus('uploading');
+          if (isMounted.current) setStatus('uploading');
           try {
               await onConfirmSave();
-              setStatus('success');
+              if (isMounted.current) setStatus('success');
           } catch (error) {
               console.error("Failed to save to Drive", error);
-              setStatus('idle'); // Allow retry
-              alert("Erro ao salvar no Google Drive. Verifique sua conexão e tente novamente.");
+              if (isMounted.current) {
+                  setStatus('idle');
+                  alert("Erro ao salvar no Google Drive. Verifique se deu permissão e tente novamente.");
+              }
           }
       }
   };
 
-  // Reset status to idle if we successfully connected but haven't saved yet
-  React.useEffect(() => {
-      if (isConnected && status === 'connecting') {
-          setStatus('idle');
-      }
-  }, [isConnected, status]);
-
   const isProcessing = status === 'connecting' || status === 'uploading';
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={isProcessing ? undefined : onClose}>
       <div 
         className="bg-white dark:bg-[#09090b] w-full max-w-md border border-gray-200 dark:border-[#27272a] shadow-2xl rounded-2xl overflow-hidden animate-slideInUp flex flex-col relative"
         onClick={e => e.stopPropagation()}
       >
         <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-[#1a1a1c] transition-colors"
+            disabled={isProcessing}
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-[#1a1a1c] transition-colors disabled:opacity-50"
         >
             <CloseIcon className="w-4 h-4" />
         </button>
@@ -146,7 +149,7 @@ export const GoogleDriveSaveModal: React.FC<GoogleDriveSaveModalProps> = ({
                     </button>
                     
                     <p className="text-[10px] text-gray-400 mt-4">
-                        O arquivo não será baixado no seu dispositivo. Será salvo na nuvem.
+                        O arquivo será salvo na pasta raiz do seu Google Drive.
                     </p>
                 </>
             )}
