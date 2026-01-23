@@ -7,7 +7,7 @@ import {
     FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
     PlusIcon, EditIcon, UsersIcon, HomeIcon, ClockIcon, ImageIcon, UploadIcon, TrashIcon,
-    SmartphoneIcon, MonitorIcon
+    SmartphoneIcon, MonitorIcon, GoogleDriveIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
@@ -52,6 +52,7 @@ interface EditorViewProps {
   onFileUpload?: (files: ProjectFile[]) => void;
   onRenameFile?: (oldName: string, newName: string) => void;
   onMoveFile?: (oldPath: string, newPath: string) => void;
+  onSaveToDrive?: () => void; // Added for manual drive save
 }
 
 interface FileNode {
@@ -97,7 +98,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
     onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
-    onFileUpload, onRenameFile, onMoveFile
+    onFileUpload, onRenameFile, onMoveFile, onSaveToDrive
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -403,6 +404,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
+            
+            {onSaveToDrive && (
+                <button
+                    onClick={onSaveToDrive}
+                    className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                    title="Salvar no Google Drive (.ai)"
+                >
+                    <GoogleDriveIcon className="w-4 h-4" />
+                </button>
+            )}
+
             <button 
                 onClick={onSave}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded-md text-xs font-bold hover:opacity-80 transition-opacity"

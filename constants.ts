@@ -18,4 +18,8 @@ export const INITIAL_CHAT_MESSAGE = `Olá! Sou seu assistente de codificação d
 // Netlify Client ID para OAuth
 export const NETLIFY_CLIENT_ID = 'uz0O6pbDlGcg6yfz0rEDAibosIWNCFsji1DQkGPpoXU';
 
+// Google OAuth Client ID (Necessário criar no Google Cloud Console)
+// Substitua pelo seu Client ID real para produção
+export const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com'; 
+
 export const DEFAULT_GEMINI_API_KEY = '';
