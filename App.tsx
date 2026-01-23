@@ -435,12 +435,11 @@ export const App: React.FC = () => {
       // Add the specific Drive scope needed to read/write files created by this app
       provider.addScope('https://www.googleapis.com/auth/drive.file');
       
-      // Force consent prompt to ensure the user sees the Drive permission request
-      // even if they are already logged in. This fixes the issue where
-      // existing sessions don't pick up the new scope.
+      // Force consent prompt AND account selection to ensure the user sees the Drive permission request
+      // and a fresh token is issued with the correct scopes. 
+      // Removing login_hint prevents "quick login" behavior that might skip scope updates.
       provider.setCustomParameters({
-          login_hint: sessionUser?.email || undefined,
-          prompt: 'consent'
+          prompt: 'select_account consent'
       });
 
       try {
@@ -465,7 +464,7 @@ export const App: React.FC = () => {
               setToastError("Erro ao conectar: " + error.message);
           }
       }
-  }, [sessionUser]);
+  }, []);
 
   const handleSaveToGoogleDrive = useCallback(async () => {
       if (!sessionUser) { setAuthModalOpen(true); return; }
