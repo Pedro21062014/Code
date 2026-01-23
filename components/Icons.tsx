@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 
 // Re-export UserMenu to be available easily
@@ -24,6 +25,10 @@ export const AppLogo = ({ className = "w-8 h-8 text-white", ...props }: IconProp
         <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
+);
+
+export const GoogleDriveIcon = ({ className = "w-6 h-6" }: IconProps) => (
+    <img src="https://img.icons8.com/?size=100&id=ya4CrqO7PgnY&format=png&color=000000" alt="Google Drive" className={className} />
 );
 
 export const LightbulbIcon = ({ className = "w-6 h-6" }: IconProps) => (
@@ -210,7 +215,7 @@ export const CloseIcon = ({ className = "w-6 h-6" }: IconProps) => (
 
 export const SparklesIcon = ({ className = "w-6 h-6" }: IconProps) => (
   <svg {...defaultProps} className={className} viewBox="0 0 24 24">
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275 1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
   </svg>
 );
 

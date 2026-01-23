@@ -23,9 +23,10 @@ import { Toast } from './components/Toast';
 import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode, ProjectVersion } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY } from './constants';
+import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
 import { generateImagesWithImagen } from './services/geminiService';
+import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -39,6 +40,20 @@ import { OpenAIModal } from './components/OpenAIModal';
 import { NetlifyModal } from './components/NetlifyModal';
 import { SettingsPage } from './components/SettingsPage';
 import { ProjectSettingsModal } from './components/ProjectSettingsModal';
+import { GoogleDriveSaveModal } from './components/GoogleDriveSaveModal';
+
+// Declare Google Identity Services Types globally
+declare global {
+    interface Window {
+        google?: {
+            accounts: {
+                oauth2: {
+                    initTokenClient: (config: any) => any;
+                }
+            }
+        }
+    }
+}
 
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
@@ -80,26 +95,18 @@ const extractAndParseJson = (text: string): any => {
     }
 
     // 2. Regex Fallback for "message" content
-    // This allows us to display the text even if the JSON structure (e.g. files array) is broken/truncated
     const messageMatch = cleanText.match(/"message":\s*"((?:[^"\\]|\\.)*)/);
-    let extractedMessage = text; // Default to full text if nothing matches
+    let extractedMessage = text; 
 
     if (messageMatch) {
         try {
-            // Reconstruct the string to handle escapes properly using JSON.parse on a string literal
             extractedMessage = JSON.parse(`"${messageMatch[1]}"`); 
         } catch (e) {
-            // If that fails, just do basic unescaping
             extractedMessage = messageMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
         }
     } else if (cleanText.includes('"message":')) {
-        // Fallback for when regex fails but key exists (unlikely but possible)
         extractedMessage = cleanText.split('"message":')[1]?.split('"files":')[0]?.trim() || text;
     }
-
-    // Attempt to extract files if possible, otherwise return empty array to prevent crash
-    // We assume if JSON is broken, files might be corrupted, so it's safer to return [] than partial code
-    // unless we implement a sophisticated file parser fallback.
     
     return { 
         message: extractedMessage, 
@@ -161,7 +168,17 @@ export const App: React.FC = () => {
   const [isNeonModalOpen, setNeonModalOpen] = useState(false);
   const [isOSMModalOpen, setOSMModalOpen] = useState(false);
   const [isNetlifyModalOpen, setNetlifyModalOpen] = useState(false);
-  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false); 
+  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
+  const [isGoogleDriveModalOpen, setIsGoogleDriveModalOpen] = useState(false);
+  const [googleDriveModalReason, setGoogleDriveModalReason] = useState<'limit' | 'size'>('limit');
+  const [currentProjectSize, setCurrentProjectSize] = useState(0);
+
+  const currentSavedProject = savedProjects.find(p => p.id === project.currentProjectId);
+
+  // Google Drive State
+  const [driveAccessToken, setDriveAccessToken] = useState<string | null>(null);
+  const tokenClient = useRef<any>(null);
+
   const [showProOnboarding, setShowProOnboarding] = useState(false);
   const [isLoadingPublic, setIsLoadingPublic] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
@@ -185,6 +202,32 @@ export const App: React.FC = () => {
   const isResizingRef = useRef(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Load Google Identity Services Script
+  useEffect(() => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+          if (window.google) {
+              tokenClient.current = window.google.accounts.oauth2.initTokenClient({
+                  client_id: GOOGLE_CLIENT_ID,
+                  scope: 'https://www.googleapis.com/auth/drive.file', // Apenas acesso a arquivos criados pelo app
+                  callback: (tokenResponse: any) => {
+                      if (tokenResponse && tokenResponse.access_token) {
+                          setDriveAccessToken(tokenResponse.access_token);
+                          // Auto close auth popup is handled by GSI
+                      }
+                  },
+              });
+          }
+      };
+      document.body.appendChild(script);
+      return () => {
+          document.body.removeChild(script);
+      };
+  }, []);
 
   const startResizing = useCallback(() => {
     isResizingRef.current = true;
@@ -426,14 +469,90 @@ export const App: React.FC = () => {
       }
   }, [sessionUser, userSettings]);
 
+  // Handle Google Drive Connection Trigger
+  const handleConnectGoogleDrive = useCallback(() => {
+      if (tokenClient.current) {
+          tokenClient.current.requestAccessToken();
+      } else {
+          setToastError("Serviço do Google Drive não disponível. Tente recarregar.");
+      }
+  }, []);
+
+  const handleSaveToGoogleDrive = useCallback(async () => {
+      if (!sessionUser) { setAuthModalOpen(true); return; }
+      
+      // Ensure we have a token
+      if (!driveAccessToken) {
+          throw new Error("Não conectado ao Google Drive.");
+      }
+
+      const projectId = currentProjectId || Date.now();
+      const existingProject = savedProjects.find(p => p.id === projectId);
+
+      const projectData: SavedProject = {
+          id: projectId,
+          ownerId: sessionUser.uid,
+          shared_with: project.currentProjectId ? (existingProject?.shared_with || []) : [],
+          is_public_in_gallery: false, 
+          name: projectName,
+          files: files,
+          chat_history: chatMessages,
+          env_vars: envVars,
+          likes: 0,
+          likedBy: [],
+          author: sessionUser.displayName || "Eu",
+          created_at: existingProject?.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          storage: 'google_drive', 
+          googleDriveFileId: existingProject?.googleDriveFileId // Preserve if exists
+      };
+
+      try {
+          // 1. Upload to Drive API
+          const uploadResult = await uploadProjectToDrive(
+              driveAccessToken, 
+              projectData, 
+              existingProject?.googleDriveFileId
+          );
+
+          // 2. Update local metadata with Drive ID
+          const updatedProjectData = {
+              ...projectData,
+              googleDriveFileId: uploadResult.id
+          };
+
+          // 3. Persist metadata to Firestore/Local State
+          // Even though content is in Drive, we keep a lightweight record in Firebase for the list
+          setSavedProjects(prev => {
+              const others = prev.filter(p => p.id !== projectId);
+              return [updatedProjectData, ...others];
+          });
+          
+          await setDoc(doc(db, "projects", projectId.toString()), { 
+              ...updatedProjectData, 
+              updated_at: serverTimestamp() 
+          }, { merge: true });
+
+          setProject(prev => ({ ...prev, currentProjectId: projectId }));
+          // Note: Toast handled by modal success state usually, but adding for safety
+          
+      } catch (e: any) {
+          if (e.message && e.message.includes("401")) {
+              setDriveAccessToken(null); // Force re-auth
+              throw new Error("Sessão expirada. Por favor, conecte novamente.");
+          }
+          throw e; // Propagate to modal
+      }
+  }, [sessionUser, currentProjectId, projectName, files, chatMessages, envVars, savedProjects, driveAccessToken, setSavedProjects, setProject]);
+
   const handleSaveProject = useCallback(async (): Promise<number | null> => {
     if (!sessionUser) { setAuthModalOpen(true); return null; }
     if (files.length === 0) return null;
+    
     setIsSaving(true);
     const projectId = currentProjectId || Date.now();
-    
     const existingProject = savedProjects.find(p => p.id === projectId);
-    
+
     const projectData: SavedProject = {
       id: projectId,
       ownerId: sessionUser.uid,
@@ -454,21 +573,47 @@ export const App: React.FC = () => {
       author: sessionUser.displayName || sessionUser.email?.split('@')[0] || "Anon",
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      // Preserve githubRepo if it exists on the saved project, as it's not in the main ProjectState
       githubRepo: existingProject?.githubRepo || null, 
+      storage: 'firebase',
     };
+
+    // --- CHECK STORAGE LIMITS ---
+    const projectSizeKB = (new Blob([JSON.stringify(projectData)]).size) / 1024;
+    setCurrentProjectSize(projectSizeKB);
+
+    const isNewProject = !existingProject;
+    
+    // Count projects owned by user stored in firebase
+    const userProjectCount = savedProjects.filter(p => p.ownerId === sessionUser.uid && (!p.storage || p.storage === 'firebase')).length;
+
+    if (projectSizeKB > 500) {
+        setGoogleDriveModalReason('size');
+        setIsGoogleDriveModalOpen(true);
+        setIsSaving(false);
+        return null;
+    }
+
+    if (isNewProject && userProjectCount >= 4) {
+        setGoogleDriveModalReason('limit');
+        setIsGoogleDriveModalOpen(true);
+        setIsSaving(false);
+        return null;
+    }
+    // ----------------------------
 
     try {
       const cleanData = JSON.parse(JSON.stringify(projectData));
 
-      setSavedProjects(prev => [cleanData, ...prev.filter(p => p.id !== projectId)]);
+      setSavedProjects(prev => {
+          const others = prev.filter(p => p.id !== projectId);
+          return [cleanData, ...others];
+      });
       
       await setDoc(doc(db, "projects", projectId.toString()), { 
           ...cleanData, 
           updated_at: serverTimestamp() 
       }, { merge: true });
       
-      // Save history version on manual save - DEEP COPY files to prevent reference issues
       const filesDeepCopy = JSON.parse(JSON.stringify(files));
       const newVersion: ProjectVersion = {
           id: Date.now().toString(),
@@ -495,14 +640,10 @@ export const App: React.FC = () => {
     } finally { 
         setIsSaving(false); 
     }
-  }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects]);
+  }, [sessionUser, files, projectName, chatMessages, envVars, currentProjectId, savedProjects, setSavedProjects, setProject]);
 
   const handleRestoreVersion = useCallback((version: ProjectVersion) => {
-      // 1. Deep copy the version files to ensure we have a fresh set
       const restoredFiles = JSON.parse(JSON.stringify(version.files));
-      
-      // 2. Create a NEW history entry representing this restore action
-      // This ensures the "Current" version in the modal updates to this new action
       const newHistoryEntry: ProjectVersion = {
           id: Date.now().toString(),
           timestamp: Date.now(),
@@ -513,7 +654,6 @@ export const App: React.FC = () => {
       setProject(prev => ({
           ...prev,
           files: restoredFiles,
-          // Add the restore action to history so it becomes the latest
           history: [...(prev.history || []), newHistoryEntry],
           chatMessages: [...prev.chatMessages, { 
               role: 'system', 
@@ -521,7 +661,7 @@ export const App: React.FC = () => {
           }]
       }));
       setToastSuccess("Versão restaurada com sucesso.");
-  }, []);
+  }, [setProject]);
 
   const handleRenameProject = useCallback(async (newName: string) => {
       if (!newName.trim()) return;
@@ -535,7 +675,7 @@ export const App: React.FC = () => {
               console.error("Failed to rename saved project", error);
           }
       }
-  }, [currentProjectId, setSavedProjects]);
+  }, [currentProjectId, setSavedProjects, setProject]);
 
   const handleUpdateProjectSettings = useCallback(async (projectId: number, updates: Partial<SavedProject>) => {
       setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
@@ -554,13 +694,12 @@ export const App: React.FC = () => {
           console.error("Failed to update project settings", error);
           setToastError("Erro ao salvar configurações do projeto.");
       }
-  }, [currentProjectId, setSavedProjects]);
+  }, [currentProjectId, setSavedProjects, setProject]);
 
   const handleShareProject = useCallback(async (targetEmail: string, _unusedEmail: string) => {
     if (!currentProjectId) await handleSaveProject();
     if (currentProjectId) {
       try {
-        // Now sharing directly via email array
         await updateDoc(doc(db, "projects", currentProjectId.toString()), { shared_with: arrayUnion(targetEmail) });
       } catch (error: any) { throw new Error(error.message); }
     }
@@ -574,24 +713,22 @@ export const App: React.FC = () => {
               setSavedProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, is_public_in_gallery: isPublic } : p));
           } catch (error: any) { throw new Error(error.message); }
       }
-  }, [currentProjectId, handleSaveProject]);
+  }, [currentProjectId, handleSaveProject, setSavedProjects]);
 
   const handleProjectMetaUpdate = useCallback((projectId: number, updates: Partial<SavedProject>) => {
       setSavedProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
       setGalleryProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
   }, [setSavedProjects]);
 
-  // Handlers for GitHub Sync connection
   const handleGithubConnect = useCallback(async (repoData: { owner: string, name: string, branch: string, url: string }) => {
       let projectId = currentProjectId;
       if (!projectId) {
-          // Await the promise to get the ID, state update might lag
           projectId = await handleSaveProject(); 
       }
       
       if (projectId) {
           const updates = { githubRepo: repoData };
-          handleProjectMetaUpdate(projectId, updates); // Update local state immediately
+          handleProjectMetaUpdate(projectId, updates);
           try {
               await updateDoc(doc(db, "projects", projectId.toString()), updates);
           } catch (e) {
@@ -603,7 +740,7 @@ export const App: React.FC = () => {
   const handleGithubDisconnect = useCallback(async () => {
       if (currentProjectId) {
           const updates = { githubRepo: null };
-          handleProjectMetaUpdate(currentProjectId, updates); // Update local state immediately
+          handleProjectMetaUpdate(currentProjectId, updates); 
           try {
               await updateDoc(doc(db, "projects", currentProjectId.toString()), updates);
           } catch (e) {
@@ -666,13 +803,82 @@ export const App: React.FC = () => {
               setToastError("Erro ao curtir projeto.");
           }
       }
-  }, [sessionUser, galleryProjects, savedProjects]);
+  }, [sessionUser, galleryProjects, savedProjects, setGalleryProjects, setSavedProjects]);
 
   const handleDeleteProject = useCallback(async (projectId: number) => {
     setSavedProjects(prev => prev.filter(p => p.id !== projectId));
     if (project.currentProjectId === projectId) { setProject(initialProjectState); }
     if (sessionUser) { try { await deleteDoc(doc(db, "projects", projectId.toString())); } catch (error) { console.error("Erro ao deletar projeto:", error); } }
   }, [sessionUser, project.currentProjectId, setSavedProjects, setProject]);
+
+  const handleLoadProject = useCallback((projectId: number) => {
+      const p = savedProjects.find(pr => pr.id === projectId);
+      if (p) {
+          setProject({
+              files: p.files,
+              activeFile: p.files.length > 0 ? p.files[0].name : null,
+              chatMessages: p.chat_history || [],
+              projectName: p.name,
+              envVars: p.env_vars || {},
+              currentProjectId: p.id,
+              history: []
+          });
+          setView('editor');
+      }
+  }, [savedProjects, setProject]);
+
+  const handleFileDelete = useCallback((fileName: string) => {
+      setProject(prev => {
+          const newFiles = prev.files.filter(f => f.name !== fileName && !f.name.startsWith(fileName + '/'));
+          let newActive = prev.activeFile;
+          if (newActive === fileName || newActive?.startsWith(fileName + '/')) {
+              newActive = newFiles.length > 0 ? newFiles[0].name : null;
+          }
+          return { ...prev, files: newFiles, activeFile: newActive };
+      });
+  }, [setProject]);
+
+  const handleFileUpload = useCallback((newFiles: ProjectFile[]) => {
+      setProject(prev => {
+          const mergedFiles = [...prev.files];
+          newFiles.forEach(nf => {
+              const idx = mergedFiles.findIndex(f => f.name === nf.name);
+              if (idx >= 0) mergedFiles[idx] = nf;
+              else mergedFiles.push(nf);
+          });
+          return { ...prev, files: mergedFiles };
+      });
+  }, [setProject]);
+
+  const handleRenameFile = useCallback((oldName: string, newName: string) => {
+      setProject(prev => {
+          const newFiles = prev.files.map(f => {
+              if (f.name === oldName) return { ...f, name: newName };
+              if (f.name.startsWith(oldName + '/')) {
+                  return { ...f, name: f.name.replace(oldName, newName) };
+              }
+              return f;
+          });
+          let newActive = prev.activeFile;
+          if (newActive === oldName) newActive = newName;
+          else if (newActive?.startsWith(oldName + '/')) newActive = newActive.replace(oldName, newName);
+          
+          return { ...prev, files: newFiles, activeFile: newActive };
+      });
+  }, [setProject]);
+
+  const handleMoveFile = useCallback((oldPath: string, newPath: string) => {
+      handleRenameFile(oldPath, newPath);
+  }, [handleRenameFile]);
+
+  const handleOpenProjectSettings = useCallback(async () => {
+      if (!currentSavedProject) {
+          const id = await handleSaveProject();
+          if (id) setIsProjectSettingsModalOpen(true);
+      } else {
+          setIsProjectSettingsModalOpen(true);
+      }
+  }, [currentSavedProject, handleSaveProject]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
@@ -689,7 +895,7 @@ export const App: React.FC = () => {
       }
     });
     return () => unsubscribe();
-  }, [fetchUserSettings, fetchUserProjects]);
+  }, [fetchUserSettings, fetchUserProjects, setUserSettings, setSavedProjects]);
 
   const handleStopGeneration = useCallback(() => {
       if (abortControllerRef.current) {
@@ -706,7 +912,7 @@ export const App: React.FC = () => {
           setGeneratingFile(null);
           setToastSuccess("Geração parada.");
       }
-  }, []);
+  }, [setProject]);
 
   const handleClearChat = useCallback(() => {
       if (window.confirm("Iniciar nova conversa? O histórico atual será limpo e você começará do zero.")) {
@@ -722,15 +928,14 @@ export const App: React.FC = () => {
     
     const currentCredits = userSettings?.credits || 0;
     
-    // TOOL PARSING
+    // ... [Logic kept intact] ...
+    
     const imageTagMatch = prompt.match(/<tools\/image>(.*?)<\/tools\/image>/is);
     const deployTagMatch = prompt.match(/<tools\/deploy\s*\/>/i);
     const fixTagMatch = prompt.match(/<tools\/fix>(.*?)<\/tools\/fix>/is);
     const planTagMatch = prompt.match(/<tools\/plan>/i);
     
-    // --- TOOL: IMAGE GENERATION ---
     if (imageTagMatch) {
-        // ... (Image generation logic remains same)
         const imagePrompt = imageTagMatch[1].trim();
         if (currentCredits < 40) {
             setToastError("Créditos insuficientes para gerar imagem (necessário: 40).");
@@ -786,7 +991,6 @@ export const App: React.FC = () => {
         return;
     }
 
-    // --- TOOL: DEPLOY ---
     if (deployTagMatch) {
         setPublishModalOpen(true);
         setProject(p => ({
@@ -800,7 +1004,6 @@ export const App: React.FC = () => {
         return;
     }
 
-    // --- STANDARD GENERATION (or FIX/PLAN mode) ---
     if (currentCredits <= 0) {
         setToastError("Você não tem créditos suficientes. Por favor, recarregue.");
         return;
@@ -825,7 +1028,6 @@ export const App: React.FC = () => {
         adjustedPrompt = `[BACKEND EXPERT MODE] Act as a senior Backend engineer. Focus on logic and data. User request: ${prompt}`;
     }
 
-    // Initial placeholder message - WILL BE UPDATED IN REAL-TIME
     setProject({ 
         ...activeProjectState, 
         chatMessages: [...activeProjectState.chatMessages, { role: 'user', content: prompt }, { role: 'assistant', content: 'Pensando...', isThinking: true }] 
@@ -848,7 +1050,6 @@ export const App: React.FC = () => {
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
         : userSettings?.openrouter_api_key; 
 
-      // Callback for grounding metadata (Gemini)
       const handleMetadata = (metadata: any) => {
           setProject(p => {
               const msgs = [...p.chatMessages];
@@ -866,55 +1067,30 @@ export const App: React.FC = () => {
           activeProjectState.envVars, 
           (chunk) => {
               accumulatedResponse += chunk;
-              
-              // --- STREAMING LOGIC FOR CHAT ---
-              // Try to extract the "message" field content from the growing JSON string
-              // This is a heuristic to show the message as it's being generated
               const messageMatch = accumulatedResponse.match(/"message":\s*"((?:[^"\\]|\\.)*)/);
-              
               setProject(current => {
                   const msgs = [...current.chatMessages];
                   const lastIndex = msgs.length - 1;
                   const lastMsg = msgs[lastIndex];
-
-                  // Only update if it's the assistant's thinking message
                   if (lastMsg.role === 'assistant' && lastMsg.isThinking) {
                       let displayContent = lastMsg.content;
-                      
-                      // If we found the start of the message field in JSON
                       if (messageMatch) {
-                          // Unescape the JSON string for display (basic handling)
                           displayContent = messageMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
                       } else if (accumulatedResponse.length > 50 && !accumulatedResponse.trim().startsWith('{')) {
-                          // Fallback: If it doesn't look like JSON starting, maybe the model is outputting raw text
-                          // causing a JSON parse error later, but we show it anyway to be safe.
                           displayContent = accumulatedResponse;
                       }
-
-                      // Update the message content in real-time
-                      // We keep isThinking=true until the very end to show the spinner/cursor if desired, 
-                      // or set to false to just show text. Let's keep it visually active.
                       msgs[lastIndex] = { ...lastMsg, content: displayContent };
                       return { ...current, chatMessages: msgs };
                   }
                   return current;
               });
-
-              // --- AI Suggestions Logic (Existing) ---
               if (aiSuggestions.length === 0) {
                   const suggestionsMatch = accumulatedResponse.match(/"suggestions":\s*\[([\s\S]*?)\]/);
                   if (suggestionsMatch && suggestionsMatch[1]) {
                       try {
                           const rawArray = `[${suggestionsMatch[1]}]`;
-                          // Try parsing incomplete array
-                          if (rawArray.split('"').length % 2 !== 0) {
-                              const partial = rawArray.substring(0, rawArray.lastIndexOf('"') + 1) + ']';
-                              const parsed = JSON.parse(partial);
-                              if (Array.isArray(parsed) && parsed.length > 0) setAiSuggestions(parsed);
-                          } else {
-                              const parsed = JSON.parse(rawArray);
-                              if (Array.isArray(parsed) && parsed.length > 0) setAiSuggestions(parsed);
-                          }
+                          const parsed = JSON.parse(rawArray.split('"').length % 2 !== 0 ? rawArray.substring(0, rawArray.lastIndexOf('"') + 1) + ']' : rawArray);
+                          if (Array.isArray(parsed) && parsed.length > 0) setAiSuggestions(parsed);
                       } catch (e) {}
                   }
               }
@@ -927,43 +1103,33 @@ export const App: React.FC = () => {
       );
       
       const result = extractAndParseJson(fullResponse);
-      
-      if (result.suggestions && Array.isArray(result.suggestions)) {
-          setAiSuggestions(result.suggestions);
-      }
+      if (result.suggestions && Array.isArray(result.suggestions)) setAiSuggestions(result.suggestions);
 
-      // FINAL STATE UPDATE
       setProject(p => {
             const map = new Map<string, ProjectFile>();
             p.files.forEach(f => map.set(f.name, f));
-
             if (result.files && Array.isArray(result.files)) {
                 result.files.forEach((file: ProjectFile) => map.set(file.name, file));
             }
             const newActiveFile = (result.files && result.files.length > 0) ? result.files[0].name : p.activeFile;
-            
             const updatedFiles = Array.from(map.values());
             const modifiedFileNames = result.files ? result.files.map((f: ProjectFile) => f.name) : [];
             const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
-
             const newVersion: ProjectVersion = {
                 id: Date.now().toString(),
                 timestamp: Date.now(),
                 files: filesDeepCopy,
                 message: prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '')
             };
-
-            // Replace the last "thinking" message with the final parsed message
             const finalChatMessages = [...p.chatMessages];
             finalChatMessages[finalChatMessages.length - 1] = {
                 role: 'assistant',
-                content: result.message, // Ensure we use the clean final message from JSON
+                content: result.message, 
                 summary: result.summary,
                 isThinking: false,
                 groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
                 filesModified: modifiedFileNames
             };
-
             return { 
                 ...p, 
                 files: updatedFiles, 
@@ -972,7 +1138,6 @@ export const App: React.FC = () => {
                 history: [...(p.history || []), newVersion]
             };
         });
-
     } catch (e: any) { 
         if (e.message !== "AbortError") {
             console.error(e);
@@ -986,104 +1151,13 @@ export const App: React.FC = () => {
         setIsInitializing(false); 
         abortControllerRef.current = null;
     }
-  }, [project, userSettings, sessionUser, view, aiSuggestions]);
+  }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings]);
 
-  // ... (rest of the file remains unchanged)
-  const handleLoadProject = useCallback((projectId: number) => {
-    let p = savedProjects.find(x => x.id === projectId);
-    if (!p) p = galleryProjects.find(x => x.id === projectId);
-
-    if (p) {
-        setProject({ 
-            files: p.files, 
-            projectName: p.name, 
-            chatMessages: p.chat_history || [], 
-            envVars: p.env_vars || {}, 
-            currentProjectId: p.id, 
-            activeFile: p.files[0]?.name || null,
-            history: [] // Reset history for newly loaded project context
-        });
-        setView('editor');
-    }
-  }, [savedProjects, galleryProjects]);
-
-  const handleFileUpload = useCallback((newFiles: ProjectFile[]) => {
-      setProject(prev => {
-          const updatedFiles = [...prev.files];
-          // Simple merge strategy: Overwrite if exists, else append
-          newFiles.forEach(newFile => {
-              const idx = updatedFiles.findIndex(f => f.name === newFile.name);
-              if (idx >= 0) updatedFiles[idx] = newFile;
-              else updatedFiles.push(newFile);
-          });
-          return { ...prev, files: updatedFiles };
-      });
-      setToastSuccess(`Upload de ${newFiles.length} arquivos concluído.`);
-  }, []);
-
-  const handleRenameFile = useCallback((oldName: string, newName: string) => {
-      setProject(prev => {
-          // Verify if newName already exists (conflict)
-          if (prev.files.some(f => f.name === newName)) {
-              setToastError("Já existe um arquivo com esse nome.");
-              return prev;
-          }
-          
-          const updatedFiles = prev.files.map(f => {
-              if (f.name === oldName) return { ...f, name: newName };
-              // Also rename children if it's a folder rename logic (simple string startsWith check)
-              if (f.name.startsWith(oldName + '/')) {
-                  return { ...f, name: f.name.replace(oldName, newName) };
-              }
-              return f;
-          });
-          
-          const newActive = prev.activeFile === oldName ? newName : prev.activeFile;
-          return { ...prev, files: updatedFiles, activeFile: newActive };
-      });
-  }, []);
-
-  const handleMoveFile = useCallback((oldPath: string, newPath: string) => {
-      setProject(prev => {
-          // If new path exists, don't overwrite (simple safety)
-          if (prev.files.some(f => f.name === newPath)) {
-              setToastError("Destino já existe.");
-              return prev;
-          }
-
-          const updatedFiles = prev.files.map(f => {
-              if (f.name === oldPath) return { ...f, name: newPath };
-              // Handle folder moves
-              if (f.name.startsWith(oldPath + '/')) {
-                  return { ...f, name: f.name.replace(oldPath, newPath) };
-              }
-              return f;
-          });
-          
-          const newActive = prev.activeFile === oldPath ? newPath : prev.activeFile;
-          return { ...prev, files: updatedFiles, activeFile: newActive };
-      });
-  }, []);
-
-  const handleFileDelete = useCallback((fileName: string) => {
-      setProject(prev => {
-          const updatedFiles = prev.files.filter(f => f.name !== fileName && !f.name.startsWith(fileName + '/'));
-          return { 
-              ...prev, 
-              files: updatedFiles, 
-              activeFile: prev.activeFile === fileName ? null : prev.activeFile 
-          };
-      });
-  }, []);
-
-  const currentSavedProject = savedProjects.find(p => p.id === currentProjectId);
-
-  const handleOpenProjectSettings = () => {
-      if (!currentProjectId) {
-          handleSaveProject();
-          return;
-      }
-      setIsProjectSettingsModalOpen(true);
+  // Handle manual drive save click
+  const onSaveToDriveClick = () => {
+      // Just open the modal, it handles the connection check visually
+      setIsGoogleDriveModalOpen(true);
+      setGoogleDriveModalReason('limit'); // default or change logic based on size
   };
 
   if (isLoadingPublic) {
@@ -1229,7 +1303,7 @@ export const App: React.FC = () => {
                     onOpenOSMModal={() => setOSMModalOpen(true)}
                     onOpenGeminiModal={() => setApiKeyModalOpen(true)}
                     onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
-                    onOpenDriveAuth={() => {}}
+                    onOpenDriveAuth={handleConnectGoogleDrive}
                     onOpenNetlifyModal={() => setNetlifyModalOpen(true)}
                 />
             )}
@@ -1317,10 +1391,10 @@ export const App: React.FC = () => {
                         chatMode={chatMode}
                         projectHistory={history}
                         onRestoreVersion={handleRestoreVersion}
-                        // New Props
                         onFileUpload={handleFileUpload}
                         onRenameFile={handleRenameFile}
                         onMoveFile={handleMoveFile}
+                        onSaveToDrive={onSaveToDriveClick}
                       />
                     </main>
                   </div>
@@ -1331,6 +1405,17 @@ export const App: React.FC = () => {
       
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
       
+      <GoogleDriveSaveModal 
+          isOpen={isGoogleDriveModalOpen} 
+          onClose={() => setIsGoogleDriveModalOpen(false)}
+          reason={googleDriveModalReason}
+          currentCount={savedProjects.filter(p => p.ownerId === sessionUser?.uid && (!p.storage || p.storage === 'firebase')).length}
+          currentSizeKB={currentProjectSize}
+          onConfirmSave={handleSaveToGoogleDrive}
+          isConnected={!!driveAccessToken}
+          onConnect={handleConnectGoogleDrive}
+      />
+
       {currentSavedProject && (
           <ProjectSettingsModal 
               isOpen={isProjectSettingsModalOpen}

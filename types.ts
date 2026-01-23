@@ -96,6 +96,8 @@ export interface SavedProject {
   env_vars: Record<string, string>;
   created_at: string;
   updated_at: string;
+  storage?: 'firebase' | 'google_drive'; // Indicates where the project is primarily stored
+  googleDriveFileId?: string; // ID do arquivo no Google Drive para atualizações
   githubRepo?: {
     owner: string;
     name: string;

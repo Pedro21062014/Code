@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon, CloseIcon, GlobeIcon, TerminalIcon, HeartIcon } from './Icons';
+import { TrashIcon, FolderIcon, PlusIcon, SparklesIcon, ClockIcon, CloseIcon, GlobeIcon, TerminalIcon, HeartIcon, GoogleDriveIcon, CloudSimpleIcon } from './Icons';
 import { SavedProject } from '../types';
 
 interface ProjectsPageProps {
@@ -236,6 +236,7 @@ const DashboardProjectCard: React.FC<{ project: SavedProject; onClick: () => voi
         : `Aplicação inicial contendo ${project.files.length} arquivos.`);
 
     const author = project.author || "Eu";
+    const isDrive = project.storage === 'google_drive';
 
     return (
         <div 
@@ -258,26 +259,33 @@ const DashboardProjectCard: React.FC<{ project: SavedProject; onClick: () => voi
                     </div>
                 </div>
                 
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {project.deployedUrl && (
-                        <a 
-                            href={project.deployedUrl} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            onClick={e => e.stopPropagation()} 
-                            className="p-2 text-gray-400 hover:text-green-500 bg-gray-50 dark:bg-[#18181b] rounded-lg"
-                            title="Ver online"
+                <div className="flex gap-2 items-center">
+                    {/* Storage Indicator */}
+                    <div className="text-xs text-gray-400">
+                        {isDrive ? <GoogleDriveIcon className="w-4 h-4" /> : <CloudSimpleIcon className="w-4 h-4" />}
+                    </div>
+
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {project.deployedUrl && (
+                            <a 
+                                href={project.deployedUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                onClick={e => e.stopPropagation()} 
+                                className="p-2 text-gray-400 hover:text-green-500 bg-gray-50 dark:bg-[#18181b] rounded-lg"
+                                title="Ver online"
+                            >
+                                <GlobeIcon className="w-4 h-4" />
+                            </a>
+                        )}
+                        <button 
+                            onClick={onDelete}
+                            className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-[#18181b] rounded-lg"
+                            title="Excluir"
                         >
-                            <GlobeIcon className="w-4 h-4" />
-                        </a>
-                    )}
-                    <button 
-                        onClick={onDelete}
-                        className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-[#18181b] rounded-lg"
-                        title="Excluir"
-                    >
-                        <TrashIcon className="w-4 h-4" />
-                    </button>
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
