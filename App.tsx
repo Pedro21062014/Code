@@ -435,12 +435,13 @@ export const App: React.FC = () => {
       // Add the specific Drive scope needed to read/write files created by this app
       provider.addScope('https://www.googleapis.com/auth/drive.file');
       
-      // If user is already logged in, use their email as a hint to avoid account selection screen if possible
-      if (sessionUser?.email) {
-          provider.setCustomParameters({
-              login_hint: sessionUser.email
-          });
-      }
+      // Force consent prompt to ensure the user sees the Drive permission request
+      // even if they are already logged in. This fixes the issue where
+      // existing sessions don't pick up the new scope.
+      provider.setCustomParameters({
+          login_hint: sessionUser?.email || undefined,
+          prompt: 'consent'
+      });
 
       try {
           // This will trigger the popup asking for permissions
