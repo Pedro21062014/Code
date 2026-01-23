@@ -471,11 +471,21 @@ export const App: React.FC = () => {
   // Handle Google Drive Connection Trigger
   const handleConnectGoogleDrive = useCallback(() => {
       if (tokenClient.current) {
-          tokenClient.current.requestAccessToken();
+          const options: any = {
+              prompt: '' // Tenta usar a sessão existente sem forçar o seletor se possível
+          };
+          
+          // Se o usuário já está logado no app com email (e possivelmente Google Auth),
+          // usamos esse email como dica para o fluxo do Google Drive.
+          if (sessionUser?.email) {
+              options.hint = sessionUser.email;
+          }
+
+          tokenClient.current.requestAccessToken(options);
       } else {
           setToastError("Serviço do Google Drive não disponível. Tente recarregar.");
       }
-  }, []);
+  }, [sessionUser]);
 
   const handleSaveToGoogleDrive = useCallback(async () => {
       if (!sessionUser) { setAuthModalOpen(true); return; }

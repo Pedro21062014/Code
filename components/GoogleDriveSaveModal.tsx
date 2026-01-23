@@ -109,7 +109,7 @@ export const GoogleDriveSaveModal: React.FC<GoogleDriveSaveModalProps> = ({
                         }
                         <br/>
                         {!isConnected 
-                            ? "Conecte sua conta do Google para salvar projetos ilimitados no Drive."
+                            ? "Use sua conta Google para salvar projetos ilimitados no Drive."
                             : "Salve diretamente no seu Google Drive para continuar."
                         }
                     </p>
