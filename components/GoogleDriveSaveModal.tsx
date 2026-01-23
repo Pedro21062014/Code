@@ -45,11 +45,13 @@ export const GoogleDriveSaveModal: React.FC<GoogleDriveSaveModalProps> = ({
           try {
               await onConfirmSave();
               if (isMounted.current) setStatus('success');
-          } catch (error) {
+          } catch (error: any) {
               console.error("Failed to save to Drive", error);
               if (isMounted.current) {
                   setStatus('idle');
-                  alert("Erro ao salvar no Google Drive. Verifique se deu permissão e tente novamente.");
+                  // Mostra a mensagem real do erro (ex: API not enabled) para facilitar o debug
+                  const errorMessage = error instanceof Error ? error.message : "Verifique se deu permissão e tente novamente.";
+                  alert(`Erro ao salvar no Google Drive: ${errorMessage}`);
               }
           }
       }
