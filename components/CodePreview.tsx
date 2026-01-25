@@ -48,19 +48,53 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
   // Isso garante que o preview funcione igual ao ZIP baixado, suportando pastas e imports relativos sem extensão
   const processedFiles = useMemo(() => processFilesForStaticDeploy(files), [files]);
 
+  // Lógica inteligente para encontrar o arquivo de entrada (Entry Point)
+  const entryFile = useMemo(() => {
+      const fileNames = processedFiles.map(f => f.name);
+      
+      // 1. Tenta encontrar index.html na raiz (padrão)
+      if (fileNames.includes('index.html') || fileNames.includes('/index.html')) {
+          return '/index.html';
+      }
+
+      // 2. Tenta encontrar qualquer index.html em subpastas (ex: public/index.html)
+      // Ordena por tamanho para pegar o caminho mais curto (mais próximo da raiz)
+      const nestedIndex = fileNames
+          .filter(name => name.endsWith('/index.html') || name.endsWith('index.html'))
+          .sort((a, b) => a.length - b.length)[0];
+      
+      if (nestedIndex) {
+          return nestedIndex.startsWith('/') ? nestedIndex : `/${nestedIndex}`;
+      }
+
+      // 3. Fallback: Qualquer arquivo .html
+      const anyHtml = fileNames.find(name => name.endsWith('.html'));
+      if (anyHtml) {
+          return anyHtml.startsWith('/') ? anyHtml : `/${anyHtml}`;
+      }
+
+      // 4. Último caso: padrão fixo (o Sandpack criará um placeholder se não existir)
+      return '/index.html';
+  }, [processedFiles]);
+
   // Prepara arquivos iniciais para o Sandpack usando os arquivos processados
   const initialFiles = React.useMemo(() => {
       const fileMap: Record<string, any> = {};
       processedFiles.forEach(file => {
+          // Sandpack espera chaves sem a barra inicial para a estrutura de arquivos
           const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
           fileMap[fileName] = { code: file.content };
       });
-      // Ensure index.html exists for static template
-      if (!fileMap['index.html']) {
-          fileMap['index.html'] = { code: '<!DOCTYPE html><html style="height:100%"> <body style="height:100%;margin:0;display:flex;justify-content:center;align-items:center;"><h1>Loading...</h1></body></html>' };
+      
+      // Garante que o arquivo de entrada exista para não dar tela branca
+      const entryKey = entryFile.startsWith('/') ? entryFile.slice(1) : entryFile;
+      if (!fileMap[entryKey]) {
+          fileMap[entryKey] = { 
+              code: '<!DOCTYPE html><html style="height:100%"> <body style="height:100%;margin:0;display:flex;justify-content:center;align-items:center;font-family:sans-serif;background-color:#fff;color:#333;"><h1>Carregando Preview...</h1></body></html>' 
+          };
       }
       return fileMap;
-  }, []); // Apenas na montagem inicial, FileSynchronizer cuida das atualizações
+  }, [processedFiles, entryFile]); // Recria se os arquivos mudarem drasticamente
 
   if (deployedUrl) {
       return (
@@ -109,7 +143,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
         theme={theme === 'dark' ? 'dark' : 'light'}
         files={initialFiles}
         options={{
-            activeFile: "/index.html", 
+            activeFile: entryFile, // Usa o arquivo detectado dinamicamente
             externalResources: ["https://cdn.tailwindcss.com"],
             classes: {
                 "sp-layout": "h-full w-full !border-none !rounded-none flex flex-col bg-white",
