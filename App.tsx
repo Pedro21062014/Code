@@ -500,11 +500,35 @@ export const App: React.FC = () => {
 
       try {
           // 1. Upload to Drive API
-          const uploadResult = await uploadProjectToDrive(
-              driveAccessToken, 
-              projectData, 
-              existingProject?.googleDriveFileId
-          );
+          // IMPORTANT: Try to update existing first, BUT if we lack permissions to that file ID
+          // (e.g., created by another app instance or user), we should gracefully fallback to creating a NEW file.
+          let uploadResult: { id: string; webViewLink: string };
+          
+          try {
+              uploadResult = await uploadProjectToDrive(
+                  driveAccessToken, 
+                  projectData, 
+                  existingProject?.googleDriveFileId
+              );
+          } catch (firstAttemptError: any) {
+              // If we get a 403 (Permission) or 404 (Not Found) on an UPDATE attempt, 
+              // it means we lost access to the file ID stored in DB.
+              // We should try again as a NEW file.
+              if (existingProject?.googleDriveFileId && (
+                  firstAttemptError.message.includes('403') || 
+                  firstAttemptError.message.includes('404') ||
+                  firstAttemptError.message.includes('permissions')
+              )) {
+                  console.warn("Lost access to existing Drive file. Creating a new one...");
+                  uploadResult = await uploadProjectToDrive(
+                      driveAccessToken, 
+                      projectData, 
+                      undefined // Force new file
+                  );
+              } else {
+                  throw firstAttemptError; // Re-throw other errors
+              }
+          }
 
           // 2. Update local metadata with Drive ID
           const updatedProjectData = {
@@ -532,6 +556,10 @@ export const App: React.FC = () => {
           if (e.message && (e.message.includes("401") || e.message.includes("token"))) {
               setDriveAccessToken(null); // Force re-auth
               throw new Error("Sessão expirada. Por favor, conecte novamente.");
+          }
+          if (e.message && e.message.includes("permissions")) {
+              setDriveAccessToken(null); // Force re-auth to get scopes back
+              throw new Error("Permissão negada. Por favor, conecte novamente e certifique-se de marcar a caixa de permissão do Google Drive.");
           }
           throw e; // Rethrow to let modal handle it
       }
