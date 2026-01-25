@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
@@ -431,6 +430,9 @@ export const App: React.FC = () => {
 
   // Handle Google Drive Connection Trigger (Using Firebase Auth Scope)
   const handleConnectGoogleDrive = useCallback(async () => {
+      // Clear existing token to force clean slate perception
+      setDriveAccessToken(null);
+      
       const provider = new GoogleAuthProvider();
       // Add the specific Drive scope needed to read/write files created by this app
       provider.addScope('https://www.googleapis.com/auth/drive.file');
@@ -439,7 +441,9 @@ export const App: React.FC = () => {
       // and a fresh token is issued with the correct scopes. 
       // Removing login_hint prevents "quick login" behavior that might skip scope updates.
       provider.setCustomParameters({
-          prompt: 'select_account consent'
+          prompt: 'select_account consent',
+          access_type: 'offline',
+          include_granted_scopes: 'true'
       });
 
       try {
@@ -553,14 +557,19 @@ export const App: React.FC = () => {
           
       } catch (e: any) {
           console.error("Save to Drive Error in App.tsx:", e);
-          if (e.message && (e.message.includes("401") || e.message.includes("token"))) {
+          
+          // Handle Token Expiry or Unauthorized (401)
+          if (e.message && (e.message.includes("401") || e.message.includes("token") || e.message.includes("Unauthorized"))) {
               setDriveAccessToken(null); // Force re-auth
               throw new Error("Sessão expirada. Por favor, conecte novamente.");
           }
-          if (e.message && e.message.includes("permissions")) {
+          
+          // Handle Permission/Scope Issues (403 or specific messages)
+          if (e.message && (e.message.includes("permissions") || e.message.includes("403"))) {
               setDriveAccessToken(null); // Force re-auth to get scopes back
-              throw new Error("Permissão negada. Por favor, conecte novamente e certifique-se de marcar a caixa de permissão do Google Drive.");
+              throw new Error("Permissão negada. Por favor, conecte novamente e certifique-se de MARCAR a caixa de permissão do Google Drive na janela de login.");
           }
+          
           throw e; // Rethrow to let modal handle it
       }
   }, [sessionUser, currentProjectId, projectName, files, chatMessages, envVars, savedProjects, driveAccessToken, setSavedProjects, setProject]);
