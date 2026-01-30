@@ -553,14 +553,19 @@ export const App: React.FC = () => {
                   existingProject?.googleDriveFileId
               );
           } catch (firstAttemptError: any) {
-              // If we get a 403 (Permission) or 404 (Not Found) on an UPDATE attempt, 
-              // it means we lost access to the file ID stored in DB.
-              // We should try again as a NEW file.
-              if (existingProject?.googleDriveFileId && (
-                  firstAttemptError.message.includes('403') || 
-                  firstAttemptError.message.includes('404') ||
-                  firstAttemptError.message.includes('permissions')
+              // Handle Authentication/Permission Errors specifically
+              if (firstAttemptError.message && (
+                  firstAttemptError.message.includes("401") || 
+                  firstAttemptError.message.includes("403") || 
+                  firstAttemptError.message.includes("permissions")
               )) {
+                  // Re-throw to be caught by outer block for re-auth flow
+                  throw firstAttemptError; 
+              }
+
+              // If we get a 404 (Not Found), implies lost access to specific file ID
+              // We should try again as a NEW file.
+              if (existingProject?.googleDriveFileId && firstAttemptError.message.includes('404')) {
                   console.warn("Lost access to existing Drive file. Creating a new one...");
                   uploadResult = await uploadProjectToDrive(
                       driveAccessToken, 
@@ -603,7 +608,7 @@ export const App: React.FC = () => {
           }
           
           // Handle Permission/Scope Issues (403 or specific messages)
-          if (e.message && (e.message.includes("permissions") || e.message.includes("403"))) {
+          if (e.message && (e.message.includes("permissions") || e.message.includes("403") || e.message.includes("Insufficient"))) {
               setDriveAccessToken(null); // Force re-auth to get scopes back
               throw new Error("Permissão negada. Por favor, conecte novamente e certifique-se de MARCAR a caixa de permissão do Google Drive na janela de login.");
           }

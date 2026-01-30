@@ -30,26 +30,21 @@ export const uploadProjectToDrive = async (
     // Prepare the content part
     const content = JSON.stringify(project, null, 2);
 
-    // Construct the multipart body using Blob to handle UTF-8 correctly
+    // Construct the multipart body strictly following RFC 2046
     const boundary = '-------314159265358979323846';
-    const delimiter = `\r\n--${boundary}\r\n`;
-    const closeDelim = `\r\n--${boundary}--`;
+    
+    // NOTE: The body must NOT start with \r\n. It must start immediately with --boundary.
+    const bodyParts = [
+        `--${boundary}\r\n`,
+        `Content-Type: application/json; charset=UTF-8\r\n\r\n`,
+        JSON.stringify(metadata),
+        `\r\n--${boundary}\r\n`,
+        `Content-Type: ${contentType}\r\n\r\n`,
+        content,
+        `\r\n--${boundary}--`
+    ];
 
-    const metadataHeader = `Content-Type: application/json\r\n\r\n`;
-    const contentHeader = `Content-Type: ${contentType}\r\n\r\n`;
-
-    const multipartBody = new Blob(
-        [
-            delimiter,
-            metadataHeader,
-            JSON.stringify(metadata),
-            delimiter,
-            contentHeader,
-            content,
-            closeDelim
-        ],
-        { type: 'multipart/related' }
-    );
+    const multipartBody = new Blob(bodyParts, { type: `multipart/related; boundary=${boundary}` });
 
     let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
     let method = 'POST';
@@ -74,10 +69,11 @@ export const uploadProjectToDrive = async (
             let errorText = "Erro desconhecido";
             try {
                 const errJson = await response.json();
-                errorText = errJson.error?.message || response.statusText;
+                errorText = errJson.error?.message || JSON.stringify(errJson);
             } catch (e) {
                 errorText = await response.text();
             }
+            // Include status code for better handling upstream
             throw new Error(`Google Drive API Error (${response.status}): ${errorText}`);
         }
 
