@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider, sendPasswordResetEmail } from "firebase/auth";
@@ -127,7 +128,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
                 <div className="w-9 h-9 bg-black dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-black transition-transform group-hover:rotate-12 shadow-lg">
                     <AppLogo className="w-5 h-5" />
                 </div>
-                <span className="font-bold text-xl tracking-tight font-heading">codegen</span>
+                <span className="font-bold text-xl tracking-tight font-heading">codegem</span>
             </div>
              <button 
                 onClick={toggleTheme} 
@@ -293,7 +294,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
 
         {/* Footer */}
         <div className="p-6 text-center text-[10px] text-gray-400 font-mono">
-            &copy; {new Date().getFullYear()} Codegen Studio.
+            &copy; {new Date().getFullYear()} Codegem Studio.
         </div>
       </div>
 

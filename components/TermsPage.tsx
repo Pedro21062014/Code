@@ -14,7 +14,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
         <div className="container mx-auto max-w-4xl flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
              <AppLogo className="w-6 h-6 text-black dark:text-white" />
-             <span className="font-semibold tracking-tight text-sm">codegen<span className="font-light opacity-70">studio</span></span>
+             <span className="font-semibold tracking-tight text-sm">codegem<span className="font-light opacity-70">studio</span></span>
           </div>
           <button 
             onClick={onBack} 
@@ -36,21 +36,21 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">1. Aceitação dos Termos</h2>
               <p>
-                Ao acessar e utilizar o Codegen Studio, você concorda em cumprir estes Termos de Uso. Se você não concordar com qualquer parte destes termos, não deverá utilizar nossos serviços.
+                Ao acessar e utilizar o Codegem Studio, você concorda em cumprir estes Termos de Uso. Se você não concordar com qualquer parte destes termos, não deverá utilizar nossos serviços.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">2. Descrição do Serviço</h2>
               <p>
-                O Codegen Studio é uma ferramenta de desenvolvimento assistida por Inteligência Artificial que permite gerar, editar e visualizar código para aplicações web. Oferecemos planos gratuitos e pagos com diferentes níveis de acesso e recursos.
+                O Codegem Studio é uma ferramenta de desenvolvimento assistida por Inteligência Artificial que permite gerar, editar e visualizar código para aplicações web. Oferecemos planos gratuitos e pagos com diferentes níveis de acesso e recursos.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">3. Propriedade do Código Gerado</h2>
               <p>
-                Você mantém todos os direitos de propriedade intelectual sobre o código gerado através da plataforma utilizando seus prompts. O Codegen Studio não reivindica a propriedade do output gerado pela IA para seus projetos.
+                Você mantém todos os direitos de propriedade intelectual sobre o código gerado através da plataforma utilizando seus prompts. O Codegem Studio não reivindica a propriedade do output gerado pela IA para seus projetos.
               </p>
             </section>
 
@@ -66,7 +66,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ onBack }) => {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">5. Limitação de Responsabilidade</h2>
               <p>
-                O serviço é fornecido "como está". O Codegen Studio não garante que o serviço será ininterrupto ou livre de erros. Em nenhuma circunstância seremos responsáveis por quaisquer danos diretos, indiretos ou consequentes resultantes do uso ou incapacidade de usar o serviço.
+                O serviço é fornecido "como está". O Codegem Studio não garante que o serviço será ininterrupto ou livre de erros. Em nenhuma circunstância seremos responsáveis por quaisquer danos diretos, indiretos ou consequentes resultantes do uso ou incapacidade de usar o serviço.
               </p>
             </section>
 
