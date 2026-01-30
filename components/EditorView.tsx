@@ -7,7 +7,7 @@ import {
     FileIcon, FolderIcon, ChevronDownIcon, DownloadIcon, SaveIcon, ProjectsIcon, 
     LogOutIcon, SettingsIcon, LoaderIcon, CheckCircleIcon, AppLogo,
     PlusIcon, EditIcon, UsersIcon, HomeIcon, ClockIcon, ImageIcon, UploadIcon, TrashIcon,
-    SmartphoneIcon, MonitorIcon, GoogleDriveIcon
+    SmartphoneIcon, MonitorIcon, GoogleDriveIcon, RefreshIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
@@ -107,6 +107,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, path: string, type: 'file' | 'folder' } | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [previewKey, setPreviewKey] = useState(0); // State for refreshing preview
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -123,6 +124,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
       document.addEventListener('click', handleClick);
       return () => document.removeEventListener('click', handleClick);
   }, []);
+
+  const handleRefreshPreview = () => {
+      setPreviewKey(prev => prev + 1);
+  };
 
   const fileTree = useMemo(() => {
     const root: FileNode[] = [];
@@ -549,14 +554,22 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         <div className="flex-1 flex justify-center items-center gap-2">
                             <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a] flex justify-between items-center group">
                                 <span className="flex-1 text-center">{deployedUrl || 'localhost:3000 (Simulated)'}</span>
-                                {/* Clock Icon for Versioning */}
-                                <button 
-                                    onClick={() => setIsHistoryModalOpen(true)}
-                                    className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white"
-                                    title="Histórico de Versões"
-                                >
-                                    <ClockIcon className="w-3 h-3" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleRefreshPreview}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white"
+                                        title="Recarregar Preview"
+                                    >
+                                        <RefreshIcon className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsHistoryModalOpen(true)}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded transition-colors text-gray-400 hover:text-black dark:hover:text-white"
+                                        title="Histórico de Versões"
+                                    >
+                                        <ClockIcon className="w-3 h-3" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -579,6 +592,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
                     <div className={`flex-1 relative bg-white transition-all duration-300 mx-auto ${previewDevice === 'mobile' ? 'w-[375px] my-4 border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl h-[calc(100%-2rem)]' : 'w-full h-full'}`}>
                         <CodePreview 
+                            key={previewKey} // Key change forces remount/reload
                             files={files} 
                             onError={onError} 
                             theme={theme} 
