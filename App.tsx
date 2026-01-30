@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { EditorView } from './components/EditorView';
@@ -247,6 +248,43 @@ export const App: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [userSettings]);
+
+  // Auto-save Chat History to Firebase (Debounced)
+  useEffect(() => {
+    // Only auto-save if:
+    // 1. User is logged in
+    // 2. Project has an ID (it's saved in DB)
+    // 3. We are not currently in a manual save process
+    if (!sessionUser || !project.currentProjectId || isSaving) return;
+
+    // Avoid saving if chat is empty or just has initial message
+    if (project.chatMessages.length <= 1) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const projectIdStr = project.currentProjectId!.toString();
+        const projectRef = doc(db, "projects", projectIdStr);
+
+        // Update only the chat history
+        await updateDoc(projectRef, {
+          chat_history: project.chatMessages
+        });
+
+        // Sync local cache
+        setSavedProjects(prev => prev.map(p => {
+          if (p.id === project.currentProjectId) {
+            return { ...p, chat_history: project.chatMessages };
+          }
+          return p;
+        }));
+
+      } catch (error) {
+        console.error("Failed to auto-save chat:", error);
+      }
+    }, 3000); // 3 seconds debounce to wait for typing/streaming to pause
+
+    return () => clearTimeout(timeoutId);
+  }, [project.chatMessages, project.currentProjectId, sessionUser, isSaving, setSavedProjects]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
