@@ -161,7 +161,7 @@ export const ProWelcomeOnboarding: React.FC<ProWelcomeOnboardingProps> = ({ onCo
       {/* Footer Fixo Técnico */}
       <div className="absolute bottom-8 left-0 w-full text-center opacity-30">
         <p className="font-code text-[9px] text-zinc-500 uppercase tracking-widest">
-          Codegen Studio Pro • v2.4.0 • Secure Connection
+          Codegem Studio Pro • v2.4.0 • Secure Connection
         </p>
       </div>
     </div>

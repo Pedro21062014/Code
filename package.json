@@ -1,6 +1,6 @@
 
 {
-  "name": "codegen-studio",
+  "name": "codegem-studio",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "dev:backend": "wrangler pages dev --proxy 5173 -- npm run dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name codegen-studio"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name codegem-studio"
   },
   "dependencies": {
     "@google/genai": "latest",

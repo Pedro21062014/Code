@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { AppLogo, SparklesIcon, TerminalIcon, GithubIcon, CheckCircleIcon, DatabaseIcon, SupabaseIcon, ChevronDownIcon, GlobeIcon, DownloadIcon, SunIcon, MoonIcon, LightningIcon } from './Icons';
 import { Theme } from '../types';
@@ -108,7 +109,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
                 <div className="bg-black dark:bg-white p-1.5 rounded-lg transition-transform group-hover:rotate-12">
                     <AppLogo className="w-5 h-5 text-white dark:text-black" />
                 </div>
-                <span className="font-bold text-lg tracking-tight font-heading">codegen</span>
+                <span className="font-bold text-lg tracking-tight font-heading">codegem</span>
             </div>
             <div className="flex items-center gap-4">
                 <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500">
@@ -145,7 +146,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
             </h1>
 
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                O Codegen Studio une IA generativa avançada com um ambiente de desenvolvimento completo no navegador. Sem setup. Apenas código.
+                O Codegem Studio une IA generativa avançada com um ambiente de desenvolvimento completo no navegador. Sem setup. Apenas código.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
@@ -179,7 +180,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
                     </div>
                     <div className="px-3 py-1 bg-gray-100 dark:bg-[#09090b] rounded text-[10px] font-mono text-gray-400 flex items-center gap-2 border border-gray-200 dark:border-[#27272a]">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        codegen.studio/preview
+                        codegem.studio/preview
                     </div>
                     <div className="w-10"></div>
                 </div>
@@ -333,7 +334,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
                     <AppLogo className="w-6 h-6 text-black dark:text-white" />
-                    <span className="font-bold text-sm tracking-tight text-gray-900 dark:text-white font-heading">codegen studio</span>
+                    <span className="font-bold text-sm tracking-tight text-gray-900 dark:text-white font-heading">codegem studio</span>
                 </div>
                 <div className="flex gap-8 text-xs font-medium text-gray-500 uppercase tracking-widest">
                     <button onClick={onShowTerms} className="hover:text-black dark:hover:text-white transition-colors">Termos</button>

@@ -114,7 +114,7 @@ export const EnterpriseWelcomeOnboarding: React.FC<EnterpriseWelcomeOnboardingPr
         {/* Step 3: O Reveal Principal */}
         {step === 3 && (
           <div className="step-enter flex flex-col items-center">
-             <div className="font-enterprise-sans text-white/20 text-[10px] tracking-[1.5em] uppercase mb-12">Codegen Studio</div>
+             <div className="font-enterprise-sans text-white/20 text-[10px] tracking-[1.5em] uppercase mb-12">Codegem Studio</div>
              <h1 className="font-enterprise-sans text-white text-5xl md:text-8xl font-thin tracking-tighter leading-none">
                 ENTERPRISE
              </h1>

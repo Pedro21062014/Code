@@ -14,7 +14,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => {
         <div className="container mx-auto max-w-4xl flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
              <AppLogo className="w-6 h-6 text-black dark:text-white" />
-             <span className="font-semibold tracking-tight text-sm">codegen<span className="font-light opacity-70">studio</span></span>
+             <span className="font-semibold tracking-tight text-sm">codegem<span className="font-light opacity-70">studio</span></span>
           </div>
           <button 
             onClick={onBack} 
@@ -36,7 +36,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">1. Introdução</h2>
               <p>
-                A sua privacidade é importante para nós. Esta política descreve como o Codegen Studio coleta, usa e protege suas informações quando você utiliza nossa plataforma de desenvolvimento assistido por IA.
+                A sua privacidade é importante para nós. Esta política descreve como o Codegem Studio coleta, usa e protege suas informações quando você utiliza nossa plataforma de desenvolvimento assistido por IA.
               </p>
             </section>
 

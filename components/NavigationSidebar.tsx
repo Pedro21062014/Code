@@ -94,7 +94,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
                 </div>
                 {!isCollapsed && (
                     <div className="flex flex-col items-start animate-fadeIn overflow-hidden">
-                        <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white leading-none whitespace-nowrap">codegen</span>
+                        <span className="font-bold text-base tracking-tight text-gray-900 dark:text-white leading-none whitespace-nowrap">codegem</span>
                         <span className="text-[10px] text-gray-500 font-mono">studio</span>
                     </div>
                 )}
