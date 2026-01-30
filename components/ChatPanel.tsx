@@ -430,18 +430,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                         <p className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">{msg.content}</p>
                                                     )}
                                                     
-                                                    {/* File Changes List - Styled as Explorer */}
+                                                    {/* File Changes List - Updated Style */}
                                                     {msg.filesModified && msg.filesModified.length > 0 && (
-                                                        <div className="mt-6 border border-gray-200 dark:border-[#27272a] rounded-lg overflow-hidden bg-white dark:bg-[#121214] shadow-sm max-w-sm">
-                                                            <div className="bg-gray-50 dark:bg-[#1a1a1c] px-3 py-2 border-b border-gray-200 dark:border-[#27272a] flex items-center gap-2">
-                                                                <TerminalIcon className="w-3.5 h-3.5 text-blue-500" />
-                                                                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Alterações ({msg.filesModified.length})</span>
-                                                            </div>
-                                                            <div className="p-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                                        <div className="mt-4 w-full max-w-md">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                                                Aqui estão as mudanças:
+                                                            </p>
+                                                            <div className="border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-[#18181b] shadow-sm">
                                                                 {msg.filesModified.map((file, i) => (
-                                                                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#202023] rounded-md transition-colors cursor-default group">
-                                                                        <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${getFileIconColor(file)}`} />
-                                                                        <span className="truncate font-mono opacity-80 group-hover:opacity-100">{file}</span>
+                                                                    <div key={i} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#27272a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1c] transition-colors">
+                                                                        <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">{file}</span>
+                                                                        <div className="text-green-500">
+                                                                            <CheckCircleIcon className="w-5 h-5" />
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                             </div>
