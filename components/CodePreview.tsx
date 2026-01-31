@@ -9,7 +9,6 @@ import {
     useSandpack
 } from "@codesandbox/sandpack-react";
 import { GlobeIcon, ConsoleIcon, ChevronUpIcon, ChevronDownIcon } from './Icons';
-import { processFilesForStaticDeploy } from '../services/projectService';
 
 interface CodePreviewProps {
   files: ProjectFile[]; 
@@ -22,79 +21,107 @@ interface CodePreviewProps {
 }
 
 // Componente auxiliar para injetar arquivos dinamicamente
-const FileSynchronizer = ({ files }: { files: ProjectFile[] }) => {
+const FileSynchronizer = ({ files }: { files: Record<string, any> }) => {
     const { sandpack } = useSandpack();
     
     useEffect(() => {
-        const sandpackFiles = files.reduce((acc, file) => {
-            // Remove leading slash if present
-            const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
-            // Sandpack updateFile lida melhor com strings simples para atualizações
-            acc[fileName] = file.content;
-            return acc;
-        }, {} as Record<string, string>);
-        
-        sandpack.updateFile(sandpackFiles);
+        // Atualiza apenas os arquivos que mudaram ou são novos
+        sandpack.updateFile(files);
     }, [files, sandpack]);
 
     return null;
 };
 
-export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, theme, chatMode }) => {
+export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, theme }) => {
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [isConsoleExpanded, setIsConsoleExpanded] = useState(true);
 
-  // Processa os arquivos para injetar o Babel Standalone e corrigir imports
-  // Isso garante que o preview funcione igual ao ZIP baixado, suportando pastas e imports relativos sem extensão
-  const processedFiles = useMemo(() => processFilesForStaticDeploy(files), [files]);
+  // Detecta se é um projeto React baseado na extensão dos arquivos
+  const isReactProject = useMemo(() => {
+      return files.some(f => f.name.endsWith('.tsx') || f.name.endsWith('.jsx') || f.content.includes('import React'));
+  }, [files]);
 
-  // Lógica inteligente para encontrar o arquivo de entrada (Entry Point)
-  const entryFile = useMemo(() => {
-      const fileNames = processedFiles.map(f => f.name);
-      
-      // 1. Tenta encontrar index.html na raiz (padrão)
-      if (fileNames.includes('index.html') || fileNames.includes('/index.html')) {
-          return '/index.html';
-      }
-
-      // 2. Tenta encontrar qualquer index.html em subpastas (ex: public/index.html)
-      // Ordena por tamanho para pegar o caminho mais curto (mais próximo da raiz)
-      const nestedIndex = fileNames
-          .filter(name => name.endsWith('/index.html') || name.endsWith('index.html'))
-          .sort((a, b) => a.length - b.length)[0];
-      
-      if (nestedIndex) {
-          return nestedIndex.startsWith('/') ? nestedIndex : `/${nestedIndex}`;
-      }
-
-      // 3. Fallback: Qualquer arquivo .html
-      const anyHtml = fileNames.find(name => name.endsWith('.html'));
-      if (anyHtml) {
-          return anyHtml.startsWith('/') ? anyHtml : `/${anyHtml}`;
-      }
-
-      // 4. Último caso: padrão fixo (o Sandpack criará um placeholder se não existir)
-      return '/index.html';
-  }, [processedFiles]);
-
-  // Prepara arquivos iniciais para o Sandpack usando os arquivos processados
-  const initialFiles = React.useMemo(() => {
+  // Prepara os arquivos para o Sandpack
+  const sandpackFiles = useMemo(() => {
       const fileMap: Record<string, any> = {};
-      processedFiles.forEach(file => {
-          // Sandpack espera chaves sem a barra inicial para a estrutura de arquivos
+      
+      files.forEach(file => {
           const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
           fileMap[fileName] = { code: file.content };
       });
-      
-      // Garante que o arquivo de entrada exista para não dar tela branca
-      const entryKey = entryFile.startsWith('/') ? entryFile.slice(1) : entryFile;
-      if (!fileMap[entryKey]) {
-          fileMap[entryKey] = { 
-              code: '<!DOCTYPE html><html style="height:100%"> <body style="height:100%;margin:0;display:flex;justify-content:center;align-items:center;font-family:sans-serif;background-color:#fff;color:#333;"><h1>Carregando Preview...</h1></body></html>' 
+
+      // Se for React e não tiver package.json, injetamos um básico para o Vite funcionar
+      if (isReactProject && !fileMap['package.json']) {
+          fileMap['package.json'] = {
+              code: JSON.stringify({
+                  name: "project",
+                  main: "/index.tsx",
+                  dependencies: {
+                      "react": "^18.2.0",
+                      "react-dom": "^18.2.0",
+                      "lucide-react": "latest",
+                      "recharts": "latest",
+                      "clsx": "latest",
+                      "tailwind-merge": "latest",
+                      "@supabase/supabase-js": "latest",
+                      "framer-motion": "latest",
+                      "date-fns": "latest",
+                      "react-router-dom": "latest"
+                  },
+                  devDependencies: {
+                      "@types/react": "^18.2.0",
+                      "@types/react-dom": "^18.2.0",
+                      "typescript": "^5.0.2",
+                      "vite": "^4.4.5",
+                      "@vitejs/plugin-react": "^4.0.3"
+                  }
+              }, null, 2)
           };
       }
+
+      // Se for React e não tiver index.html configurado para Vite
+      if (isReactProject && !fileMap['index.html']) {
+          fileMap['index.html'] = {
+              code: `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>`
+          };
+      }
+      
+      // Se for React, garante que existe um entry point index.tsx ou index.jsx se não existir main.tsx
+      if (isReactProject && !fileMap['index.tsx'] && !fileMap['src/index.tsx'] && !fileMap['main.tsx']) {
+          // Tenta achar algum arquivo que pareça ser o root
+          const rootFile = files.find(f => f.content.includes('createRoot') || f.content.includes('ReactDOM.render'));
+          
+          if (!rootFile) {
+              // Cria um index.tsx padrão que importa o App
+              fileMap['index.tsx'] = {
+                  code: `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);`
+              };
+          }
+      }
+
       return fileMap;
-  }, [processedFiles, entryFile]); // Recria se os arquivos mudarem drasticamente
+  }, [files, isReactProject]);
 
   if (deployedUrl) {
       return (
@@ -112,10 +139,11 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
       );
   }
 
-  // Force light theme background for the wrapper div to ensure full white canvas
+  // Define o template correto
+  const template = isReactProject ? "vite-react" : "static";
+
   return (
     <div className="w-full h-full bg-white relative flex flex-col overflow-hidden">
-      {/* Force overrides for Sandpack internal classes that might be stubborn */}
       <style>{`
           .sp-wrapper, .sp-layout, .sp-stack {
               height: 100% !important;
@@ -137,33 +165,32 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
               height: 100% !important;
               flex-grow: 1 !important;
           }
+          .sp-loading { display: none; }
       `}</style>
+      
       <SandpackProvider 
-        template="static"
+        template={template}
         theme={theme === 'dark' ? 'dark' : 'light'}
-        files={initialFiles}
+        files={sandpackFiles}
         options={{
-            activeFile: entryFile, // Usa o arquivo detectado dinamicamente
             externalResources: ["https://cdn.tailwindcss.com"],
             classes: {
                 "sp-layout": "h-full w-full !border-none !rounded-none flex flex-col bg-white",
-                "sp-preview": "flex-1 !border-none bg-white h-full",
-                "sp-preview-iframe": "w-full h-full border-none bg-white",
             }
         }}
       >
-        <FileSynchronizer files={processedFiles} />
+        <FileSynchronizer files={sandpackFiles} />
         
         <SandpackLayout style={{ height: '100%', width: '100%', border: 'none', borderRadius: 0, backgroundColor: 'white', display: 'flex', flexDirection: 'column' }}>
             <SandpackPreview 
                 showOpenInCodeSandbox={false} 
-                showRefreshButton={false} 
-                showRestartButton={false} 
-                showNavigator={false}     
+                showRefreshButton={true} 
+                showRestartButton={true} 
+                showNavigator={true}
                 style={{ height: '100%', flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'white' }}
             />
             
-            {/* Console Integrado do Sandpack (Real Node/Browser Output) */}
+            {/* Console Integrado */}
             {isConsoleOpen && (
                 <div 
                     className={`absolute bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#151515] border-t border-gray-200 dark:border-[#27272a] transition-all duration-300 flex flex-col ${isConsoleExpanded ? 'h-48' : 'h-9'}`}
@@ -187,7 +214,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
                                 onClick={(e) => { e.stopPropagation(); setIsConsoleOpen(false); }}
                                 className="p-1 hover:bg-gray-200 dark:hover:bg-[#27272a] rounded text-gray-500 hover:text-black dark:hover:text-white"
                             >
-                                <GlobeIcon className="w-3.5 h-3.5 rotate-45" /> {/* Close Icon fallback */}
+                                <GlobeIcon className="w-3.5 h-3.5 rotate-45" />
                             </button>
                         </div>
                     </div>
