@@ -80,10 +80,22 @@ export const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[]
 export const createProjectZip = async (files: ProjectFile[]): Promise<Blob> => {
   const zip = new JSZip();
 
-  // Se for projeto HTML/JS simples, usamos os arquivos originais para garantir que o deploy
-  // seja fiel ao código gerado (sem transpilação React desnecessária).
-  const hasReact = files.some(f => f.name.endsWith('.tsx') || f.name.endsWith('.jsx'));
-  const filesToZip = hasReact ? processFilesForStaticDeploy(files) : files;
+  // Detecção robusta de React
+  const hasReact = files.some(f => f.name.endsWith('.tsx') || f.name.endsWith('.jsx') || f.content.includes('import React'));
+  
+  let filesToZip = hasReact ? processFilesForStaticDeploy(files) : files;
+
+  // CRÍTICO: Para sites estáticos (HTML/CSS/JS), REMOVER package.json e configs de build.
+  // Isso impede que Netlify/Cloudflare tentem rodar 'npm install' e falhem.
+  if (!hasReact) {
+      filesToZip = filesToZip.filter(f => 
+          f.name !== 'package.json' && 
+          f.name !== 'package-lock.json' && 
+          f.name !== 'vite.config.js' &&
+          f.name !== 'vite.config.ts' &&
+          f.name !== 'tsconfig.json'
+      );
+  }
 
   filesToZip.forEach(file => {
     // Remove barra inicial para garantir que os arquivos fiquem na raiz do ZIP
@@ -91,7 +103,6 @@ export const createProjectZip = async (files: ProjectFile[]): Promise<Blob> => {
     
     // Se o arquivo estiver dentro de uma pasta (ex: public/index.html), e for o único index,
     // movemos para a raiz se necessário, ou mantemos a estrutura se for complexa.
-    // Para simplificar: Apenas removemos './' ou '/' do início.
     fileName = fileName.replace(/^\.\//, '');
 
     if (file.content.startsWith('data:image/')) {
