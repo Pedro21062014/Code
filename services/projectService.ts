@@ -4,7 +4,6 @@ import JSZip from 'jszip';
 
 // Helper simples para resolver caminhos relativos
 const resolvePath = (basePath: string, relativePath: string) => {
-    // Remove filename do base path
     const stack = basePath.split('/');
     stack.pop();
     
@@ -20,19 +19,27 @@ const resolvePath = (basePath: string, relativePath: string) => {
     return stack.join('/');
 };
 
-// Função auxiliar para injetar configurações de runtime no navegador
+// Processa arquivos apenas se for React para garantir compatibilidade de deploy
+// Se for estático (HTML/CSS/JS), retorna os arquivos originais limpos.
 export const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[] => {
+    // Detecta se é React
+    const hasReact = files.some(f => f.name.endsWith('.tsx') || f.name.endsWith('.jsx') || f.content.includes('import React'));
+
+    // Se NÃO é React, não injeta nada. Retorna os arquivos como estão para garantir que o index.html funcione nativamente.
+    if (!hasReact) {
+        return files;
+    }
+
+    // Lógica apenas para React (Babel Standalone injection para preview sem build step no navegador se necessário)
+    // Nota: Para deploy real (Netlify), o ideal seria um build, mas aqui simulamos um ambiente runtime.
     const processedFiles = [...files];
     const indexHtmlIndex = processedFiles.findIndex(f => f.name === 'index.html');
     
-    if (indexHtmlIndex === -1) return files; // Se não tem index.html, não faz nada
+    if (indexHtmlIndex === -1) return files;
 
     let indexContent = processedFiles[indexHtmlIndex].content;
-    const hasReact = processedFiles.some(f => f.name.endsWith('.tsx') || f.name.endsWith('.jsx'));
 
-    if (hasReact) {
-        // 1. Injetar Import Map para resolver 'react' e 'react-dom' sem node_modules
-        const importMap = `
+    const importMap = `
 <script type="importmap">
 {
   "imports": {
@@ -50,72 +57,22 @@ export const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[]
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 `;
-        
-        // Inserir antes do fechamento do head ou no início do body
-        if (indexContent.includes('</head>')) {
-            indexContent = indexContent.replace('</head>', `${importMap}</head>`);
-        } else {
-            indexContent = importMap + indexContent;
-        }
-
-        // 2. Modificar a tag script principal para usar o Babel
-        // De: <script type="module" src="/src/main.tsx"></script>
-        // Para: <script type="text/babel" data-type="module" src="/src/main.tsx"></script>
-        indexContent = indexContent.replace(
-            /<script\s+type="module"\s+src="([^"]+)"\s*><\/script>/g, 
-            '<script type="text/babel" data-type="module" src="$1"></script>'
-        );
-        
-        // Atualiza o index.html processado
-        processedFiles[indexHtmlIndex] = {
-            ...processedFiles[indexHtmlIndex],
-            content: indexContent
-        };
-
-        // 3. Corrigir importações relativas nos arquivos TSX/JS
-        // Navegadores exigem extensões explícitas (ex: './App' -> './App.tsx')
-        processedFiles.forEach((file, idx) => {
-            if (file.name.endsWith('.tsx') || file.name.endsWith('.ts') || file.name.endsWith('.jsx') || file.name.endsWith('.js')) {
-                let content = file.content;
-                
-                // Regex para encontrar imports relativos sem extensão: import ... from './Comp'
-                content = content.replace(/from\s+['"](\.[^'"]+)['"]/g, (match, importPath) => {
-                    if (importPath.endsWith('.css') || importPath.endsWith('.svg') || importPath.endsWith('.png')) return match;
-                    if (importPath.endsWith('.tsx') || importPath.endsWith('.ts') || importPath.endsWith('.js')) return match;
-                    
-                    // Tenta resolver o caminho absoluto (virtual) do arquivo importado
-                    // Ex: file.name = "src/components/Header.tsx", importPath = "./Button"
-                    // Resolved = "src/components/Button"
-                    // Ex: file.name = "src/App.tsx", importPath = "./components/Header"
-                    // Resolved = "src/components/Header"
-                    
-                    // Normaliza o nome do arquivo atual para não ter ./ no inicio se tiver
-                    const currentFilePath = file.name.startsWith('/') ? file.name.slice(1) : file.name;
-                    const resolvedPathBase = resolvePath(currentFilePath, importPath);
-
-                    // Procura o arquivo correspondente na lista de arquivos
-                    const targetFile = files.find(f => {
-                        const fName = f.name.startsWith('/') ? f.name.slice(1) : f.name;
-                        return fName === `${resolvedPathBase}.tsx` || 
-                               fName === `${resolvedPathBase}.ts` || 
-                               fName === `${resolvedPathBase}.jsx` || 
-                               fName === `${resolvedPathBase}.js`;
-                    });
-                    
-                    if (targetFile) {
-                        // Se achou, pega a extensão correta
-                        const ext = targetFile.name.split('.').pop();
-                        return `from '${importPath}.${ext}'`;
-                    }
-                    
-                    // Fallback padrão se não encontrar (assume .tsx para React)
-                    return `from '${importPath}.tsx'`;
-                });
-
-                processedFiles[idx] = { ...file, content };
-            }
-        });
+    
+    if (indexContent.includes('</head>')) {
+        indexContent = indexContent.replace('</head>', `${importMap}</head>`);
+    } else {
+        indexContent = importMap + indexContent;
     }
+
+    indexContent = indexContent.replace(
+        /<script\s+type="module"\s+src="([^"]+)"\s*><\/script>/g, 
+        '<script type="text/babel" data-type="module" src="$1"></script>'
+    );
+    
+    processedFiles[indexHtmlIndex] = {
+        ...processedFiles[indexHtmlIndex],
+        content: indexContent
+    };
 
     return processedFiles;
 };
@@ -123,15 +80,21 @@ export const processFilesForStaticDeploy = (files: ProjectFile[]): ProjectFile[]
 export const createProjectZip = async (files: ProjectFile[]): Promise<Blob> => {
   const zip = new JSZip();
 
-  // Process files to make them executable in browser without a build step
-  const readyToDeployFiles = processFilesForStaticDeploy(files);
+  // Se for projeto HTML/JS simples, usamos os arquivos originais para garantir que o deploy
+  // seja fiel ao código gerado (sem transpilação React desnecessária).
+  const hasReact = files.some(f => f.name.endsWith('.tsx') || f.name.endsWith('.jsx'));
+  const filesToZip = hasReact ? processFilesForStaticDeploy(files) : files;
 
-  readyToDeployFiles.forEach(file => {
-    // Remove leading slash if present to avoid zip structure issues
-    const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
+  filesToZip.forEach(file => {
+    // Remove barra inicial para garantir que os arquivos fiquem na raiz do ZIP
+    let fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
+    
+    // Se o arquivo estiver dentro de uma pasta (ex: public/index.html), e for o único index,
+    // movemos para a raiz se necessário, ou mantemos a estrutura se for complexa.
+    // Para simplificar: Apenas removemos './' ou '/' do início.
+    fileName = fileName.replace(/^\.\//, '');
 
     if (file.content.startsWith('data:image/')) {
-        // Extract base64 part
         const base64Data = file.content.split(',')[1];
         zip.file(fileName, base64Data, { base64: true });
     } else {
@@ -141,7 +104,6 @@ export const createProjectZip = async (files: ProjectFile[]): Promise<Blob> => {
 
   return zip.generateAsync({ type: 'blob' });
 };
-
 
 export const downloadProjectAsZip = async (files: ProjectFile[], projectName: string = 'ai-codegen-project') => {
   try {
