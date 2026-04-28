@@ -44,6 +44,18 @@ export const WebContainerPreview: React.FC<WebContainerPreviewProps> = ({ files,
     try {
       setBooting(true);
       setError(null);
+
+      // WebContainers require Cross-Origin Isolation (COOP/COEP headers)
+      if (typeof crossOriginIsolated !== 'undefined' && !crossOriginIsolated) {
+        if (window.self !== window.top) {
+          setError('WebContainers require Cross-Origin Isolation. This iframe cannot be isolated. Please open the app in a new tab (click the "↗️" arrow button at the top right of the code editor!) to use the terminal/editor.');
+        } else {
+          setError('Cross-Origin Isolation is not enabled. Required HTTP headers might be missing.');
+        }
+        setBooting(false);
+        return;
+      }
+
       const wc = await getWebContainer();
       webcontainerRef.current = wc;
       
