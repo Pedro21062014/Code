@@ -111,10 +111,18 @@ export const GoogleDriveSaveModal: React.FC<GoogleDriveSaveModalProps> = ({
                         }
                         <br/>
                         {!isConnected 
-                            ? "Use sua conta Google para salvar projetos ilimitados no Drive."
+                            ? "Conecte sua conta Google para salvar projetos ilimitados no seu Drive."
                             : "Salve diretamente no seu Google Drive para continuar."
                         }
                     </p>
+
+                    {!isConnected && (
+                        <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-xl text-left">
+                            <p className="text-[10px] text-blue-700 dark:text-blue-400 font-medium leading-relaxed">
+                                <strong>Importante:</strong> Ao fazer login, certifique-se de marcar a caixa de permissão <strong>"Ver e gerenciar arquivos que você abriu ou criou com este app"</strong> para que possamos salvar o arquivo.
+                            </p>
+                        </div>
+                    )}
 
                     <button 
                         onClick={handleAction}

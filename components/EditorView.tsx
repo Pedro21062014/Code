@@ -10,8 +10,6 @@ import {
     SmartphoneIcon, MonitorIcon, GoogleDriveIcon, RefreshIcon
 } from './Icons';
 import { UserMenu } from './UserMenu';
-import { EnvVarsTab } from './EnvVarsTab';
-import { WebContainerPreview } from './WebContainerPreview';
 import { VersioningModal } from './VersioningModal';
 
 interface EditorViewProps {
@@ -55,7 +53,9 @@ interface EditorViewProps {
   onRenameFile?: (oldName: string, newName: string) => void;
   onMoveFile?: (oldPath: string, newPath: string) => void;
   onSaveToDrive?: () => void; // Added for manual drive save
-  onEnvVarsChange?: (vars: Record<string, string>) => void;
+  onToggleChat?: () => void;
+  isChatOpen?: boolean;
+  terminalCommands?: string[];
 }
 
 interface FileNode {
@@ -65,8 +65,8 @@ interface FileNode {
   children?: FileNode[];
 }
 
-const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
-    <pre className="p-4 md:p-6 text-[13px] text-gray-800 dark:text-gray-300 font-mono leading-relaxed overflow-x-auto selection:bg-blue-500/30 h-full">
+  const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
+    <pre className="p-4 md:p-6 text-[13px] text-gray-800 dark:text-gray-300 font-mono leading-relaxed overflow-x-auto selection:bg-blue-500/30 h-full bg-white dark:bg-[#09090b]">
       <code>{code}</code>
     </pre>
 );
@@ -101,9 +101,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
     onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
-    onFileUpload, onRenameFile, onMoveFile, onSaveToDrive, onEnvVarsChange
+    onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
+    onToggleChat, isChatOpen = true, terminalCommands
 }) => {
-  const [viewMode, setViewMode] = useState<'code' | 'preview' | 'env'>('preview');
+  const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['src', 'components', 'lib', 'app']));
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -332,7 +333,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#09090b] overflow-hidden text-gray-900 dark:text-white transition-colors duration-300 relative">
+    <div className="flex flex-col h-full bg-white dark:bg-[#09090b] overflow-hidden text-gray-900 dark:text-white transition-colors duration-300 relative font-sans">
       
       {/* Versioning Modal */}
       {onRestoreVersion && (
@@ -344,91 +345,69 @@ export const EditorView: React.FC<EditorViewProps> = ({
           />
       )}
 
-      {/* Header PRO (Minimalist) */}
-      <header className="h-12 border-b border-gray-200 dark:border-[#27272a] flex items-center justify-between px-4 bg-white dark:bg-[#09090b] z-50 transition-colors">
+      {/* Header PRO (Minimalist / Lovable Style) */}
+      <header className="h-14 border-b border-gray-200 dark:border-[#27272a] flex items-center justify-between px-4 bg-white dark:bg-[#09090b] z-50 transition-colors shadow-sm">
         
         {/* Left: Project Info */}
         <div className="flex items-center gap-3">
-            {/* Mobile Toggle */}
-            <button onClick={onOpenProjects} className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22]">
-                <ProjectsIcon className="w-4 h-4" />
-            </button>
-
             {/* Home Icon */}
             <button 
                 onClick={onNavigateHome} 
-                className="p-1.5 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Voltar para o Início"
             >
                 <HomeIcon className="w-4 h-4" />
             </button>
 
-            <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
+            <div className="h-6 w-px bg-gray-200 dark:bg-[#27272a]"></div>
 
             <div className="flex items-center gap-2 group">
                 <div 
-                    className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer" 
+                    className="flex flex-col justify-center px-2 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer" 
                     onClick={onOpenProjectSettings}
-                    title="Configurações do Projeto"
                 >
-                    <span className="text-xs font-semibold tracking-tight text-gray-900 dark:text-white">{projectName}</span>
-                    <SettingsIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold tracking-tight text-gray-900 dark:text-white">{projectName}</span>
+                        <ChevronDownIcon className="w-3 h-3 text-gray-400" />
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-medium">Codegem Project</span>
                 </div>
-            </div>
-            
-            <div className="h-4 w-px bg-gray-200 dark:bg-[#27272a]"></div>
-            
-            <div className="flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full ${deployedUrl ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                <span className="text-[10px] text-gray-500 font-mono">{deployedUrl ? 'Live' : 'Draft'}</span>
             </div>
         </div>
 
-        {/* Center: View Toggle (Pill) */}
-        <div className="absolute left-1/2 transform -translate-x-1/2 flex bg-gray-100 dark:bg-[#18181b] p-0.5 rounded-lg border border-gray-200 dark:border-[#27272a]">
+        {/* Center: View Toggle (Integrated Pill) */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 flex bg-gray-100 dark:bg-[#18181b] p-1 rounded-xl border border-gray-200 dark:border-[#27272a]">
             <button 
                 onClick={() => setViewMode('code')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     viewMode === 'code' 
-                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' 
+                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-md' 
                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                 }`}
             >
-                <TerminalIcon className="w-3 h-3" />
-                Code
+                <TerminalIcon className="w-3.5 h-3.5" />
+                Build
             </button>
             <button 
                 onClick={() => setViewMode('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     viewMode === 'preview' 
-                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' 
+                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-md' 
                     : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                 }`}
             >
-                <SparklesIcon className="w-3 h-3" />
+                <SparklesIcon className="w-3.5 h-3.5" />
                 Preview
             </button>
-            <button 
-                onClick={() => setViewMode('env')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
-                    viewMode === 'env' 
-                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow-sm' 
-                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
-                }`}
-            >
-                <SettingsIcon className="w-3 h-3" />
-                Variáveis
-            </button>
         </div>
-
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
             
             {onSaveToDrive && (
                 <button
                     onClick={onSaveToDrive}
-                    className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
-                    title="Salvar no Google Drive (.ai)"
+                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                    title="Transferir (.ai) para Drive"
                 >
                     <GoogleDriveIcon className="w-4 h-4" />
                 </button>
@@ -436,14 +415,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <button 
                 onClick={onSave}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded-md text-xs font-bold hover:opacity-80 transition-opacity"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-xl text-xs font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-sm"
             >
-                <SaveIcon className="w-3 h-3" /> Save
+                <SaveIcon className="w-3.5 h-3.5" /> Save
             </button>
             
             <button
                 onClick={onShare}
-                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Compartilhar"
             >
                 <UsersIcon className="w-4 h-4" />
@@ -451,7 +430,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <button 
                 onClick={onDownload}
-                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Download"
             >
                 <DownloadIcon className="w-4 h-4" />
@@ -459,7 +438,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <button
                 onClick={onSyncGithub}
-                className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-md transition-colors"
+                className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Sincronizar com GitHub"
             >
                 <GithubIcon className="w-4 h-4" />
@@ -467,9 +446,19 @@ export const EditorView: React.FC<EditorViewProps> = ({
             
             <button 
                 onClick={onRunLocally}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold hover:opacity-90 transition-colors shadow-lg ${deployedUrl ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-900/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20'}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg ${deployedUrl ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/20'}`}
             >
                 {deployedUrl ? 'Re-Deploy' : 'Deploy'}
+            </button>
+
+            <div className="h-6 w-px bg-gray-200 dark:bg-[#27272a] mx-1"></div>
+
+            <button
+                onClick={onToggleChat}
+                className={`p-2 rounded-lg transition-all ${isChatOpen ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22]'}`}
+                title={isChatOpen ? "Fechar Chat" : "Abrir Chat"}
+            >
+                <ChatIcon className="w-5 h-5" />
             </button>
         </div>
       </header>
@@ -477,26 +466,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
       <div className="flex-1 flex overflow-hidden">
         {/* Explorer Sidebar - Styled */}
         {viewMode === 'code' && (
-            <aside className={`border-r border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#0c0c0e] transition-all duration-300 overflow-hidden flex flex-col ${showExplorer ? 'w-60' : 'w-0'}`}>
-                <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-[#27272a]">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Explorer</span>
-                    <div className="flex items-center gap-1">
-                        <button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            className="p-1 text-gray-400 hover:text-black dark:hover:text-white rounded hover:bg-gray-200 dark:hover:bg-[#27272a] transition-colors"
-                            title="Upload de Arquivo"
-                        >
-                            <UploadIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            onChange={handleFileUploadInternal} 
-                            multiple 
-                            className="hidden" 
-                        />
-                        {/* Placeholder for New File Logic - currently automated via AI */}
-                    </div>
+            <aside className={`border-r border-gray-200 dark:border-[#27272a] bg-[#fbfbfb] dark:bg-[#09090b] transition-all duration-300 overflow-hidden flex flex-col ${showExplorer ? 'w-64' : 'w-0'}`}>
+                <div className="px-5 h-12 flex items-center justify-between border-b border-gray-200 dark:border-[#27272a]">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Files</span>
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        className="p-1.5 text-gray-400 hover:text-black dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-[#1f1f22] transition-colors"
+                        title="Add Assets"
+                    >
+                        <PlusIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileUploadInternal} multiple className="hidden" />
                 </div>
                 <div className="flex-1 overflow-y-auto pt-2 custom-scrollbar">
                     {renderTree(fileTree)}
@@ -556,15 +536,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         )}
                     </div>
                 </div>
-            ) : viewMode === 'env' ? (
-                <div className="h-full w-full">
-                    <EnvVarsTab 
-                        envVars={envVars} 
-                        onChange={(vars) => {
-                            if (onEnvVarsChange) onEnvVarsChange(vars);
-                        }}
-                    />
-                </div>
             ) : (
                 <div className="h-full w-full bg-[#f3f4f6] dark:bg-[#050505] relative flex flex-col">
                     {/* Fake Browser Chrome */}
@@ -614,11 +585,16 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     </div>
 
                     <div className={`flex-1 relative bg-white transition-all duration-300 mx-auto ${previewDevice === 'mobile' ? 'w-[375px] my-4 border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl h-[calc(100%-2rem)]' : 'w-full h-full'}`}>
-                        <WebContainerPreview 
-                            key={previewKey}
+                        <CodePreview 
+                            key={previewKey} // Key change forces remount/reload
                             files={files} 
+                            onError={onError} 
                             theme={theme} 
                             envVars={envVars}
+                            deployedUrl={deployedUrl}
+                            onDeploy={onRunLocally}
+                            chatMode={chatMode} 
+                            terminalCommands={terminalCommands}
                         />
                     </div>
                     

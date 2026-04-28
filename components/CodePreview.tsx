@@ -11,6 +11,7 @@ interface CodePreviewProps {
   deployedUrl?: string | undefined;
   onDeploy?: () => void;
   chatMode?: ChatMode; 
+  terminalCommands?: string[];
 }
 
 export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl }) => {
@@ -40,18 +41,14 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl }) 
     let htmlContent = indexHtml.content;
 
     // 2. Inline CSS
-    // Matches <link rel="stylesheet" href="./style.css"> etc
     htmlContent = htmlContent.replace(/<link[^>]+href=["']([^"']+)["'][^>]*>/gi, (match, href) => {
         if (!match.toLowerCase().includes('stylesheet')) return match;
-        
-        // Ignore external links (http/https)
         if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//')) {
             return match;
         }
 
-        // Clean path
-        const fileName = href.split('/').pop(); // Simple matching by filename for robustness
-        const cssFile = files.find(f => f.name.endsWith(fileName));
+        const fileName = href.split('/').pop();
+        const cssFile = files.find(f => f.name.endsWith(fileName as string));
         
         if (cssFile) {
             return `<style>\n${cssFile.content}\n</style>`;
@@ -60,18 +57,15 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl }) 
     });
 
     // 3. Inline JS
-    // Matches <script src="./script.js"></script>
     htmlContent = htmlContent.replace(/<script[^>]+src=["']([^"']+)["'][^>]*><\/script>/gi, (match, src) => {
-        // Ignore external
         if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//')) {
             return match;
         }
 
         const fileName = src.split('/').pop();
-        const jsFile = files.find(f => f.name.endsWith(fileName));
+        const jsFile = files.find(f => f.name.endsWith(fileName as string));
 
         if (jsFile) {
-            // Check if it's a module
             const isModule = match.includes('type="module"');
             return `<script${isModule ? ' type="module"' : ''}>\n${jsFile.content}\n</script>`;
         }
