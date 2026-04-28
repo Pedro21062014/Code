@@ -1,12 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ChatMessage, AIProvider, AIModel, ChatMode } from '../types';
 import { AI_MODELS } from '../constants';
-import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
+import { SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -370,163 +366,96 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         <div key={index} className={`flex flex-col gap-2 animate-fadeIn ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                             
                             {msg.role === 'user' ? (
-                                <div className="max-w-[85%] bg-blue-600 text-white px-4 py-3 rounded-2xl rounded-tr-none text-sm shadow-sm font-medium">
+                                <div className="max-w-[90%] bg-gray-100 dark:bg-[#1f1f22] text-gray-900 dark:text-gray-200 px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm border border-gray-200 dark:border-[#27272a] whitespace-pre-wrap">
                                     {msg.content.replace('<tools/plan> ', '')}
                                 </div>
                             ) : (
-                                <div className="w-full text-sm text-gray-700 dark:text-gray-300">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-6 h-6 rounded-full bg-black dark:bg-white flex items-center justify-center">
-                                            <AppLogo className="w-4 h-4 text-white dark:text-black" />
-                                        </div>
-                                        <span className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Assistente</span>
-                                    </div>
+                                <div className="w-full text-sm text-gray-700 dark:text-gray-300 pl-2 border-l-2 border-gray-200 dark:border-[#27272a] ml-1">
                                     
-                                    <div className="pl-8">
-                                        {/* Grounding Metadata */}
-                                        {msg.groundingMetadata && <GroundingMetadata metadata={msg.groundingMetadata} />}
+                                    {/* Grounding Metadata (Google Search Results) */}
+                                    {msg.groundingMetadata && <GroundingMetadata metadata={msg.groundingMetadata} />}
 
-                                        {/* Image Generation or Text response */}
-                                        {msg.isImageGenerator ? (
-                                            <div className="mt-2">
-                                                {msg.isThinking ? (
-                                                    <div className="flex items-center gap-3 p-2">
-                                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 font-bold animate-shine text-sm">
-                                                            Gerando Arte...
-                                                        </span>
-                                                    </div>
-                                                ) : msg.image ? (
-                                                    <div className="group relative w-full max-w-[280px]">
-                                                        <img 
-                                                            src={`data:image/png;base64,${msg.image}`} 
-                                                            alt="Generated" 
-                                                            className="w-full rounded-xl shadow-lg border border-gray-200 dark:border-[#27272a]" 
-                                                        />
-                                                        <button 
-                                                            onClick={() => msg.image && handleDownloadImage(msg.image, index)}
-                                                            className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
-                                                            title="Baixar Imagem"
-                                                        >
-                                                            <DownloadIcon className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-500 text-xs rounded-lg">
-                                                        {msg.content}
-                                                    </div>
-                                                )}
-                                                {!msg.isThinking && msg.image && <p className="mt-2 text-xs text-gray-500">{msg.content}</p>}
-                                            </div>
-                                        ) : (
-                                            <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90 markdown-content">
-                                                {msg.isThinking ? (
-                                                    <div className="flex items-center gap-2 p-2">
-                                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-600 via-black to-gray-600 dark:from-gray-300 dark:via-white dark:to-gray-300 font-bold animate-shine text-sm">
-                                                            {msg.content === 'Pensando...' || msg.content === 'Processando...' ? msg.content : (
-                                                                <div className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">
-                                                                    <Markdown remarkPlugins={[remarkGfm]}>
-                                                                        {msg.content}
-                                                                    </Markdown>
-                                                                    <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-blue-500 animate-pulse"></span>
-                                                                </div>
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        {msg.content.includes('- [ ]') || msg.content.includes('- [x]') ? (
-                                                            <PlanTimeline content={msg.content} />
-                                                        ) : (
-                                                            <div className="text-gray-800 dark:text-gray-200">
-                                                                <Markdown 
-                                                                    remarkPlugins={[remarkGfm]}
-                                                                    components={{
-                                                                        code({ inline, className, children, ...props }: any) {
-                                                                            const match = /language-(\w+)/.exec(className || '');
-                                                                            return !inline && match ? (
-                                                                                <div className="my-4 rounded-lg overflow-hidden border border-gray-200 dark:border-[#27272a]">
-                                                                                    <div className="bg-gray-100 dark:bg-[#18181b] px-4 py-2 border-b border-gray-200 dark:border-[#27272a] flex justify-between items-center">
-                                                                                        <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500">{match[1]}</span>
-                                                                                        <button 
-                                                                                            onClick={() => navigator.clipboard.writeText(String(children).replace(/\n$/, ''))}
-                                                                                            className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
-                                                                                        >
-                                                                                            Copiar
-                                                                                        </button>
-                                                                                    </div>
-                                                                                    <SyntaxHighlighter
-                                                                                        style={vscDarkPlus}
-                                                                                        language={match[1]}
-                                                                                        PreTag="div"
-                                                                                        customStyle={{ margin: 0, padding: '1rem', fontSize: '12px' }}
-                                                                                        {...props}
-                                                                                    >
-                                                                                        {String(children).replace(/\n$/, '')}
-                                                                                    </SyntaxHighlighter>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <code className={`${className} bg-gray-100 dark:bg-[#18181b] px-1.5 py-0.5 rounded text-xs font-mono`} {...props}>
-                                                                                    {children}
-                                                                                </code>
-                                                                            );
-                                                                        },
-                                                                        p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
-                                                                        ul: ({ children }) => <ul className="list-disc pl-4 mb-4 space-y-1">{children}</ul>,
-                                                                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-4 space-y-1">{children}</ol>,
-                                                                        h1: ({ children }) => <h1 className="text-lg font-bold mb-3">{children}</h1>,
-                                                                        h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                                                                        h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                                                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic my-4">{children}</blockquote>,
-                                                                        table: ({ children }) => (
-                                                                            <div className="overflow-x-auto my-4 border border-gray-200 dark:border-[#27272a] rounded-lg">
-                                                                                <table className="min-w-full divide-y divide-gray-200 dark:divide-[#27272a]">{children}</table>
-                                                                            </div>
-                                                                        ),
-                                                                        th: ({ children }) => <th className="px-3 py-2 bg-gray-50 dark:bg-[#18181b] text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">{children}</th>,
-                                                                        td: ({ children }) => <td className="px-3 py-2 text-xs border-t border-gray-100 dark:border-[#27272a]">{children}</td>,
-                                                                    }}
-                                                                >
-                                                                    {msg.content}
-                                                                </Markdown>
+                                    {/* Image Generation State */}
+                                    {msg.isImageGenerator ? (
+                                        <div className="mt-2">
+                                            {msg.isThinking ? (
+                                                <div className="flex items-center gap-3 p-2">
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 font-bold animate-shine text-sm">
+                                                        Gerando Arte...
+                                                    </span>
+                                                </div>
+                                            ) : msg.image ? (
+                                                <div className="group relative w-full max-w-[280px]">
+                                                    <img 
+                                                        src={`data:image/png;base64,${msg.image}`} 
+                                                        alt="Generated" 
+                                                        className="w-full rounded-xl shadow-lg border border-gray-200 dark:border-[#27272a]" 
+                                                    />
+                                                    <button 
+                                                        onClick={() => msg.image && handleDownloadImage(msg.image, index)}
+                                                        className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                                                        title="Baixar Imagem"
+                                                    >
+                                                        <DownloadIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-500 text-xs rounded-lg">
+                                                    {msg.content}
+                                                </div>
+                                            )}
+                                            {!msg.isThinking && msg.image && <p className="mt-2 text-xs text-gray-500">{msg.content}</p>}
+                                        </div>
+                                    ) : (
+                                        /* Standard Text/Code Response */
+                                        <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90">
+                                            {msg.isThinking ? (
+                                                <div className="flex items-center gap-2 p-2">
+                                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-600 via-black to-gray-600 dark:from-gray-300 dark:via-white dark:to-gray-300 font-bold animate-shine text-sm">
+                                                        {msg.content === 'Pensando...' || msg.content === 'Processando...' ? msg.content : (
+                                                            // Se já tem algum conteúdo (streaming), mostra o conteúdo mesmo "thinking"
+                                                            <div className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">
+                                                                {msg.content}
+                                                                <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-blue-500 animate-pulse"></span>
                                                             </div>
                                                         )}
-                                                        
-                                                        {msg.terminalCommands && msg.terminalCommands.length > 0 && (
-                                                            <div className="mt-4 w-full max-w-md">
-                                                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Comandos Executados:</p>
-                                                                <div className="border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-[#18181b] shadow-sm font-mono text-xs text-gray-700 dark:text-gray-300 divide-y divide-gray-100 dark:divide-[#27272a]">
-                                                                    {msg.terminalCommands.map((cmd: string, i: number) => (
-                                                                        <div key={i} className="px-4 py-3 flex items-start gap-2">
-                                                                            <span className="text-blue-500 font-bold">$</span>
-                                                                            <span className="whitespace-pre-wrap">{cmd}</span>
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {/* If Plan Mode, show timeline */}
+                                                    {msg.content.includes('- [ ]') || msg.content.includes('- [x]') ? (
+                                                        <PlanTimeline content={msg.content} />
+                                                    ) : (
+                                                        <p className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">{msg.content}</p>
+                                                    )}
+                                                    
+                                                    {/* File Changes List - Updated Style */}
+                                                    {msg.filesModified && msg.filesModified.length > 0 && (
+                                                        <div className="mt-4 w-full max-w-md">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                                                                Aqui estão as mudanças:
+                                                            </p>
+                                                            <div className="border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-[#18181b] shadow-sm">
+                                                                {msg.filesModified.map((file, i) => (
+                                                                    <div key={i} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#27272a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1c] transition-colors">
+                                                                        <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">{file}</span>
+                                                                        <div className="text-green-500">
+                                                                            <CheckCircleIcon className="w-5 h-5" />
                                                                         </div>
-                                                                    ))}
-                                                                </div>
+                                                                    </div>
+                                                                ))}
                                                             </div>
-                                                        )}
-                                                        
-                                                        {msg.filesModified && msg.filesModified.length > 0 && (
-                                                            <div className="mt-4 w-full max-w-md">
-                                                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Mudanças Realizadas:</p>
-                                                                <div className="border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-[#18181b] shadow-sm">
-                                                                    {msg.filesModified.map((file, i) => (
-                                                                        <div key={i} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#27272a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1c] transition-colors">
-                                                                            <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">{file}</span>
-                                                                            <div className="text-green-500"><CheckCircleIcon className="w-5 h-5" /></div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
-                    );
+                    )
                 })}
                 
                 {/* Active Generation Indicator */}

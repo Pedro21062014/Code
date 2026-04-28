@@ -33,16 +33,14 @@ export const uploadProjectToDrive = async (
     // Construct the multipart body strictly following RFC 2046
     const boundary = '-------314159265358979323846';
     
-    // NOTE: Each part must be properly separated by boundary.
-    // Ensure \r\n is used correctly between boundaries and content.
-    const bodyParts: (string | Blob)[] = [
+    // NOTE: The body must NOT start with \r\n. It must start immediately with --boundary.
+    const bodyParts = [
         `--${boundary}\r\n`,
         `Content-Type: application/json; charset=UTF-8\r\n\r\n`,
         JSON.stringify(metadata),
         `\r\n--${boundary}\r\n`,
         `Content-Type: ${contentType}\r\n\r\n`,
-        // Ensure content is a string
-        typeof content === 'string' ? content : JSON.stringify(content),
+        content,
         `\r\n--${boundary}--`
     ];
 
@@ -57,39 +55,29 @@ export const uploadProjectToDrive = async (
         method = 'PATCH';
     }
 
-    console.log(`[GoogleDriveService] Attempting ${method} to ${url}...`);
-
     try {
         const response = await fetch(url, {
             method: method,
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': `multipart/related; boundary=${boundary}`,
             },
             body: multipartBody
         });
 
         if (!response.ok) {
-            if (response.status === 401) {
-                console.warn("[GoogleDriveService] Access token expired or invalid.");
-                throw new Error("Sua sessão do Google expirou. Por favor, conecte novamente.");
-            }
-            if (response.status === 403) {
-                console.warn("[GoogleDriveService] Permission denied. Possibly missing drive.file scope.");
-                throw new Error("Permissão negada. Certifique-se de que marcou a opção 'Ver e gerenciar arquivos' no login do Google.");
-            }
             let errorText = "Erro desconhecido";
             try {
                 const errJson = await response.json();
-                console.error("[GoogleDriveService] API Error JSON:", errJson);
                 errorText = errJson.error?.message || JSON.stringify(errJson);
             } catch (e) {
                 errorText = await response.text();
             }
-            throw new Error(`Erro na API do Google Drive (Status ${response.status}): ${errorText}`);
+            // Include status code for better handling upstream
+            throw new Error(`Google Drive API Error (${response.status}): ${errorText}`);
         }
 
         const fileData = await response.json();
-        console.log("[GoogleDriveService] Success:", fileData);
         
         return {
             id: fileData.id,

@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
-import { Routes, Route, useNavigate, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import { EditorView } from './components/EditorView';
 import { ChatPanel } from './components/ChatPanel';
 import { NavigationSidebar } from './components/NavigationSidebar';
@@ -124,10 +123,6 @@ const initialProjectState: ProjectState = {
 };
 
 export const App: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-
   const [project, setProject] = useLocalStorage<ProjectState>('codegen-studio-project', initialProjectState);
   const { files, activeFile, chatMessages, projectName, envVars, currentProjectId, history } = project;
   
@@ -135,57 +130,13 @@ export const App: React.FC = () => {
   const [galleryProjects, setGalleryProjects] = useState<SavedProject[]>([]);
   const [sessionUser, setSessionUser] = useState<any | null>(null);
 
-  const [view, rawSetView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations' | 'gallery' | 'settings'>(() => {
+  const [view, setView] = useState<'landing' | 'auth' | 'welcome' | 'editor' | 'pricing' | 'projects' | 'shared' | 'recent' | 'public_preview' | 'privacy' | 'terms' | 'integrations' | 'gallery' | 'settings'>(() => {
      if (typeof window !== 'undefined' && window.location.search.includes('p=')) return 'public_preview';
      if (files.length > 0) return 'editor';
      const hasVisited = typeof localStorage !== 'undefined' ? localStorage.getItem('codegen-has-visited') : null;
      if (!hasVisited) return 'landing';
      return 'welcome';
   });
-
-  // Sync view state with URL
-  useEffect(() => {
-    const path = location.pathname.substring(1);
-    if (!path && view !== 'landing' && view !== 'welcome' && view !== 'editor' && view !== 'public_preview') {
-        // Default home behavior handled by initial state and Routes
-        return;
-    }
-    
-    if (path && ['welcome', 'editor', 'pricing', 'projects', 'shared', 'recent', 'public_preview', 'privacy', 'terms', 'integrations', 'gallery', 'settings', 'auth', 'landing'].includes(path)) {
-        rawSetView(path as any);
-    }
-  }, [location.pathname]);
-
-  // Sync navigation when setView is called
-  const setView = useCallback((newView: any) => {
-      const handleNavigation = (v: string) => {
-          if (v === 'editor') navigate('/editor');
-          else if (v === 'welcome') navigate('/welcome');
-          else if (v === 'pricing') navigate('/pricing');
-          else if (v === 'projects') navigate('/projects');
-          else if (v === 'shared') navigate('/shared');
-          else if (v === 'recent') navigate('/recent');
-          else if (v === 'settings') navigate('/settings');
-          else if (v === 'gallery') navigate('/gallery');
-          else if (v === 'integrations') navigate('/integrations');
-          else if (v === 'auth') navigate('/auth');
-          else if (v === 'landing') navigate('/landing');
-          else if (v === 'privacy') navigate('/privacy');
-          else if (v === 'terms') navigate('/terms');
-          else navigate(`/${v}`);
-      };
-
-      if (typeof newView === 'function') {
-          rawSetView((prev: any) => {
-              const next = newView(prev);
-              handleNavigation(next);
-              return next;
-          });
-      } else {
-          rawSetView(newView);
-          handleNavigation(newView);
-      }
-  }, [navigate]);
 
   const [previousView, setPreviousView] = useState<'landing' | 'welcome'>('landing');
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor'>('editor');
@@ -234,7 +185,6 @@ export const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   const [chatSidebarWidth, setChatSidebarWidth] = useState(420);
-  const [isChatPanelOpen, setIsChatPanelOpen] = useState(true);
   const isResizingRef = useRef(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -254,8 +204,7 @@ export const App: React.FC = () => {
   const resize = useCallback((e: MouseEvent) => {
     if (isResizingRef.current) {
       setChatSidebarWidth(prevWidth => {
-          // Since the panel is on the RIGHT, moving left (negative X) INCREASES width
-          const newWidth = prevWidth - e.movementX;
+          const newWidth = prevWidth + e.movementX;
           if (newWidth < 300) return 300;
           if (newWidth > 800) return 800;
           return newWidth;
@@ -1011,7 +960,7 @@ export const App: React.FC = () => {
         setUserSettings(settings);
         fetchUserProjects(user.uid, user.email);
         localStorage.setItem('codegen-has-visited', 'true');
-        setView((current: string) => (current === 'landing' || current === 'auth') ? 'editor' : current);
+        setView(current => (current === 'landing' || current === 'auth') ? 'welcome' : current);
       } else {
         setSessionUser(null);
         setUserSettings(null);
@@ -1250,8 +1199,7 @@ export const App: React.FC = () => {
                 summary: result.summary,
                 isThinking: false,
                 groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
-                filesModified: modifiedFileNames,
-                terminalCommands: result.terminalCommands
+                filesModified: modifiedFileNames
             };
             return { 
                 ...p, 
@@ -1282,9 +1230,72 @@ export const App: React.FC = () => {
       setGoogleDriveModalReason('limit'); // default or change logic based on size
   };
 
-  const isDashboardView = ['/welcome', '/projects', '/shared', '/recent', '/pricing', '/integrations', '/gallery', '/settings'].includes(location.pathname);
+  if (isLoadingPublic) {
+    return (
+      <div className="h-screen w-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
+        <LoaderIcon className="w-10 h-10 text-blue-500 animate-spin" />
+        <p className="text-gray-400 font-mono text-sm animate-pulse tracking-widest">CARREGANDO APLICAÇÃO...</p>
+      </div>
+    );
+  }
 
-  const DashboardWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  if (view === 'public_preview') {
+    return (
+      <div className="h-screen w-full bg-white relative">
+        <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} />
+        <div className="fixed bottom-4 right-4 z-50">
+            <button onClick={() => window.location.href = window.location.origin} className="flex items-center gap-2 px-4 py-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/10 hover:bg-black transition-all shadow-2xl">
+                Criado com Codegen Studio
+            </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!sessionUser) {
+    if (view === 'auth') {
+        return (
+            <div className="w-full h-full">
+                <AuthPage 
+                    onBack={() => setView('landing')} 
+                    theme={theme}
+                    onThemeChange={setTheme}
+                />
+            </div>
+        );
+    }
+    
+    if (view === 'landing' || view === 'pricing' || view === 'privacy' || view === 'terms') {
+        if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
+        if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
+        
+        return (
+            <div className="w-full h-full">
+                {view === 'pricing' ? (
+                    <PricingPage onBack={() => setView('landing')} onNewProject={() => {}} />
+                ) : (
+                    <LandingPage 
+                        onGetStarted={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('auth'); }}
+                        onLogin={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('auth'); }}
+                        onShowPricing={() => { setPreviousView('landing'); setView('pricing'); }}
+                        onShowPrivacy={() => { setPreviousView('landing'); setView('privacy'); }}
+                        onShowTerms={() => { setPreviousView('landing'); setView('terms'); }}
+                        theme={theme}
+                        onThemeChange={setTheme}
+                    />
+                )}
+                <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
+            </div>
+        );
+    }
+  }
+
+  if (view === 'privacy') return <div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView)} /></div>;
+  if (view === 'terms') return <div className="w-full h-full"><TermsPage onBack={() => setView(previousView)} /></div>;
+
+  const isDashboardView = ['welcome', 'projects', 'shared', 'recent', 'pricing', 'integrations', 'gallery', 'settings'].includes(view);
+
+  return (
     <div className={`${theme} flex h-screen bg-[#09090b]`}>
       <SaveSuccessAnimation isVisible={showSaveSuccess} />
       {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
@@ -1306,370 +1317,246 @@ export const App: React.FC = () => {
           />
       )}
 
-      <div className="flex-1 h-full overflow-hidden flex flex-col relative w-full">
-          {children}
-      </div>
-    </div>
-  );
+      <div className="flex-1 h-full overflow-hidden flex flex-col relative">
+          
+          <div key={view} className="w-full h-full flex flex-col">
+            {view === 'welcome' && (
+                <WelcomeScreen 
+                  session={sessionUser ? { user: sessionUser } : null}
+                  onLoginClick={() => setView('auth')}
+                  onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
+                  onShowPricing={() => setView('pricing')}
+                  onShowProjects={() => setView('projects')}
+                  onOpenGithubImport={() => setGithubModalOpen(true)}
+                  onFolderImport={f => { 
+                      setProject({
+                          ...initialProjectState,
+                          files: f,
+                          activeFile: f.length > 0 ? f[0].name : null,
+                          chatMessages: [{ role: 'assistant', content: "Pasta importada com sucesso! O que você gostaria de fazer com esses arquivos?" }]
+                      }); 
+                      setView('editor'); 
+                  }}
+                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                  onLogout={() => signOut(auth)}
+                  onOpenSettings={() => setView('settings')}
+                  recentProjects={savedProjects}
+                  onLoadProject={handleLoadProject}
+                  credits={userSettings?.credits || 0}
+                  userGeminiKey={userSettings?.gemini_api_key ? userSettings.gemini_api_key : undefined}
+                  currentPlan={userSettings?.plan || 'Hobby'}
+                  availableModels={availableModels}
+                  theme={theme}
+                  onThemeChange={setTheme}
+                />
+            )}
 
-  return (
-    <Routes>
-      <Route path="/" element={<Navigate to={files.length > 0 ? "/editor" : "/welcome"} replace />} />
-      
-      <Route path="/landing" element={
-        <div className="w-full h-full">
-            <LandingPage 
-                onGetStarted={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('auth'); }}
-                onLogin={() => { localStorage.setItem('codegen-has-visited', 'true'); setView('auth'); }}
-                onShowPricing={() => { setPreviousView('landing'); setView('pricing'); }}
-                onShowPrivacy={() => { setPreviousView('landing'); setView('privacy'); }}
-                onShowTerms={() => { setPreviousView('landing'); setView('terms'); }}
-                theme={theme}
-                onThemeChange={setTheme}
-            />
-            <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
-        </div>
-      } />
+            {view === 'pricing' && (
+                <PricingPage onBack={() => setView(previousView)} onNewProject={() => {}} />
+            )}
 
-      <Route path="/auth" element={
-        <div className="w-full h-full flex flex-col items-center justify-center bg-[#09090b]">
-            <AuthPage 
-                onBack={() => setView('landing')} 
-                theme={theme}
-                onThemeChange={setTheme}
-            />
-        </div>
-      } />
+            {view === 'settings' && (
+                <SettingsPage 
+                    settings={userSettings} 
+                    sessionUser={sessionUser} 
+                    onUpdateSettings={handleUpdateSettings} 
+                    onLogout={() => signOut(auth)} 
+                />
+            )}
 
-      <Route path="/privacy" element={<div className="w-full h-full"><PrivacyPage onBack={() => setView(previousView || 'landing')} /></div>} />
-      <Route path="/terms" element={<div className="w-full h-full"><TermsPage onBack={() => setView(previousView || 'landing')} /></div>} />
+            {view === 'integrations' && (
+                <IntegrationsPage 
+                    onOpenGithubImport={() => setGithubModalOpen(true)}
+                    onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
+                    onOpenStripeModal={() => setStripeModalOpen(true)}
+                    onOpenNeonModal={() => setNeonModalOpen(true)}
+                    onOpenOSMModal={() => setOSMModalOpen(true)}
+                    onOpenGeminiModal={() => setApiKeyModalOpen(true)}
+                    onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
+                    onOpenDriveAuth={handleConnectGoogleDrive}
+                    onOpenNetlifyModal={() => setNetlifyModalOpen(true)}
+                />
+            )}
 
-      <Route path="/public_preview" element={
-        isLoadingPublic ? (
-            <div className="h-screen w-full bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
-                <LoaderIcon className="w-10 h-10 text-blue-500 animate-spin" />
-                <p className="text-gray-400 font-mono text-sm animate-pulse tracking-widest">CARREGANDO APLICAÇÃO...</p>
-            </div>
-        ) : (
-            <div className="h-screen w-full bg-white relative">
-                <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} />
-                <div className="fixed bottom-4 right-4 z-50">
-                    <button onClick={() => window.location.href = window.location.origin} className="flex items-center gap-2 px-4 py-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/10 hover:bg-black transition-all shadow-2xl">
-                        Criado com Codegen Studio
-                    </button>
-                </div>
-            </div>
-        )
-      } />
+            {(view === 'projects' || view === 'shared' || view === 'recent' || view === 'gallery') && (
+                <ProjectsPage 
+                  projects={
+                    view === 'gallery' ? galleryProjects :
+                    view === 'projects' 
+                      ? savedProjects.filter(p => p.ownerId === sessionUser?.uid)
+                      : view === 'shared' 
+                        ? savedProjects.filter(p => p.ownerId !== sessionUser?.uid)
+                        : savedProjects
+                  }
+                  title={
+                    view === 'gallery' ? 'Galeria da Comunidade' :
+                    view === 'projects' ? 'Meus Projetos' : 
+                    view === 'shared' ? 'Projetos Compartilhados' : 'Projetos Recentes'
+                  }
+                  currentUserId={sessionUser?.uid}
+                  onLikeProject={handleToggleLike}
+                  onLoadProject={handleLoadProject} 
+                  onDeleteProject={handleDeleteProject} 
+                  onBack={() => setView('welcome')} 
+                  onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} 
+                />
+            )}
 
-      <Route path="/welcome" element={
-        <DashboardWrapper>
-            <WelcomeScreen 
-              session={sessionUser ? { user: sessionUser } : null}
-              onLoginClick={() => setView('auth')}
-              onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
-              onShowPricing={() => setView('pricing')}
-              onShowProjects={() => setView('projects')}
-              onOpenGithubImport={() => setGithubModalOpen(true)}
-              onFolderImport={f => { 
-                  setProject({
-                      ...initialProjectState,
-                      files: f,
-                      activeFile: f.length > 0 ? f[0].name : null,
-                      chatMessages: [{ role: 'assistant', content: "Pasta importada com sucesso! O que você gostaria de fazer com esses arquivos?" }]
-                  }); 
-                  setView('editor'); 
-              }}
-              onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-              onLogout={() => signOut(auth)}
-              onOpenSettings={() => setView('settings')}
-              recentProjects={savedProjects}
-              onLoadProject={handleLoadProject}
-              credits={userSettings?.credits || 0}
-              userGeminiKey={userSettings?.gemini_api_key ? userSettings.gemini_api_key : undefined}
-              currentPlan={userSettings?.plan || 'Hobby'}
-              availableModels={availableModels}
-              theme={theme}
-              onThemeChange={setTheme}
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/pricing" element={
-        <DashboardWrapper>
-            <PricingPage onBack={() => setView(previousView || 'welcome')} onNewProject={() => {}} />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/settings" element={
-        <DashboardWrapper>
-            <SettingsPage 
-                settings={userSettings} 
-                sessionUser={sessionUser} 
-                onUpdateSettings={handleUpdateSettings} 
-                onLogout={() => signOut(auth)} 
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/integrations" element={
-        <DashboardWrapper>
-            <IntegrationsPage 
-                onOpenGithubImport={() => setGithubModalOpen(true)}
-                onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
-                onOpenStripeModal={() => setStripeModalOpen(true)}
-                onOpenNeonModal={() => setNeonModalOpen(true)}
-                onOpenOSMModal={() => setOSMModalOpen(true)}
-                onOpenGeminiModal={() => setApiKeyModalOpen(true)}
-                onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
-                onOpenDriveAuth={handleConnectGoogleDrive}
-                onOpenNetlifyModal={() => setNetlifyModalOpen(true)}
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/projects" element={
-        <DashboardWrapper>
-            <ProjectsPage 
-              projects={savedProjects.filter(p => p.ownerId === sessionUser?.uid)}
-              title='Meus Projetos'
-              currentUserId={sessionUser?.uid}
-              onLikeProject={handleToggleLike}
-              onLoadProject={handleLoadProject} 
-              onDeleteProject={handleDeleteProject} 
-              onBack={() => setView('welcome')} 
-              onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} 
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/shared" element={
-        <DashboardWrapper>
-            <ProjectsPage 
-              projects={savedProjects.filter(p => p.ownerId !== sessionUser?.uid)}
-              title='Projetos Compartilhados'
-              currentUserId={sessionUser?.uid}
-              onLikeProject={handleToggleLike}
-              onLoadProject={handleLoadProject} 
-              onDeleteProject={handleDeleteProject} 
-              onBack={() => setView('welcome')} 
-              onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} 
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/recent" element={
-        <DashboardWrapper>
-            <ProjectsPage 
-              projects={savedProjects}
-              title='Projetos Recentes'
-              currentUserId={sessionUser?.uid}
-              onLikeProject={handleToggleLike}
-              onLoadProject={handleLoadProject} 
-              onDeleteProject={handleDeleteProject} 
-              onBack={() => setView('welcome')} 
-              onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} 
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/gallery" element={
-        <DashboardWrapper>
-            <ProjectsPage 
-              projects={galleryProjects}
-              title='Galeria da Comunidade'
-              currentUserId={sessionUser?.uid}
-              onLikeProject={handleToggleLike}
-              onLoadProject={handleLoadProject} 
-              onDeleteProject={handleDeleteProject} 
-              onBack={() => setView('welcome')} 
-              onNewProject={() => { setProject(initialProjectState); setView('welcome'); }} 
-            />
-        </DashboardWrapper>
-      } />
-
-      <Route path="/editor" element={
-        <div className={`${theme} flex h-screen bg-[#09090b]`}>
-            <SaveSuccessAnimation isVisible={showSaveSuccess} />
-            {showProOnboarding && <ProWelcomeOnboarding onComplete={handleCompleteProOnboarding} />}
-            <Toast message={toastError} onClose={() => setToastError(null)} type="error" />
-            <Toast message={toastSuccess} onClose={() => setToastSuccess(null)} type="success" />
-
-            <div className="flex-1 h-full overflow-hidden flex flex-col relative w-full">
+            {view === 'editor' && (
                 <div className="flex flex-col h-full bg-var-bg-default overflow-hidden w-full">
-                    <div className="flex-1 flex flex-row overflow-hidden relative">
-                      {/* Integrated Activity Bar (Slim Left Rail) */}
-                      <div className="hidden lg:flex flex-shrink-0">
-                          <NavigationSidebar 
-                              activeView="editor" 
-                              onNavigate={v => setView(v as any)} 
-                              session={sessionUser ? { user: sessionUser } : null}
-                              onLogin={() => setAuthModalOpen(true)}
-                              onLogout={() => signOut(auth)}
-                              onOpenSettings={() => setView('settings')}
-                              credits={userSettings?.credits || 0}
-                              currentPlan={userSettings?.plan || 'Free'}
-                              onRedeemCredits={handleRedeemCredits}
-                              lastRedemptionDate={userSettings?.last_credit_redemption}
-                          />
-                      </div>
-
-                      {/* Main Center: Editor & Explorer */}
-                      <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
-                        <EditorView 
-                          files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
-                          onFileSelect={n => setProject(p => ({...p, activeFile: n}))} 
-                          onFileDelete={handleFileDelete}
-                          onRunLocally={() => setPublishModalOpen(true)}
-                          onSyncGithub={() => setGithubSyncModalOpen(true)}
-                          onShare={() => setShareModalOpen(true)}
-                          codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
-                          onDownload={() => downloadProjectAsZip(files, projectName)}
-                          onSave={handleSaveProject}
-                          onOpenProjects={() => setView('projects')}
-                          onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
-                          onLogout={() => signOut(auth)}
-                          onOpenSettings={() => setView('settings')}
-                          onOpenProjectSettings={handleOpenProjectSettings}
-                          onRenameProject={handleRenameProject}
-                          onNavigateHome={() => setView('welcome')}
-                          session={sessionUser}
+                  <div className="flex flex-1 overflow-hidden relative">
+                    <div 
+                        className={`flex-shrink-0 border-r border-[#27272a] h-full z-10 bg-[#121214] transition-none ${activeMobileTab === 'chat' ? 'flex w-full lg:w-auto' : 'hidden lg:flex'}`}
+                        style={{ width: activeMobileTab === 'chat' ? '100%' : `${chatSidebarWidth}px` }}
+                    >
+                      <ChatPanel 
+                          messages={chatMessages} 
+                          onSendMessage={handleSendMessage} 
+                          isProUser={userSettings?.plan === 'Pro'} 
+                          projectName={projectName} 
+                          credits={userSettings?.credits || 0}
+                          generatingFile={generatingFile} 
                           isGenerating={isInitializing}
-                          generatingFile={generatingFile}
-                          generatedFileNames={generatedFileNames}
-                          aiSuggestions={aiSuggestions}
-                          deployedUrl={currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined}
-                          chatMode={chatMode}
-                          projectHistory={history}
-                          onRestoreVersion={handleRestoreVersion}
-                          onFileUpload={handleFileUpload}
-                          onRenameFile={handleRenameFile}
-                          onMoveFile={handleMoveFile}
-                          onSaveToDrive={onSaveToDriveClick}
-                          onToggleChat={() => setIsChatPanelOpen(!isChatPanelOpen)}
-                          isChatOpen={isChatPanelOpen}
-                          terminalCommands={project.chatMessages[project.chatMessages.length - 1]?.terminalCommands}
-                        />
-                      </main>
-
-                      {/* Resizer Logic - Corrected for Right Panel */}
-                      <div 
-                          onMouseDown={startResizing}
-                          className={`w-1 h-full bg-transparent hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-gray-200 dark:border-[#27272a] ${!isChatPanelOpen && 'pointer-events-none opacity-0'}`}
-                          title="Redimensionar Chat"
+                          onStopGeneration={handleStopGeneration}
+                          availableModels={availableModels}
+                          onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
+                          onOpenGithub={() => setGithubSyncModalOpen(true)}
+                          onOpenSettings={() => setView('settings')}
+                          activeMode={chatMode} 
+                          onModeChange={setChatMode}
+                          onClearChat={handleClearChat}
                       />
-
-                      {/* Right Panel: Chat (Bolt style) */}
-                      <div 
-                          className={`flex-shrink-0 bg-[#fbfbfb] dark:bg-[#0c0c0e] border-l border-gray-200 dark:border-[#27272a] transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-10 ${!isChatPanelOpen && 'lg:w-0 lg:overflow-hidden lg:opacity-0'}`}
-                          style={{ width: activeMobileTab === 'chat' ? '100%' : (isChatPanelOpen ? `${chatSidebarWidth}px` : '0px') }}
-                      >
-                        <ChatPanel 
-                            messages={chatMessages} 
-                            onSendMessage={handleSendMessage} 
-                            isProUser={userSettings?.plan === 'Pro'} 
-                            projectName={projectName} 
-                            credits={userSettings?.credits || 0}
-                            generatingFile={generatingFile} 
-                            isGenerating={isInitializing}
-                            onStopGeneration={handleStopGeneration}
-                            availableModels={availableModels}
-                            onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
-                            onOpenGithub={() => setGithubSyncModalOpen(true)}
-                            onOpenSettings={() => setView('settings')}
-                            activeMode={chatMode} 
-                            onModeChange={setChatMode}
-                            onClearChat={handleClearChat}
-                        />
-                      </div>
                     </div>
+                    
+                    <div 
+                        onMouseDown={startResizing}
+                        className="w-1 h-full bg-transparent hover:bg-blue-500 cursor-col-resize z-20 transition-colors hidden lg:block border-l border-gray-200 dark:border-[#27272a]"
+                        title="Redimensionar Painel"
+                    />
+
+                    <main className={`flex-1 min-w-0 h-full relative ${activeMobileTab === 'editor' ? 'block' : 'hidden lg:block'}`}>
+                      <EditorView 
+                        files={files} activeFile={activeFile} projectName={projectName} theme={theme} onThemeChange={setTheme}
+                        onFileSelect={n => setProject(p => ({...p, activeFile: n}))} 
+                        onFileDelete={handleFileDelete}
+                        onRunLocally={() => setPublishModalOpen(true)}
+                        onSyncGithub={() => setGithubSyncModalOpen(true)}
+                        onShare={() => setShareModalOpen(true)}
+                        codeError={codeError} onFixCode={() => {}} onClearError={() => {}} onError={() => {}} envVars={envVars}
+                        onDownload={() => downloadProjectAsZip(files, projectName)}
+                        onSave={handleSaveProject}
+                        onOpenProjects={() => setView('projects')}
+                        onNewProject={() => { setProject(initialProjectState); setView('welcome'); }}
+                        onLogout={() => signOut(auth)}
+                        onOpenSettings={() => setView('settings')}
+                        onOpenProjectSettings={handleOpenProjectSettings}
+                        onRenameProject={handleRenameProject}
+                        onNavigateHome={() => setView('welcome')}
+                        session={sessionUser}
+                        isGenerating={isInitializing}
+                        generatingFile={generatingFile}
+                        generatedFileNames={generatedFileNames}
+                        aiSuggestions={aiSuggestions}
+                        deployedUrl={currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined}
+                        chatMode={chatMode}
+                        projectHistory={history}
+                        onRestoreVersion={handleRestoreVersion}
+                        onFileUpload={handleFileUpload}
+                        onRenameFile={handleRenameFile}
+                        onMoveFile={handleMoveFile}
+                        onSaveToDrive={onSaveToDriveClick}
+                        onEnvVarsChange={(newVars) => setProject(p => ({ ...p, envVars: newVars }))}
+                      />
+                    </main>
+                  </div>
                 </div>
-            </div>
+            )}
+          </div>
+      </div>
+      
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
+      
+      <GoogleDriveSaveModal 
+          isOpen={isGoogleDriveModalOpen} 
+          onClose={() => setIsGoogleDriveModalOpen(false)}
+          reason={googleDriveModalReason}
+          currentCount={savedProjects.filter(p => p.ownerId === sessionUser?.uid && (!p.storage || p.storage === 'firebase')).length}
+          currentSizeKB={currentProjectSize}
+          onConfirmSave={handleSaveToGoogleDrive}
+          isConnected={!!driveAccessToken}
+          onConnect={handleConnectGoogleDrive}
+      />
 
-            <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} theme={theme} />
-            <GoogleDriveSaveModal 
-                  isOpen={isGoogleDriveModalOpen} 
-                  onClose={() => setIsGoogleDriveModalOpen(false)}
-                  reason={googleDriveModalReason}
-                  currentCount={savedProjects.filter(p => p.ownerId === sessionUser?.uid && (!p.storage || p.storage === 'firebase')).length}
-                  currentSizeKB={currentProjectSize}
-                  onConfirmSave={handleSaveToGoogleDrive}
-                  isConnected={!!driveAccessToken}
-                  onConnect={handleConnectGoogleDrive}
-              />
-
-              {currentSavedProject && (
-                  <ProjectSettingsModal 
-                      isOpen={isProjectSettingsModalOpen}
-                      onClose={() => setIsProjectSettingsModalOpen(false)}
-                      project={currentSavedProject}
-                      onSave={handleUpdateProjectSettings}
-                  />
-              )}
-              
-              <GithubImportModal 
-                isOpen={isGithubModalOpen} 
-                onClose={() => setGithubModalOpen(false)} 
-                onImport={(f, name) => { 
-                    setProject({
-                        ...initialProjectState,
-                        files: f,
-                        projectName: name || 'GitHub Project',
-                        activeFile: f.length > 0 ? f[0].name : null,
-                        chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Como posso ajudar a editá-lo?` }]
-                    }); 
-                    setView('editor'); 
-                }} 
-                githubToken={userSettings?.github_access_token} 
-                onOpenSettings={() => setView('settings')} 
-                onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
-              />
-              
-              <GithubSyncModal 
-                isOpen={isGithubSyncModalOpen} 
-                onClose={() => setGithubSyncModalOpen(false)} 
-                files={files} 
-                projectName={projectName} 
-                githubToken={userSettings?.github_access_token} 
-                onOpenSettings={() => setView('settings')} 
-                onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
-                connectedRepo={currentSavedProject?.githubRepo}
-                onConnect={handleGithubConnect}
-                onDisconnect={handleGithubDisconnect}
-              />
-              
-              <ShareModal 
-                isOpen={isShareModalOpen} 
-                onClose={() => setShareModalOpen(false)} 
-                onShare={handleShareProject} 
-                onToggleGallery={handleToggleGallery}
-                projectName={projectName} 
-                projectId={currentProjectId}
-              />
-              
-              <PublishModal 
-                isOpen={isPublishModalOpen} 
-                onClose={() => setPublishModalOpen(false)} 
-                onDownload={() => downloadProjectAsZip(files, projectName)} 
-                projectName={projectName} 
-                projectId={currentProjectId} 
-                files={files} 
-                onSaveRequired={handleSaveProject} 
-                netlifyToken={userSettings?.netlify_access_token} 
-                existingSiteId={currentSavedProject?.netlifySiteId ? currentSavedProject.netlifySiteId : undefined}
-                onSaveToken={(token) => handleUpdateSettings({ netlify_access_token: token })}
-                onProjectUpdate={handleProjectMetaUpdate}
-              />
-              
-              <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-              <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-              <NeonModal isOpen={isNeonModalOpen} onClose={() => setNeonModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-              <OpenStreetMapModal isOpen={isOSMModalOpen} onClose={() => setOSMModalOpen(false)} />
-              <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={(key) => handleUpdateSettings({ gemini_api_key: key })} />
-              <OpenAIModal isOpen={isOpenAIModalOpen} onClose={() => setOpenAIModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-              <NetlifyModal isOpen={isNetlifyModalOpen} onClose={() => setNetlifyModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-        </div>
-      } />
-    </Routes>
+      {currentSavedProject && (
+          <ProjectSettingsModal 
+              isOpen={isProjectSettingsModalOpen}
+              onClose={() => setIsProjectSettingsModalOpen(false)}
+              project={currentSavedProject}
+              onSave={handleUpdateProjectSettings}
+          />
+      )}
+      
+      <GithubImportModal 
+        isOpen={isGithubModalOpen} 
+        onClose={() => setGithubModalOpen(false)} 
+        onImport={(f, name) => { 
+            setProject({
+                ...initialProjectState,
+                files: f,
+                projectName: name || 'GitHub Project',
+                activeFile: f.length > 0 ? f[0].name : null,
+                chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Como posso ajudar a editá-lo?` }]
+            }); 
+            setView('editor'); 
+        }} 
+        githubToken={userSettings?.github_access_token} 
+        onOpenSettings={() => setView('settings')} 
+        onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
+      />
+      
+      <GithubSyncModal 
+        isOpen={isGithubSyncModalOpen} 
+        onClose={() => setGithubSyncModalOpen(false)} 
+        files={files} 
+        projectName={projectName} 
+        githubToken={userSettings?.github_access_token} 
+        onOpenSettings={() => setView('settings')} 
+        onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
+        connectedRepo={currentSavedProject?.githubRepo}
+        onConnect={handleGithubConnect}
+        onDisconnect={handleGithubDisconnect}
+      />
+      
+      <ShareModal 
+        isOpen={isShareModalOpen} 
+        onClose={() => setShareModalOpen(false)} 
+        onShare={handleShareProject} 
+        onToggleGallery={handleToggleGallery}
+        projectName={projectName} 
+        projectId={currentProjectId}
+      />
+      
+      <PublishModal 
+        isOpen={isPublishModalOpen} 
+        onClose={() => setPublishModalOpen(false)} 
+        onDownload={() => downloadProjectAsZip(files, projectName)} 
+        projectName={projectName} 
+        projectId={currentProjectId} 
+        files={files} 
+        onSaveRequired={handleSaveProject} 
+        netlifyToken={userSettings?.netlify_access_token} 
+        existingSiteId={currentSavedProject?.netlifySiteId ? currentSavedProject.netlifySiteId : undefined}
+        onSaveToken={(token) => handleUpdateSettings({ netlify_access_token: token })}
+        onProjectUpdate={handleProjectMetaUpdate}
+      />
+      
+      <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <NeonModal isOpen={isNeonModalOpen} onClose={() => setNeonModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <OpenStreetMapModal isOpen={isOSMModalOpen} onClose={() => setOSMModalOpen(false)} />
+      <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={(key) => handleUpdateSettings({ gemini_api_key: key })} />
+      <OpenAIModal isOpen={isOpenAIModalOpen} onClose={() => setOpenAIModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+      <NetlifyModal isOpen={isNetlifyModalOpen} onClose={() => setNetlifyModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
+    </div>
   );
 };
