@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -283,6 +284,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isPlanMode, setIsPlanMode] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const modelBtnRef = useRef<HTMLButtonElement>(null);
+  const [modelDropdownPos, setModelDropdownPos] = useState<{ x: number; y: number } | null>(null);
+
+  const toggleModelSelector = () => {
+    if (isModelSelectorOpen) {
+      setIsModelSelectorOpen(false);
+      return;
+    }
+    const rect = modelBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      setModelDropdownPos({ x: rect.left, y: rect.top });
+    }
+    setIsModelSelectorOpen(true);
+  };
   
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -550,7 +565,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           <form onSubmit={handleSubmit} className="relative group">
               
               <BorderBeam size="md" colorVariant="colorful" duration={6}>
-              <div className="relative bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50 transition-all flex flex-col overflow-hidden">
+              <div className="relative bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50 transition-all flex flex-col">
                   <textarea 
                     value={input}
                     onChange={e => setInput(e.target.value)}
@@ -570,11 +585,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                               <PaperclipIcon className="w-4 h-4" />
                           </button>
                           
-                          {/* Model Selector Dropdown */}
+                          {/* Model Selector Button */}
                           <div className="relative">
                               <button 
+                                ref={modelBtnRef}
                                 type="button"
-                                onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+                                onClick={toggleModelSelector}
                                 className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-[#27272a] rounded-md transition-colors"
                               >
                                   {currentModelLogo ? (
@@ -582,29 +598,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                   ) : null}
                                   <span>{currentModelName.split(' ')[0]}</span> <ChevronUpIcon className="w-3 h-3" />
                               </button>
-                              
-                              {isModelSelectorOpen && (
-                                  <>
-                                    <div className="fixed inset-0 z-30" onClick={() => setIsModelSelectorOpen(false)}></div>
-                                    <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg shadow-xl z-40 overflow-hidden py-1 max-h-60 overflow-y-auto custom-scrollbar">
-                                        {availableModels.map(model => (
-                                            <button
-                                                key={model.id}
-                                                type="button"
-                                                onClick={() => { setSelectedModel(model.id); setIsModelSelectorOpen(false); }}
-                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] flex items-center gap-2.5 ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
-                                            >
-                                                {model.logo ? (
-                                                    <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
-                                                ) : (
-                                                    <span className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-[#27272a] flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-gray-400">AI</span>
-                                                )}
-                                                <span className="truncate">{model.name}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                  </>
-                              )}
                           </div>
                       </div>
                       
@@ -647,6 +640,38 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               </div>
               </BorderBeam>
           </form>
+
+          {/* Model Selector Dropdown (portal p/ não ser cortado pelo BorderBeam) */}
+          {isModelSelectorOpen && createPortal(
+              <>
+                <div className="fixed inset-0 z-[60]" onClick={() => setIsModelSelectorOpen(false)}></div>
+                <div
+                  className="fixed z-[70] w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg shadow-2xl overflow-hidden py-1 max-h-64 overflow-y-auto custom-scrollbar animate-fadeIn"
+                  style={{
+                    left: modelDropdownPos?.x ?? 0,
+                    top: (modelDropdownPos?.y ?? 0) - 8,
+                    transform: 'translateY(-100%)',
+                  }}
+                >
+                    {availableModels.map(model => (
+                        <button
+                            key={model.id}
+                            type="button"
+                            onClick={() => { setSelectedModel(model.id); setIsModelSelectorOpen(false); }}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] flex items-center gap-2.5 ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+                        >
+                            {model.logo ? (
+                                <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
+                            ) : (
+                                <span className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-[#27272a] flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-gray-400">AI</span>
+                            )}
+                            <span className="truncate">{model.name}</span>
+                        </button>
+                    ))}
+                </div>
+              </>,
+              document.body
+          )}
           <div className="text-center mt-2">
              <p className="text-[10px] text-gray-400 dark:text-gray-600">AI pode gerar código incorreto.</p>
           </div>
