@@ -11,6 +11,7 @@ import {
 } from './Icons';
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
+import { GenerationLoader } from './GenerationLoader';
 
 interface EditorViewProps {
   files: ProjectFile[];
@@ -598,7 +599,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         />
                     </div>
                     
-                    {/* Generation Overlay REMOVED as requested */}
+                    {/* TetrisLoader enquanto gera */}
+                    <GenerationLoader
+                      isGenerating={isGenerating}
+                      generatingFile={generatingFile}
+                      dark={theme === 'dark'}
+                    />
                 </div>
             )}
         </main>
