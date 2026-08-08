@@ -4,6 +4,7 @@ import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider, sendPasswordResetEmail } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { AppLogo, GoogleIcon, GithubIcon, SunIcon, MoonIcon, CheckCircleIcon, LoaderIcon, UserIcon, KeyIcon } from './Icons';
+import { DotGridBackground } from './DotGridBackground';
 import { Theme } from '../types';
 
 interface AuthPageProps {
@@ -117,244 +118,129 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-white dark:bg-[#09090b] text-gray-900 dark:text-gray-100 transition-colors duration-500 overflow-hidden">
-      
-      {/* Left Column - Auth Form */}
-      <div className="w-full lg:w-[45%] flex flex-col relative z-20 bg-white dark:bg-[#09090b] shadow-2xl lg:shadow-none transition-colors duration-500">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 lg:p-10 animate-fade-in">
-            <div className="flex items-center gap-2.5 cursor-pointer group" onClick={onBack}>
-                <div className="w-9 h-9 bg-black dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-black transition-transform group-hover:rotate-12 shadow-lg">
-                    <AppLogo className="w-5 h-5" />
+    <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden bg-[#000] text-[#fff] font-sans" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      {/* WebGL Dot canvas */}
+      <DotGridBackground />
+
+      {/* Vignette */}
+      <div className="absolute inset-0 z-[1]" style={{ background: 'radial-gradient(circle at center, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 100%)', pointerEvents: 'none' }} />
+
+      {/* Theme Toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-5 right-5 z-20 p-2.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+        title="Alternar tema"
+      >
+        {theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+      </button>
+
+      {/* Modal card */}
+      <div className="relative z-[2] w-full max-w-[400px] mx-4">
+        {/* Brand / Logo */}
+        <button onClick={onBack} className="mx-auto mb-4 flex items-center gap-2 group cursor-pointer" style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-12" style={{ background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}>
+            <AppLogo className="w-6 h-6 text-white" />
+          </div>
+          <span className="font-bold text-2xl tracking-tight text-white">codegem</span>
+        </button>
+
+        <div className="relative z-[2] rounded-2xl p-8 flex flex-col items-center" style={{ background: '#121212', boxShadow: '0 10px 40px rgba(0,0,0,0.8)', border: '1px solid #222' }}>
+          {viewState === 'login' ? (
+            <div className="w-full max-w-[320px] flex flex-col items-center text-center">
+              <h1 className="text-[1.35rem] font-semibold mb-1" style={{ letterSpacing: '-0.025em' }}>Entrar na sua conta</h1>
+              <p className="text-[0.85rem] text-[#888] mb-4" style={{ lineHeight: 1.5 }}>Bem-vindo de volta à Codegem Studio.</p>
+
+              {error && <div className="w-full mb-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />{error}</div>}
+              {successMessage && <div className="w-full mb-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs flex items-center gap-2"><CheckCircleIcon className="w-4 h-4 shrink-0" />{successMessage}</div>}
+
+              <form onSubmit={handleAuth} className="w-full flex flex-col" style={{ gap: '0.65rem' }}>
+                <input style={{ width:'100%', padding:'0.65rem 0.85rem', borderRadius:6, border:'1px solid #333', background:'#000', color:'#fff', fontSize:'0.875rem', outline:'none' }} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
+                <input style={{ width:'100%', padding:'0.65rem 0.85rem', borderRadius:6, border:'1px solid #333', background:'#000', color:'#fff', fontSize:'0.875rem', outline:'none' }} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+                <div className="flex justify-end mt-1">
+                  <button type="button" onClick={() => { setViewState('forgot_password'); resetState(); }} className="text-[0.75rem] font-semibold text-blue-400 hover:underline" style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', fontSize:'inherit' }}>Esqueceu a senha?</button>
                 </div>
-                <span className="font-bold text-xl tracking-tight font-heading">codegem</span>
-            </div>
-             <button 
-                onClick={toggleTheme} 
-                className="p-2.5 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors"
-            >
-                {theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
-            </button>
-        </div>
-
-        {/* Form Container */}
-        <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 pb-10 max-w-lg mx-auto w-full animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            
-            {/* Titles */}
-            <div className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 dark:text-white mb-3 font-heading">
-                    {viewState === 'login' && 'Bem-vindo de volta'}
-                    {viewState === 'register' && 'Criar conta'}
-                    {viewState === 'forgot_password' && 'Recuperar senha'}
-                </h1>
-                <p className="text-base text-gray-500 dark:text-gray-400">
-                    {viewState === 'login' && 'Entre para continuar criando.'}
-                    {viewState === 'register' && 'Comece a gerar código com IA em segundos.'}
-                    {viewState === 'forgot_password' && 'Enviaremos um link para o seu email.'}
-                </p>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleAuth} className="space-y-5">
-                
-                {/* Email Input */}
-                <div className="group relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
-                        <UserIcon className="w-5 h-5" />
-                    </div>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        required
-                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm font-medium"
-                        placeholder="seu@email.com"
-                    />
-                </div>
-
-                {/* Password Input */}
-                {viewState !== 'forgot_password' && (
-                    <div className="space-y-2">
-                        <div className="group relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
-                                <KeyIcon className="w-5 h-5" />
-                            </div>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-[#27272a] rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm font-medium"
-                                placeholder="••••••••"
-                            />
-                        </div>
-                        {viewState === 'login' && (
-                            <div className="flex justify-end">
-                                <button 
-                                    type="button" 
-                                    onClick={() => { setViewState('forgot_password'); resetState(); }} 
-                                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                                >
-                                    Esqueceu a senha?
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Terms Checkbox */}
-                {viewState === 'register' && (
-                    <div className="flex items-start gap-3 py-1">
-                        <input
-                            id="terms"
-                            type="checkbox"
-                            checked={termsAccepted}
-                            onChange={(e) => setTermsAccepted(e.target.checked)}
-                            className="mt-1 w-4 h-4 rounded border-gray-300 dark:border-[#3f3f46] bg-gray-100 dark:bg-[#18181b] text-blue-600 focus:ring-offset-0 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <label htmlFor="terms" className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed cursor-pointer select-none">
-                            Concordo com os <a href="#" className="underline hover:text-black dark:hover:text-white font-medium">Termos</a> e <a href="#" className="underline hover:text-black dark:hover:text-white font-medium">Privacidade</a>.
-                        </label>
-                    </div>
-                )}
-
-                {/* Feedback Messages */}
-                {error && (
-                    <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-sm flex items-center gap-3 animate-shake">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                        {error}
-                    </div>
-                )}
-                {successMessage && (
-                    <div className="p-3.5 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 text-sm flex items-center gap-3 animate-fadeIn">
-                        <CheckCircleIcon className="w-5 h-5" />
-                        {successMessage}
-                    </div>
-                )}
-
-                {/* Submit Button */}
-                <button 
-                    type="submit" 
-                    disabled={loading} 
-                    className="w-full h-12 flex items-center justify-center bg-black dark:bg-white text-white dark:text-black font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 shadow-lg shadow-black/5 dark:shadow-white/5"
-                >
-                    {loading ? <LoaderIcon className="w-5 h-5 animate-spin" /> : (
-                        viewState === 'login' ? 'Entrar' : 
-                        viewState === 'register' ? 'Criar Conta' : 
-                        'Enviar Email de Recuperação'
-                    )}
+                <button type="submit" disabled={loading} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'none', background:'#ededed', color:'#000', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', fontFamily:'inherit' }}>
+                  {loading ? <LoaderIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Entrar com Email'}
                 </button>
-            </form>
+              </form>
 
-            {viewState !== 'forgot_password' && (
-                <>
-                    {/* Divider */}
-                    <div className="relative my-8">
-                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200 dark:border-[#27272a]"></span></div>
-                        <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-bold"><span className="bg-white dark:bg-[#09090b] px-3 text-gray-400">Ou</span></div>
-                    </div>
+              <div style={{ height:1, background:'#222', width:'100%', margin:'0.85rem 0' }} />
+              <button onClick={handleGoogleLogin} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'1px solid #333', background:'transparent', color:'#fff', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', marginBottom:'0.4rem' }}>
+                <GoogleIcon className="w-4 h-4 flex-shrink-0" /> Continuar com Google
+              </button>
+              <button onClick={handleGithubLogin} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'1px solid #333', background:'transparent', color:'#fff', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', marginBottom:'0.4rem' }}>
+                <GithubIcon className="w-4 h-4 flex-shrink-0" /> Continuar com GitHub
+              </button>
 
-                    {/* Social Auth */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <button onClick={handleGoogleLogin} className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] hover:bg-gray-50 dark:hover:bg-[#1f1f22] hover:border-gray-300 dark:hover:border-[#3f3f46] transition-all text-sm font-semibold text-gray-700 dark:text-gray-200 group">
-                            <GoogleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" /> Google
-                        </button>
-                        <button onClick={handleGithubLogin} className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] hover:bg-gray-50 dark:hover:bg-[#1f1f22] hover:border-gray-300 dark:hover:border-[#3f3f46] transition-all text-sm font-semibold text-gray-700 dark:text-gray-200 group">
-                            <GithubIcon className="w-5 h-5 text-black dark:text-white group-hover:scale-110 transition-transform" /> GitHub
-                        </button>
-                    </div>
-                </>
-            )}
-
-            {/* Switch Mode */}
-            <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                {viewState === 'login' ? (
-                    <>
-                        Não tem uma conta?{' '}
-                        <button onClick={() => { setViewState('register'); resetState(); }} className="font-bold text-black dark:text-white hover:underline">
-                            Registre-se
-                        </button>
-                    </>
-                ) : viewState === 'register' ? (
-                    <>
-                        Já tem uma conta?{' '}
-                        <button onClick={() => { setViewState('login'); resetState(); }} className="font-bold text-black dark:text-white hover:underline">
-                            Faça Login
-                        </button>
-                    </>
-                ) : (
-                    <button onClick={() => { setViewState('login'); resetState(); }} className="font-bold text-black dark:text-white hover:underline flex items-center justify-center gap-2 w-full">
-                        &larr; Voltar para Login
-                    </button>
-                )}
+              <div className="mt-5 text-[0.875rem] text-[#888]">
+                Não tem uma conta?{' '}
+                <button onClick={() => { setViewState('register'); resetState(); }} style={{ color:'#fff', fontWeight:500, background:'none', border:'none', padding:0, cursor:'pointer', fontFamily:'inherit', fontSize:'inherit' }}>Criar conta</button>
+              </div>
             </div>
+          ) : viewState === 'register' ? (
+            <div className="w-full max-w-[320px] flex flex-col items-center text-center">
+              <h1 className="text-[1.35rem] font-semibold mb-1" style={{ letterSpacing: '-0.025em' }}>Criar conta</h1>
+              <p className="text-[0.85rem] text-[#888] mb-4" style={{ lineHeight: 1.5 }}>Comece a gerar código com IA em segundos.</p>
+
+              {error && <div className="w-full mb-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />{error}</div>}
+              {successMessage && <div className="w-full mb-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs flex items-center gap-2"><CheckCircleIcon className="w-4 h-4 shrink-0" />{successMessage}</div>}
+
+              <form onSubmit={handleAuth} className="w-full flex flex-col" style={{ gap: '0.65rem' }}>
+                <input style={{ width:'100%', padding:'0.65rem 0.85rem', borderRadius:6, border:'1px solid #333', background:'#000', color:'#fff', fontSize:'0.875rem', outline:'none' }} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
+                <input style={{ width:'100%', padding:'0.65rem 0.85rem', borderRadius:6, border:'1px solid #333', background:'#000', color:'#fff', fontSize:'0.875rem', outline:'none' }} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Crie uma senha (mín. 6)" required minLength={6} />
+                <label className="flex items-start gap-2 text-left mt-1 cursor-pointer select-none">
+                  <input id="terms" type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="mt-1 w-3.5 h-3.5 accent-blue-600 cursor-pointer" />
+                  <span className="text-[0.7rem] text-[#888] leading-relaxed">Concordo com os <a href="#" className="underline hover:text-white font-medium">Termos</a> e <a href="#" className="underline hover:text-white font-medium">Privacidade</a>.</span>
+                </label>
+                <button type="submit" disabled={loading} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'none', background:'#ededed', color:'#000', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', fontFamily:'inherit' }}>
+                  {loading ? <LoaderIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Criar Conta'}
+                </button>
+              </form>
+
+              <div style={{ height:1, background:'#222', width:'100%', margin:'0.85rem 0' }} />
+              <button onClick={handleGoogleLogin} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'1px solid #333', background:'transparent', color:'#fff', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', marginBottom:'0.4rem' }}>
+                <GoogleIcon className="w-4 h-4 flex-shrink-0" /> Criar com Google
+              </button>
+              <button onClick={handleGithubLogin} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'1px solid #333', background:'transparent', color:'#fff', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem', marginBottom:'0.4rem' }}>
+                <GithubIcon className="w-4 h-4 flex-shrink-0" /> Criar com GitHub
+              </button>
+
+              <div className="mt-5 text-[0.875rem] text-[#888]">
+                Já tem uma conta?{' '}
+                <button onClick={() => { setViewState('login'); resetState(); }} style={{ color:'#fff', fontWeight:500, background:'none', border:'none', padding:0, cursor:'pointer', fontFamily:'inherit', fontSize:'inherit' }}>Entrar</button>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full max-w-[320px] flex flex-col items-center text-center">
+              <h1 className="text-[1.35rem] font-semibold mb-1" style={{ letterSpacing: '-0.025em' }}>Recuperar senha</h1>
+              <p className="text-[0.85rem] text-[#888] mb-4" style={{ lineHeight: 1.5 }}>Enviaremos um link para o seu email.</p>
+
+              {error && <div className="w-full mb-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />{error}</div>}
+              {successMessage && <div className="w-full mb-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs flex items-center gap-2"><CheckCircleIcon className="w-4 h-4 shrink-0" />{successMessage}</div>}
+
+              <form onSubmit={handleAuth} className="w-full flex flex-col" style={{ gap: '0.65rem' }}>
+                <input style={{ width:'100%', padding:'0.65rem 0.85rem', borderRadius:6, border:'1px solid #333', background:'#000', color:'#fff', fontSize:'0.875rem', outline:'none' }} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
+                <button type="submit" disabled={loading} style={{ width:'100%', padding:'0.65rem', borderRadius:6, border:'none', background:'#ededed', color:'#000', fontWeight:500, fontSize:'0.875rem', cursor:'pointer', fontFamily:'inherit' }}>
+                  {loading ? <LoaderIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Enviar Email de Recuperação'}
+                </button>
+              </form>
+
+              <button onClick={() => { setViewState('login'); resetState(); }} className="mt-5 w-full flex items-center justify-center gap-2 text-[0.875rem] text-[#888] hover:text-white transition-colors" style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+                &larr; Voltar para Login
+              </button>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="mt-4 text-[0.75rem] text-[#666] text-center" style={{ lineHeight: 1.5 }}>
+            Ao continuar, você concorda com nossos <a href="#" style={{ color:'#888' }}>Termos</a> e <a href="#" style={{ color:'#888' }}>Política de Privacidade</a>.
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 text-center text-[10px] text-gray-400 font-mono">
-            &copy; {new Date().getFullYear()} Codegem Studio.
+        <div className="mt-6 text-center text-[10px] text-white/40 font-mono">
+          &copy; {new Date().getFullYear()} Codegem Studio.
         </div>
       </div>
-
-      {/* Right Column - Visual */}
-      <div className="hidden lg:flex w-[55%] relative overflow-hidden bg-[#050505] items-center justify-center">
-         {/* Aurora Background */}
-         <div className="absolute inset-0">
-             <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" style={{animationDuration:'8s'}}></div>
-             <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" style={{animationDuration:'12s', animationDelay:'1s'}}></div>
-             <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[100px] animate-pulse" style={{animationDuration:'15s', animationDelay:'2s'}}></div>
-             
-             {/* Grid overlay */}
-             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03]"></div>
-             <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)', backgroundSize: '50px 50px' }}></div>
-         </div>
-
-         {/* Content Card */}
-         <div className="relative z-10 max-w-lg p-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-             <div className="bg-[#0c0c0e]/60 backdrop-blur-2xl border border-white/10 rounded-[32px] p-10 shadow-2xl relative overflow-hidden group hover:border-white/20 transition-colors duration-500">
-                 
-                 {/* Decorative elements inside card */}
-                 <div className="absolute top-0 right-0 p-8 opacity-20">
-                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                 </div>
-
-                 <div className="mb-8 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/80">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    IA Generativa v2.5
-                 </div>
-                 
-                 <h2 className="text-4xl font-bold text-white mb-6 leading-[1.1] font-heading">
-                     Acelere seu <br/>
-                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Desenvolvimento.</span>
-                 </h2>
-                 
-                 <p className="text-gray-400 leading-relaxed mb-10 text-lg font-light">
-                     Acesso instantâneo a ferramentas de nível empresarial para criar, iterar e publicar aplicações web modernas.
-                 </p>
-
-                 <div className="grid grid-cols-1 gap-4">
-                     {[
-                         { title: "Smart Chat", desc: "Contexto completo do projeto" },
-                         { title: "Live Preview", desc: "Renderização em tempo real" },
-                         { title: "1-Click Deploy", desc: "Netlify & GitHub Sync" }
-                     ].map((feat, i) => (
-                         <div key={i} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors cursor-default">
-                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-white shadow-lg">
-                                 <CheckCircleIcon className="w-5 h-5 text-blue-500" />
-                             </div>
-                             <div>
-                                 <div className="text-white font-bold text-sm">{feat.title}</div>
-                                 <div className="text-gray-500 text-xs">{feat.desc}</div>
-                             </div>
-                         </div>
-                     ))}
-                 </div>
-             </div>
-         </div>
-      </div>
-
     </div>
   );
 };
