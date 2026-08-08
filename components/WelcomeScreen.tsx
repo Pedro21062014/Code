@@ -260,6 +260,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
                                 className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-[#27272a] rounded-lg transition-colors border border-transparent hover:border-gray-200 dark:hover:border-[#3f3f46]"
                             >
+                                {selectedModelObj?.logo ? (
+                                    <img src={selectedModelObj.logo} alt="" className="w-4 h-4 rounded-sm object-contain" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
+                                ) : (
+                                    <SparklesIcon className="w-3.5 h-3.5 text-blue-500" />
+                                )}
                                 {selectedModelObj?.name || 'Modelo'}
                                 <ChevronDownIcon className="w-3 h-3 opacity-50" />
                             </button>
@@ -270,10 +275,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                         <button
                                             key={model.id}
                                             onClick={() => { setSelectedModel(model.id); setIsModelDropdownOpen(false); }}
-                                            className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-[#27272a] text-gray-700 dark:text-gray-200 flex items-center justify-between ${selectedModel === model.id ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 font-semibold' : ''}`}
+                                            className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-[#27272a] text-gray-700 dark:text-gray-200 flex items-center justify-between gap-3 ${selectedModel === model.id ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 font-semibold' : ''}`}
                                         >
-                                            {model.name}
-                                            {selectedModel === model.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
+                                            <span className="flex items-center gap-2.5 min-w-0">
+                                                {model.logo ? (
+                                                    <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
+                                                ) : (
+                                                    <SparklesIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                )}
+                                                <span className="truncate">{model.name}</span>
+                                            </span>
+                                            {selectedModel === model.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>}
                                         </button>
                                     ))}
                                 </div>
