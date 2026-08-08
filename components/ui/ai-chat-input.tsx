@@ -199,7 +199,6 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     const [effortIndex, setEffortIndex] = useState(1);
     const [isModelSelectOpen, setIsModelSelectOpen] = useState(false);
     const [attachments, setAttachments] = useState<Attachment[]>([]);
-    const [hoverStyle, setHoverStyle] = useState({ opacity: 0, transform: "translateY(0px) scale(0.95)", transition: "none" });
     const [containerHeight, setContainerHeight] = useState(148);
     const [textareaHeight, setTextareaHeight] = useState(88);
     const [isScrolling, setIsScrolling] = useState(false);
@@ -488,30 +487,29 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
               <div
                 style={{ transformOrigin: "bottom left" }}
                 className={cn(
-                  "absolute bottom-full left-0 mb-2.5 z-50 w-60 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white/95 dark:bg-[#18181b]/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-400 cursor-default",
+                  "absolute bottom-full left-0 mb-2.5 z-50 w-60 max-h-[240px] overflow-y-auto rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white/95 dark:bg-[#18181b]/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-400 cursor-default ai-model-scrollbar",
                   isModelSelectOpen ? "opacity-100 scale-100 translate-y-0 pointer-events-auto" : "opacity-0 scale-95 translate-y-3 pointer-events-none"
                 )}
               >
                 <div className="relative flex flex-col gap-0.5">
-                  <div style={hoverStyle} className="absolute left-0 right-0 top-0 h-9 -z-10 rounded-xl bg-gray-100 dark:bg-[#27272a] pointer-events-none" />
-                  {models.map((model, idx) => (
+                  {models.map((model) => (
                     <button
                       key={model.name}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onMouseEnter={() => {
-                        setHoverStyle({
-                          opacity: 1, transform: `translateY(${idx * 36}px) scale(1)`,
-                          transition: hoverStyle.opacity === 0 ? "opacity 0.15s ease-out" : "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease",
-                        });
-                      }}
                       onClick={(e) => { e.stopPropagation(); setSelectedModel(model); setIsModelSelectOpen(false); }}
-                      className="group relative flex h-9 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium text-gray-700 dark:text-gray-300 outline-none active:scale-[0.98] cursor-default"
+                      className={cn(
+                        "group flex h-9 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-sm font-medium outline-none active:scale-[0.98] cursor-default transition-colors",
+                        selectedModel.name === model.name
+                          ? "bg-gray-100 dark:bg-[#27272a] text-blue-600 dark:text-blue-400"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#27272a] hover:text-gray-900 dark:hover:text-white"
+                      )}
                     >
                       <span className="flex items-center gap-2">
                         <ModelIcon model={model} className="size-4 opacity-85 group-hover:opacity-100 transition-opacity" />
-                        <span className="text-sm">{model.name}</span>
+                        {model.name}
                       </span>
+                      {selectedModel.name === model.name && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
                     </button>
                   ))}
                 </div>

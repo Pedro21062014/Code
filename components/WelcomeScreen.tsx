@@ -158,6 +158,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       const selModel = availableModels.find(m => m.id === selectedModel);
       const provider = selModel?.provider || AIProvider.Nvidia;
       onPromptSubmit(finalPrompt, selectedModel, provider, attachments, 'general');
+      setPrompt('');
     } catch (error) {
       console.error("Error processing AI input:", error);
     }
@@ -251,6 +252,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     onSubmit={handleAiInputSubmit}
                     placeholder="Descreva seu app com detalhes..."
                     models={availableModels.map(m => ({ name: m.name, logo: m.logo }))}
+                    value={prompt}
+                    onChange={setPrompt}
                     className="w-full scale-[1.15]"
                 />
             </div>
