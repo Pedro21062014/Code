@@ -2,15 +2,14 @@
 import { AIProvider, AIModel } from './types';
 
 export const AI_MODELS: AIModel[] = [
-  // Free Models válidos na API NVIDIA (build.nvidia.com) — provedor padrão
-  { id: 'deepseek-ai/deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: AIProvider.Nvidia, logo: '/model-logos/deepseek.png' },
-  { id: 'deepseek-ai/deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: AIProvider.Nvidia, logo: '/model-logos/deepseek.png' },
+  // Free Endpoints válidos na API NVIDIA (build.nvidia.com) — provedor padrão
+  { id: 'minimaxai/minimax-m3', name: 'MiniMax M3', provider: AIProvider.Nvidia, logo: '/model-logos/minimax.png' },
+  { id: 'z-ai/glm-5.2', name: 'GLM-5.2', provider: AIProvider.Nvidia, logo: '/model-logos/glm.png' },
   { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: AIProvider.Nvidia, logo: '/model-logos/kimi.png' },
-  { id: 'minimaxai/minimax-m2.7', name: 'MiniMax M2.7', provider: AIProvider.Nvidia, logo: '/model-logos/minimax.webp' },
-  { id: 'qwen/qwen3-coder-480b-a35b-instruct', name: 'Qwen3 Coder 480B', provider: AIProvider.Nvidia, logo: '/model-logos/qwen.png' },
-  { id: 'meta/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: AIProvider.Nvidia, logo: '/model-logos/llama.png' },
-  { id: 'mistralai/mistral-large-3-675b-instruct-2512', name: 'Mistral Large 3', provider: AIProvider.Nvidia, logo: '/model-logos/mistral.png' },
-  { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super', provider: AIProvider.Nvidia, logo: '/model-logos/nvidia.png' },
+  { id: 'nvidia/nemotron-3-ultra-550b-a55b', name: 'Nemotron 3 Ultra', provider: AIProvider.Nvidia, logo: '/model-logos/nvidia.png' },
+  { id: 'mistralai/mistral-medium-3.5-128b', name: 'Mistral Medium 3.5', provider: AIProvider.Nvidia, logo: '/model-logos/mistral.png' },
+  { id: 'stepfun-ai/step-3.7-flash', name: 'Step 3.7 Flash', provider: AIProvider.Nvidia, logo: '/model-logos/stepfun.png' },
+  { id: 'qwen/qwen3.5-397b-a17b', name: 'Qwen3.5 397B', provider: AIProvider.Nvidia, logo: '/model-logos/qwen.png' },
 
   // Direct API Models (Requires User Key)
   { id: 'gemini-2.0-flash', name: 'Gemini 2.5 Flash (Own Key)', provider: AIProvider.Gemini }, // Added 2.5 (Mapped to 2.0-flash)
