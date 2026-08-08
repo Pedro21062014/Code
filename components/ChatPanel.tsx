@@ -5,9 +5,10 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ChatMessage, AIProvider, AIModel, ChatMode } from '../types';
+import { ChatMessage, AIProvider, AIModel, ChatMode, AITask } from '../types';
 import { AI_MODELS } from '../constants';
 import { BorderBeam } from '@/components/ui/border-beam';
+import AITaskList from '@/components/ui/ai-task-list';
 import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -452,6 +453,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                     </div>
                                                 ) : (
                                                     <>
+                                                        {msg.planTasks && msg.planTasks.length > 0 && (
+                                                            <div className="mb-4 w-full max-w-md">
+                                                                <AITaskList
+                                                                    label="Plano de Implementação"
+                                                                    tasks={msg.planTasks}
+                                                                />
+                                                            </div>
+                                                        )}
                                                         {msg.content.includes('- [ ]') || msg.content.includes('- [x]') ? (
                                                             <PlanTimeline content={msg.content} />
                                                         ) : (

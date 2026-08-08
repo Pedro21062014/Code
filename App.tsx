@@ -1173,7 +1173,7 @@ export const App: React.FC = () => {
     } else if (planTagMatch) {
         const userIntent = prompt.replace('<tools/plan>', '').trim();
         const planContext = userIntent ? `User Intent: ${userIntent}` : "Analyze the current project state.";
-        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a comprehensive, step-by-step implementation plan. Return the plan as a Markdown list with checkboxes (e.g., "- [ ] Step 1").`;
+        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a comprehensive, step-by-step implementation plan.\n\nReturn a valid JSON object with:\n- "message": a short friendly summary of the plan (plain text, can use markdown lightly).\n- "tasks": an array of task objects, each with { "id": string, "label": string, "status": "pending", "note"?: string, "children"?: [ same shape ] }. Break the plan into clear steps; use children for sub-steps. All tasks start with status "pending".\n\nExample tasks format:\n{ "message": "Aqui está o plano.", "tasks": [ { "id": "1", "label": "Configurar estrutura", "status": "pending", "children": [ { "id": "1a", "label": "Criar arquivos", "status": "pending" } ] }, { "id": "2", "label": "Implementar lógica", "status": "pending" } ] }\n\nReturn ONLY valid JSON. Do not add markdown code blocks.`;
     } else if (mode === 'design') {
         adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus on aesthetics and modern design. User request: ${prompt}`;
     } else if (mode === 'backend') {
@@ -1299,7 +1299,8 @@ export const App: React.FC = () => {
                 isThinking: false,
                 groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
                 filesModified: modifiedFileNames,
-                terminalCommands: result.terminalCommands
+                terminalCommands: result.terminalCommands,
+                planTasks: result.tasks && Array.isArray(result.tasks) ? result.tasks : undefined
             };
             return { 
                 ...p, 

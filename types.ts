@@ -27,6 +27,16 @@ export interface ProjectFile {
   content: string;
 }
 
+// Tipos para a lista de tarefas do plano (AI task list)
+export type AITaskStatus = 'pending' | 'running' | 'done' | 'failed';
+export interface AITask {
+  id: string;
+  label: string;
+  status: AITaskStatus;
+  note?: string;
+  children?: AITask[];
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -36,6 +46,7 @@ export interface ChatMessage {
   image?: string; // Base64 string of the generated image
   filesModified?: string[]; // List of files modified or created in this step
   terminalCommands?: string[]; // List of commands to execute in WebContainer
+  planTasks?: AITask[]; // Structured plan tasks for the AI task list
   groundingMetadata?: {
     groundingChunks: Array<{
       web?: {
