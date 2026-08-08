@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { ProjectFile, Theme, ChatMode } from '../types';
 import { GlobeIcon } from './Icons';
+import { SandpackProjectPreview } from './SandpackPreview';
 
 interface CodePreviewProps {
   files: ProjectFile[]; 
@@ -14,8 +15,30 @@ interface CodePreviewProps {
   terminalCommands?: string[];
 }
 
-export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl }) => {
+export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, theme }) => {
   const [srcDoc, setSrcDoc] = useState('');
+
+  // Detecta se é um projeto React (usa Sandpack para preview correto)
+  const isReactProject = React.useMemo(() => {
+    if (!files) return false;
+    return files.some(f =>
+      (f.name && (f.name.endsWith('.tsx') || f.name.endsWith('.jsx'))) ||
+      (f.name && (f.name.endsWith('.ts') || f.name.endsWith('.js')) && f.content && f.content.includes('React'))
+    );
+  }, [files]);
+
+  // Detecta deploy "Codegen Studio" (URL da própria origem ?p=id) — 
+  // abrir essa URL no iframe recriaria o editor inteiro dentro do preview.
+  // Nesse caso, renderizamos o projeto via Sandpack em vez do iframe.
+  const isCodegenEmbed = React.useMemo(() => {
+    if (!deployedUrl) return false;
+    try {
+      const u = new URL(deployedUrl, window.location.origin);
+      return u.origin === window.location.origin && u.searchParams.has('p');
+    } catch (e) {
+      return false;
+    }
+  }, [deployedUrl]);
 
   useEffect(() => {
     if (!files || files.length === 0) return;
@@ -76,6 +99,12 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl }) 
 
   }, [files]);
 
+  // Deploy Codegen (self-embed) → renderiza via Sandpack para não criar
+  // "editor dentro do editor".
+  if (deployedUrl && isCodegenEmbed) {
+      return <SandpackProjectPreview files={files} dark={theme === 'dark'} />;
+  }
+
   if (deployedUrl) {
       return (
         <div className="w-full h-full bg-white relative group">
@@ -90,6 +119,11 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl }) 
             </div>
         </div>
       );
+  }
+
+  // Projeto React (sem URL deployada) → renderiza via Sandpack, isolado
+  if (isReactProject) {
+      return <SandpackProjectPreview files={files} dark={theme === 'dark'} />;
   }
 
   return (
