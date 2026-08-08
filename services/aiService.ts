@@ -1,7 +1,7 @@
 
 import { ProjectFile, AIProvider } from '../types';
 import { generateCodeStreamWithGemini } from './geminiService';
-import { generateCodeStreamWithOpenRouter } from './openRouterService'; // Client-side (if user provides key)
+import { generateCodeStreamWithNvidia } from './nvidiaService'; // Client-side (if user provides key)
 import { AI_MODELS } from '../constants';
 
 // Generic function to call the backend proxy
@@ -54,8 +54,8 @@ const generateCodeStreamWithServer = async (
       
       const chunkRaw = decoder.decode(value, { stream: true });
       
-      // OpenAI-compatible providers (OpenAI, DeepSeek, OpenRouter) return SSE streams via the proxy
-      if ([AIProvider.OpenRouter, AIProvider.OpenAI, AIProvider.DeepSeek].includes(provider)) {
+      // OpenAI-compatible providers (OpenAI, DeepSeek, NVIDIA) return SSE streams via the proxy
+      if ([AIProvider.Nvidia, AIProvider.OpenAI, AIProvider.DeepSeek].includes(provider)) {
           buffer += chunkRaw;
           const lines = buffer.split('\n');
           buffer = lines.pop() || ""; // Keep the incomplete line in the buffer
@@ -139,11 +139,11 @@ export const generateCodeStream = async (
       );
   }
 
-  // 2. OpenRouter (Server-side with default system key OR Client-side with user key)
-  if (provider === AIProvider.OpenRouter) {
-      // If user provided a custom OpenRouter key, use client-side service
-      if (apiKey && apiKey.startsWith('sk-or-')) {
-          return generateCodeStreamWithOpenRouter(
+  // 2. NVIDIA (Server-side with default system key OR Client-side with user key)
+  if (provider === AIProvider.Nvidia) {
+      // If user provided a custom NVIDIA key, use client-side service
+      if (apiKey && apiKey.startsWith('nvapi-')) {
+          return generateCodeStreamWithNvidia(
               prompt,
               existingFiles,
               envVars,
@@ -161,7 +161,7 @@ export const generateCodeStream = async (
           existingFiles,
           envVars,
           onChunk,
-          AIProvider.OpenRouter,
+          AIProvider.Nvidia,
           modelId,
           signal
       );

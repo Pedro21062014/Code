@@ -3,7 +3,7 @@ export enum AIProvider {
   Gemini = 'Gemini',
   OpenAI = 'OpenAI',
   DeepSeek = 'DeepSeek',
-  OpenRouter = 'OpenRouter',
+  Nvidia = 'Nvidia',
 }
 
 export enum IntegrationProvider {
@@ -54,7 +54,7 @@ export interface UserSettings {
   last_credit_redemption?: string; // Timestamp of last daily credit claim
   gemini_api_key?: string;
   openai_api_key?: string;
-  openrouter_api_key?: string;
+  nvidia_api_key?: string;
   github_access_token?: string;
   netlify_access_token?: string;
   netlify_client_id?: string; // ID for OAuth App

@@ -100,17 +100,15 @@ async function handleDeepSeek(body: any, apiKey: string) {
     });
 }
 
-async function handleOpenRouter(body: any, apiKey: string) {
+async function handleNvidia(body: any, apiKey: string) {
     const { model, prompt, existingFiles, envVars } = body;
     const systemPrompt = getSystemPrompt(existingFiles, envVars);
     
-    return fetch("https://openrouter.ai/api/v1/chat/completions", {
+    return fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://codegen.studio',
-            'X-Title': 'Codegen Studio',
         },
         body: JSON.stringify({
             model: model,
@@ -137,7 +135,7 @@ export const onRequestPost = async (context: any) => {
     const API_KEYS = {
       OpenAI: context.env.OPENAI_API_KEY,
       DeepSeek: context.env.DEEPSEEK_API_KEY,
-      OpenRouter: context.env.OPENROUTER_API_KEY,
+      Nvidia: context.env.NVIDIA_API_KEY,
     };
 
     switch (provider) {
@@ -149,9 +147,9 @@ export const onRequestPost = async (context: any) => {
         if (!API_KEYS.DeepSeek) throw new Error("A chave de API do DeepSeek não está configurada no servidor.");
         providerResponse = await handleDeepSeek(body, API_KEYS.DeepSeek);
         break;
-      case 'OpenRouter':
-        if (!API_KEYS.OpenRouter) throw new Error("A chave de API do OpenRouter não está configurada no servidor.");
-        providerResponse = await handleOpenRouter(body, API_KEYS.OpenRouter);
+      case 'Nvidia':
+        if (!API_KEYS.Nvidia) throw new Error("A chave de API da NVIDIA não está configurada no servidor.");
+        providerResponse = await handleNvidia(body, API_KEYS.Nvidia);
         break;
       default:
         return new Response(JSON.stringify({ error: `Provedor não suportado: ${provider}` }), { status: 400, headers: { 'Content-Type': 'application/json' } });

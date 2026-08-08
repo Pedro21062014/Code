@@ -1,4 +1,3 @@
-
 import { ProjectFile } from '../types';
 
 const getSystemPrompt = (files: ProjectFile[], envVars: Record<string, string>): string => {
@@ -51,7 +50,7 @@ ${envContent}
 `;
 };
 
-export const generateCodeStreamWithOpenRouter = async (
+export const generateCodeStreamWithNvidia = async (
   prompt: string,
   existingFiles: ProjectFile[],
   envVars: Record<string, string>,
@@ -63,13 +62,11 @@ export const generateCodeStreamWithOpenRouter = async (
   const systemPrompt = getSystemPrompt(existingFiles, envVars);
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://codegen.studio',
-        'X-Title': 'Codegen Studio',
       },
       body: JSON.stringify({
         model: model,
@@ -86,7 +83,7 @@ export const generateCodeStreamWithOpenRouter = async (
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
     }
     
@@ -126,10 +123,10 @@ export const generateCodeStreamWithOpenRouter = async (
 
   } catch (error: any) {
     if (error.name === 'AbortError') return "";
-    console.error("Error generating code with OpenRouter:", error);
+    console.error("Error generating code with NVIDIA:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     const errorJson = JSON.stringify({
-        message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique sua chave OpenRouter.`,
+        message: `Ocorreu um erro: ${errorMessage}. Por favor, verifique sua chave de API.`,
         files: existingFiles
     });
     onChunk(errorJson);

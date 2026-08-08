@@ -1192,7 +1192,7 @@ export const App: React.FC = () => {
 
       const apiKey = modelId.includes('gemini') || provider === AIProvider.Gemini
         ? (userSettings?.gemini_api_key || DEFAULT_GEMINI_API_KEY)
-        : userSettings?.openrouter_api_key; 
+        : userSettings?.nvidia_api_key; 
 
       const handleMetadata = (metadata: any) => {
           setProject(p => {
