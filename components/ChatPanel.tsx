@@ -315,7 +315,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     // Append plan tag if plan mode is active
     const finalPrompt = isPlanMode ? `<tools/plan> ${input}` : input;
     
-    onSendMessage(finalPrompt, AIProvider.Gemini, selectedModel, [], activeMode);
+    const selModel = availableModels.find(m => m.id === selectedModel);
+    const provider = selModel?.provider || AIProvider.Gemini;
+    onSendMessage(finalPrompt, provider, selectedModel, [], activeMode);
     setInput('');
   };
 
@@ -662,21 +664,41 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     transform: 'translateY(-100%)',
                   }}
                 >
-                    {availableModels.map(model => (
-                        <button
-                            key={model.id}
-                            type="button"
-                            onClick={() => { setSelectedModel(model.id); setIsModelSelectorOpen(false); }}
-                            className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] flex items-center gap-2.5 ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
-                        >
-                            {model.logo ? (
-                                <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
-                            ) : (
-                                <span className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-[#27272a] flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-gray-400">AI</span>
-                            )}
-                            <span className="truncate">{model.name}</span>
-                        </button>
-                    ))}
+                    {(() => {
+                        const defaultModels = availableModels.filter(m => m.provider !== AIProvider.Gemini);
+                        const byokModels = availableModels.filter(m => m.provider === AIProvider.Gemini);
+                        const renderModel = (model: AIModel) => (
+                            <button
+                                key={model.id}
+                                type="button"
+                                onClick={() => { setSelectedModel(model.id); setIsModelSelectorOpen(false); }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] flex items-center gap-2.5 ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+                            >
+                                {model.logo ? (
+                                    <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
+                                ) : (
+                                    <span className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-[#27272a] flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-gray-400">AI</span>
+                                )}
+                                <span className="truncate">{model.name}</span>
+                            </button>
+                        );
+                        return (
+                            <>
+                                {defaultModels.length > 0 && (
+                                    <>
+                                        <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-[#0c0c0e] border-b border-gray-100 dark:border-[#27272a]">Padrão</div>
+                                        {defaultModels.map(renderModel)}
+                                    </>
+                                )}
+                                {byokModels.length > 0 && (
+                                    <>
+                                        <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-[#0c0c0e] border-y border-gray-100 dark:border-[#27272a]">BYOK (Sua chave)</div>
+                                        {byokModels.map(renderModel)}
+                                    </>
+                                )}
+                            </>
+                        );
+                    })()}
                 </div>
               </>,
               document.body

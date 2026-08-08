@@ -24,7 +24,7 @@ import { Toast } from './components/Toast';
 import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode, ProjectVersion } from './types';
 import { downloadProjectAsZip } from './services/projectService';
-import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
+import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
 import { startE2bPreview, killE2bSandbox } from './services/e2bService';
 import { generateImagesWithImagen } from './services/geminiService';
@@ -224,7 +224,10 @@ export const App: React.FC = () => {
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
   
-  const [availableModels, setAvailableModels] = useState<AIModel[]>(AI_MODELS);
+  const [availableModels, setAvailableModels] = useState<AIModel[]>(() => [
+    ...AI_MODELS,
+    ...GOOGLE_BYOK_MODELS,
+  ]);
   
   const [isInitializing, setIsInitializing] = useState(false); 
   const [e2bPreviewUrl, setE2bPreviewUrl] = useState<string | null>(null);
@@ -1452,7 +1455,7 @@ export const App: React.FC = () => {
             <WelcomeScreen 
               session={sessionUser ? { user: sessionUser } : null}
               onLoginClick={() => setView('auth')}
-              onPromptSubmit={(p, m, a) => handleSendMessage(p, AIProvider.Gemini, m, a)}
+              onPromptSubmit={(p, m, prov, a) => handleSendMessage(p, prov, m, a)}
               onShowPricing={() => setView('pricing')}
               onShowProjects={() => setView('projects')}
               onOpenGithubImport={() => setGithubModalOpen(true)}

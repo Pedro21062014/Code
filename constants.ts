@@ -24,9 +24,19 @@ export const AI_MODELS: AIModel[] = [
   { id: 'google/paligemma', name: 'PaliGemma', provider: AIProvider.Nvidia, logo: '/model-logos/google.png' },
   { id: 'meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', provider: AIProvider.Nvidia, logo: '/model-logos/meta.png' },
   { id: 'meta/llama-guard-4-12b', name: 'Llama Guard 4', provider: AIProvider.Nvidia, logo: '/model-logos/meta.png' },
+];
 
-  // Direct API Models (Requires User Key)
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.5 Flash (Own Key)', provider: AIProvider.Gemini }, // Added 2.5 (Mapped to 2.0-flash)
+// Modelos BYOK do Google (Gemini) — o usuário usa a própria chave da API do Google.
+export const GOOGLE_BYOK_MODELS: AIModel[] = [
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash-Lite', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Preview)', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: AIProvider.Gemini, logo: '/model-logos/gemini.png' },
 ];
 
 export const INITIAL_CHAT_MESSAGE = `Olá! Sou seu assistente de codificação de IA. Descreva a aplicação web que você deseja construir. Por exemplo: "Crie um site de portfólio simples com uma página inicial, sobre e de contato."`;

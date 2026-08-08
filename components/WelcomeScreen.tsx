@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon, SunIcon, MoonIcon, AppLogo, LightbulbIcon } from './Icons';
-import { ProjectFile, SavedProject, AIModel, Theme, ChatMode } from '../types';
+import { ProjectFile, SavedProject, AIModel, Theme, ChatMode, AIProvider } from '../types';
 
 interface WelcomeScreenProps {
-  onPromptSubmit: (prompt: string, model: string, attachments: { data: string; mimeType: string }[], mode?: ChatMode) => void;
+  onPromptSubmit: (prompt: string, model: string, provider: AIProvider, attachments: { data: string; mimeType: string }[], mode?: ChatMode) => void;
   onShowPricing: () => void;
   onShowProjects: () => void;
   onOpenGithubImport: () => void;
@@ -64,7 +64,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 }) => {
   const [prompt, setPrompt] = useState('');
   // Set default to DeepSeek R1 (Free)
-  const [selectedModel, setSelectedModel] = useState('deepseek/deepseek-r1:free');
+  const [selectedModel, setSelectedModel] = useState(() => availableModels[0]?.id || 'minimaxai/minimax-m3');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isPlanMode, setIsPlanMode] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -120,7 +120,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         // Append plan tag if plan mode is active
         const finalPrompt = isPlanMode ? `<tools/plan> ${prompt.trim()}` : prompt.trim();
         
-        onPromptSubmit(finalPrompt, selectedModel, attachments, 'general');
+        const selModel = availableModels.find(m => m.id === selectedModel);
+        const provider = selModel?.provider || AIProvider.Nvidia;
+        onPromptSubmit(finalPrompt, selectedModel, provider, attachments, 'general');
         setPrompt('');
         setAttachedFiles([]);
     } catch (error) {
