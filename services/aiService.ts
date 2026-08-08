@@ -2,7 +2,7 @@
 import { ProjectFile, AIProvider } from '../types';
 import { generateCodeStreamWithGemini } from './geminiService';
 import { generateCodeStreamWithNvidia } from './nvidiaService'; // Client-side (if user provides key)
-import { AI_MODELS } from '../constants';
+import { AI_MODELS, GOOGLE_BYOK_MODELS } from '../constants';
 
 // Generic function to call the backend proxy
 const generateCodeStreamWithServer = async (
@@ -120,7 +120,9 @@ export const generateCodeStream = async (
   signal?: AbortSignal,
   onMetadata?: (metadata: any) => void
 ): Promise<string> => {
-  const modelDef = AI_MODELS.find(m => m.id === modelId);
+  // Busca o modelo tanto na lista padrão (NVIDIA) quanto na lista BYOK (Google/Gemini)
+  const allModels = [...AI_MODELS, ...GOOGLE_BYOK_MODELS];
+  const modelDef = allModels.find(m => m.id === modelId);
   const provider = modelDef?.provider;
 
   // 1. Gemini (Client-side with User Key)
