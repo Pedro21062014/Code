@@ -62,6 +62,7 @@ interface EditorViewProps {
   e2bStatus?: 'idle' | 'starting' | 'ready' | 'error';
   e2bPreviewUrl?: string | null;
   onAttachPreview?: (screenshot: string, note: string) => void;
+  onAttachFile?: (data: string, mimeType: string, note?: string) => void;
 }
 
 interface FileNode {
@@ -109,7 +110,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
-    e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview
+    e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview, onAttachFile
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -622,7 +623,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             chatMode={chatMode} 
                             terminalCommands={terminalCommands}
                         />
-                        <PreviewToolbar targetRef={previewContainerRef} onAttachToMessage={onAttachPreview} />
+                        <PreviewToolbar
+                          targetRef={previewContainerRef}
+                          onAttachToMessage={onAttachPreview}
+                          onAttachFile={onAttachFile}
+                          previewUrl={e2bPreviewUrl || deployedUrl || null}
+                        />
                     </div>
                     
                     {/* TetrisLoader enquanto gera */}

@@ -1338,6 +1338,20 @@ export const App: React.FC = () => {
     );
   }, [handleSendMessage, availableModels]);
 
+  // Anexa um arquivo do computador à mensagem
+  const handleAttachFileToChat = useCallback((data: string, mimeType: string, note?: string) => {
+    if (!data) return;
+    const isImage = mimeType.startsWith('image/');
+    const noteText = note && note.trim() ? note.trim() : (isImage ? 'Analise esta imagem e sugira melhorias.' : 'Aqui está o arquivo que anexei. Por favor, analise.');
+    handleSendMessage(
+      noteText,
+      AIProvider.Nvidia,
+      availableModels.find(m => m.provider === AIProvider.Nvidia)?.id || 'minimaxai/minimax-m3',
+      [{ data, mimeType }],
+      'general'
+    );
+  }, [handleSendMessage, availableModels]);
+
   // Handle manual drive save click
   const onSaveToDriveClick = () => {
       setIsGoogleDriveModalOpen(true);
@@ -1615,6 +1629,7 @@ export const App: React.FC = () => {
                           e2bStatus={e2bStatus}
                           e2bPreviewUrl={e2bPreviewUrl}
                           onAttachPreview={handleAttachPreviewToChat}
+                          onAttachFile={handleAttachFileToChat}
                         />
                       </main>
 
