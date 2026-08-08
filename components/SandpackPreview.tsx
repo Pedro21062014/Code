@@ -1,6 +1,27 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, Component, type ReactNode } from 'react';
 import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
 import { ProjectFile } from '../types';
+
+// ErrorBoundary: se o Sandpack quebrar, mostra um fallback simples em vez de
+// derrubar o editor inteiro (evita a tela branca ao abrir o projeto).
+class SandpackErrorBoundary extends Component<{ children: ReactNode; files: ProjectFile[] }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: any) {
+    console.error('Sandpack preview falhou:', error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-white dark:bg-[#09090b] text-gray-400 p-6 text-center">
+          <p className="text-sm font-medium mb-2">Não foi possível renderizar o preview via Sandpack.</p>
+          <p className="text-xs opacity-70">Verifique os arquivos do projeto e tente novamente.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface SandpackPreviewProps {
   files: ProjectFile[];
@@ -19,9 +40,8 @@ export const SandpackProjectPreview: React.FC<SandpackPreviewProps> = ({ files, 
 
     files.forEach(f => {
       if (!f || !f.name) return;
-      // Sandpack espera caminhos sem barra inicial
       const clean = f.name.startsWith('/') ? f.name.slice(1) : f.name;
-      spFiles[clean] = f.content;
+      spFiles[clean] = f.content || '';
     });
     return spFiles;
   }, [files]);
@@ -33,23 +53,25 @@ export const SandpackProjectPreview: React.FC<SandpackPreviewProps> = ({ files, 
 
   return (
     <div className="w-full h-full relative bg-white dark:bg-[#09090b] overflow-hidden">
-      <SandpackProvider
-        key={JSON.stringify(Object.keys(sandpackFiles))}
-        template={template}
-        files={sandpackFiles}
-        theme={dark ? 'dark' : 'light'}
-        options={{
-          externalResources: [],
-          autoReload: true,
-        }}
-      >
-        <SandpackPreview
-          style={{ height: '100%', width: '100%' }}
-          showOpenInCodeSandbox={false}
-          showRefreshButton
-          showNavigator
-        />
-      </SandpackProvider>
+      <SandpackErrorBoundary files={files}>
+        <SandpackProvider
+          key={JSON.stringify(Object.keys(sandpackFiles))}
+          template={template}
+          files={sandpackFiles}
+          theme={dark ? 'dark' : 'light'}
+          options={{
+            externalResources: [],
+            autoReload: true,
+          }}
+        >
+          <SandpackPreview
+            style={{ height: '100%', width: '100%' }}
+            showOpenInCodeSandbox={false}
+            showRefreshButton
+            showNavigator
+          />
+        </SandpackProvider>
+      </SandpackErrorBoundary>
     </div>
   );
 };

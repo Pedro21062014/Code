@@ -21,12 +21,14 @@ import { LandingPage } from './components/LandingPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { TermsPage } from './components/TermsPage';
 import { Toast } from './components/Toast';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { SaveSuccessAnimation } from './components/SaveSuccessAnimation';
 import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject, AIModel, ChatMode, ProjectVersion } from './types';
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
 import { startE2bPreview, killE2bSandbox } from './services/e2bService';
+import { startWebContainerPreview } from './services/webcontainerService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -233,6 +235,8 @@ export const App: React.FC = () => {
   const [e2bPreviewUrl, setE2bPreviewUrl] = useState<string | null>(null);
   const [e2bSandboxId, setE2bSandboxId] = useState<string | null>(null);
   const [e2bStatus, setE2bStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
+  const [previewEngine, setPreviewEngine] = useState<'e2b' | 'webcontainer'>('e2b');
+  const [wcStatus, setWcStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
   const [generatingFile, setGeneratingFile] = useState<string | null>(null);
   const [runningCommand, setRunningCommand] = useState<string | null>(null);
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
@@ -945,6 +949,11 @@ export const App: React.FC = () => {
   const handleLoadProject = useCallback((projectId: number) => {
       const p = savedProjects.find(pr => pr.id === projectId);
       if (p) {
+          // Reseta estados de preview para abrir limpo o editor
+          setE2bPreviewUrl(null);
+          setE2bStatus('idle');
+          setWcStatus('idle');
+          setPreviewEngine('e2b');
           setProject({
               files: p.files,
               activeFile: p.files.length > 0 ? p.files[0].name : null,
@@ -1055,19 +1064,53 @@ export const App: React.FC = () => {
   }, [setProject]);
 
   // Executa o projeto num sandbox E2B e retorna a URL de preview ao vivo
+  // Inicia o preview com retry (3x) no E2B e fallback para WebContainer
   const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = []) => {
     if (!previewFiles || previewFiles.length === 0) return;
     // Mata o sandbox anterior para não vazar instâncias
     if (e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
     setE2bStatus('starting');
     setE2bPreviewUrl(null);
+    setPreviewEngine('e2b');
+
+    const MAX_ATTEMPTS = 3;
+    let lastError: any = null;
+
+    // Tenta o E2B até 3 vezes
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const result = await startE2bPreview(previewFiles, terminalCommands);
+        setE2bPreviewUrl(result.previewUrl);
+        setE2bSandboxId(result.sandboxId);
+        setE2bStatus('ready');
+        return;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`Tentativa ${attempt}/${MAX_ATTEMPTS} do E2B falhou:`, error);
+        // Pequena pausa entre tentativas
+        await new Promise(r => setTimeout(r, attempt * 800));
+      }
+    }
+
+    // E2B falhou após 3 tentativas → fallback para WebContainer
+    console.warn('E2B falhou após 3 tentativas. Usando WebContainer como fallback.', lastError);
+    setE2bStatus('error');
+    setPreviewEngine('webcontainer');
+    setWcStatus('starting');
+    setToastError('Sandbox E2B indisponível. Tentando WebContainer como alternativa...');
+
     try {
-      const result = await startE2bPreview(previewFiles, terminalCommands);
-      setE2bPreviewUrl(result.previewUrl);
-      setE2bSandboxId(result.sandboxId);
-      setE2bStatus('ready');
-    } catch (error: any) {
-      console.error('Erro ao iniciar preview E2B:', error);
+      const wcResult = await startWebContainerPreview(previewFiles, terminalCommands);
+      if (wcResult.running) {
+        setWcStatus('ready');
+        // O WebContainer não expõe URL pública como o E2B; usamos o Sandpack
+        // como preview visual (o CodePreview já decide). Marcamos para o
+        // preview saber que o WebContainer está ativo.
+        setE2bStatus('ready');
+      }
+    } catch (wcError: any) {
+      console.error('WebContainer fallback também falhou:', wcError);
+      setWcStatus('error');
       setE2bStatus('error');
     }
   }, [e2bSandboxId]);
@@ -1400,7 +1443,7 @@ export const App: React.FC = () => {
   );
 
   return (
-    <>
+    <AppErrorBoundary>
     <Routes>
       <Route path="/" element={<Navigate to={files.length > 0 ? "/editor" : "/welcome"} replace />} />
       
@@ -1770,6 +1813,6 @@ export const App: React.FC = () => {
       onOpenSettings={() => setView('settings')} 
       onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
     />
-    </>
+    </AppErrorBoundary>
   );
 };

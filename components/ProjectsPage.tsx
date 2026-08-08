@@ -348,7 +348,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                                     <FeaturedGalleryCard 
                                         key={p.id} 
                                         project={p} 
-                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onClick={() => onLoadProject(p.id)} 
                                         onLike={onLikeProject}
                                         currentUserId={currentUserId}
                                     />
@@ -366,7 +366,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                                     <GalleryCard 
                                         key={p.id} 
                                         project={p} 
-                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onClick={() => onLoadProject(p.id)} 
                                         onLike={onLikeProject}
                                         currentUserId={currentUserId}
                                     />
@@ -384,7 +384,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                                     <GalleryCard 
                                         key={p.id} 
                                         project={p} 
-                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onClick={() => onLoadProject(p.id)} 
                                         onLike={onLikeProject}
                                         currentUserId={currentUserId}
                                     />
@@ -402,7 +402,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, onLoadProj
                                     <GalleryCard 
                                         key={p.id} 
                                         project={p} 
-                                        onClick={() => { if(p.deployedUrl) window.open(p.deployedUrl, '_blank'); else onLoadProject(p.id); }} 
+                                        onClick={() => onLoadProject(p.id)} 
                                         onLike={onLikeProject}
                                         currentUserId={currentUserId}
                                     />
