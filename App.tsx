@@ -1324,6 +1324,20 @@ export const App: React.FC = () => {
     }
   }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings, handleRunPreviewInE2B]);
 
+  // Anexa um screenshot do preview a uma nova mensagem no chat
+  const handleAttachPreviewToChat = useCallback((screenshot: string, note: string) => {
+    if (!screenshot) return;
+    const noteText = note && note.trim() ? note.trim() : 'Analise esta captura do preview e sugira melhorias.';
+    // Adiciona a captura como anexo e envia
+    handleSendMessage(
+      noteText,
+      AIProvider.Nvidia,
+      availableModels.find(m => m.provider === AIProvider.Nvidia)?.id || 'minimaxai/minimax-m3',
+      [{ data: screenshot, mimeType: 'image/png' }],
+      'general'
+    );
+  }, [handleSendMessage, availableModels]);
+
   // Handle manual drive save click
   const onSaveToDriveClick = () => {
       setIsGoogleDriveModalOpen(true);
@@ -1600,6 +1614,7 @@ export const App: React.FC = () => {
                           terminalCommands={project.chatMessages[project.chatMessages.length - 1]?.terminalCommands}
                           e2bStatus={e2bStatus}
                           e2bPreviewUrl={e2bPreviewUrl}
+                          onAttachPreview={handleAttachPreviewToChat}
                         />
                       </main>
 

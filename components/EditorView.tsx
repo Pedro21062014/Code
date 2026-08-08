@@ -12,6 +12,7 @@ import {
 import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
 import { GenerationLoader } from './GenerationLoader';
+import { PreviewToolbar } from './PreviewToolbar';
 
 interface EditorViewProps {
   files: ProjectFile[];
@@ -60,6 +61,7 @@ interface EditorViewProps {
   terminalCommands?: string[];
   e2bStatus?: 'idle' | 'starting' | 'ready' | 'error';
   e2bPreviewUrl?: string | null;
+  onAttachPreview?: (screenshot: string, note: string) => void;
 }
 
 interface FileNode {
@@ -107,7 +109,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
-    e2bStatus = 'idle', e2bPreviewUrl
+    e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -120,6 +122,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedFile = files.find(f => f.name === activeFile);
 
@@ -607,7 +610,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         </div>
                     </div>
 
-                    <div className={`flex-1 relative bg-white transition-all duration-300 mx-auto ${previewDevice === 'mobile' ? 'w-[375px] my-4 border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl h-[calc(100%-2rem)]' : 'w-full h-full'}`}>
+                    <div ref={previewContainerRef} className={`flex-1 relative bg-white transition-all duration-300 mx-auto ${previewDevice === 'mobile' ? 'w-[375px] my-4 border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden shadow-2xl h-[calc(100%-2rem)]' : 'w-full h-full'}`}>
                         <CodePreview 
                             key={previewKey} // Key change forces remount/reload
                             files={files} 
@@ -619,6 +622,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             chatMode={chatMode} 
                             terminalCommands={terminalCommands}
                         />
+                        <PreviewToolbar targetRef={previewContainerRef} onAttachToMessage={onAttachPreview} />
                     </div>
                     
                     {/* TetrisLoader enquanto gera */}
