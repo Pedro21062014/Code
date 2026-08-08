@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { GithubIcon, CloseIcon, KeyIcon, LoaderIcon } from './Icons';
 import { ProjectFile } from '../types';
-import JSZip from 'jszip';
 
 interface GithubRepo {
   id: number;
@@ -133,47 +132,61 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         const repoData = await repoDataResponse.json();
         const defaultBranch = repoData.default_branch || 'main';
 
-        // 2. Baixa o repositório inteiro como ZIP (codeload) — mais confiável que percorrer blobs
-        const zipResponse = await fetch(`https://codeload.github.com/${owner}/${name}/zip/refs/heads/${defaultBranch}`, {
-            headers: { 'Authorization': `Bearer ${githubToken}` },
-            redirect: 'follow',
-        });
-        
-        if (!zipResponse.ok) {
-            throw new Error(`Erro ao baixar repositório (${zipResponse.status}).`);
-        }
-        
-        const zipBuffer = await zipResponse.arrayBuffer();
-        const zip = await JSZip.loadAsync(zipBuffer);
-        
-        const importedFiles: ProjectFile[] = [];
-        
-        // Extrai cada arquivo do zip (ignora .git e arquivos grandes)
-        for (const [relativePath, entry] of Object.entries(zip.files)) {
-            if (entry.dir) continue;
-            if (relativePath.includes('/.git/') || relativePath.endsWith('.git')) continue;
-            
-            // Remove o prefixo da pasta raiz (repo-branch/)
-            const parts = relativePath.split('/');
-            parts.shift(); // remove a raiz do zip
-            const cleanPath = parts.join('/');
-            if (!cleanPath) continue;
+        // 2. Obtém a árvore de arquivos do repositório (recursiva) na branch padrão
+        const branchResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/branches/${defaultBranch}`, { headers });
+        if (!branchResponse.ok) throw new Error("Erro ao obter a branch do repositório.");
+        const branchData = await branchResponse.json();
+        const treeSha = branchData?.commit?.commit?.tree?.sha;
+        if (!treeSha) throw new Error("Não foi possível localizar a árvore de arquivos.");
 
-            try {
-                const content = await entry.async('string');
-                if (content.length > 1000000) continue; // ignora arquivos > 1MB
-                importedFiles.push({
-                    name: cleanPath,
-                    language: getFileLanguage(cleanPath),
-                    content: content,
-                });
-            } catch (e) {
-                // ignora arquivos binários
+        const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/trees/${treeSha}?recursive=1`, { headers });
+        if (!treeResponse.ok) throw new Error("Erro ao listar os arquivos do repositório.");
+        const treeData = await treeResponse.json();
+
+        // Filtra blobs (arquivos), ignorando .git e arquivos grandes
+        const fileNodes = (treeData.tree || []).filter(
+            (node: any) => node.type === 'blob' && node.size < 1000000 && !node.path.includes('/.git/') && !node.path.endsWith('.git')
+        );
+
+        if (fileNodes.length === 0) {
+            throw new Error("Nenhum arquivo encontrado no repositório.");
+        }
+
+        // 3. Baixa o conteúdo de cada arquivo (blob) em lotes para não estourar requisições
+        const importedFiles: ProjectFile[] = [];
+        const CHUNK = 5;
+        for (let i = 0; i < fileNodes.length; i += CHUNK) {
+            const batch = fileNodes.slice(i, i + CHUNK);
+            const results = await Promise.all(
+                batch.map(async (fileNode: any) => {
+                    try {
+                        const blobResponse = await fetch(fileNode.url, { headers });
+                        if (!blobResponse.ok) return null;
+                        const blobData = await blobResponse.json();
+                        if (blobData.encoding !== 'base64' || !blobData.content) return null;
+                        const binaryString = atob(blobData.content);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let j = 0; j < binaryString.length; j++) {
+                            bytes[j] = binaryString.charCodeAt(j);
+                        }
+                        const content = new TextDecoder('utf-8').decode(bytes);
+                        return {
+                            name: fileNode.path,
+                            language: getFileLanguage(fileNode.path),
+                            content,
+                        } as ProjectFile;
+                    } catch (e) {
+                        return null; // ignora binários/erros isolados
+                    }
+                })
+            );
+            for (const f of results) {
+                if (f) importedFiles.push(f);
             }
         }
-        
+
         if (importedFiles.length === 0) {
-            throw new Error("Nenhum arquivo foi extraído do repositório.");
+            throw new Error("Nenhum arquivo de texto foi encontrado no repositório.");
         }
 
         onImport(importedFiles, name);
