@@ -231,6 +231,7 @@ export const App: React.FC = () => {
   const [e2bSandboxId, setE2bSandboxId] = useState<string | null>(null);
   const [e2bStatus, setE2bStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
   const [generatingFile, setGeneratingFile] = useState<string | null>(null);
+  const [runningCommand, setRunningCommand] = useState<string | null>(null);
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [codeError, setCodeError] = useState<string | null>(null);
@@ -1211,6 +1212,21 @@ export const App: React.FC = () => {
           activeProjectState.envVars, 
           (chunk) => {
               accumulatedResponse += chunk;
+              // Detecta o arquivo que a IA está criando/escrevendo (aparece no JSON do stream)
+              const fileMatches = [...accumulatedResponse.matchAll(/"name":\s*"([^"]+)"/g)];
+              if (fileMatches.length > 0) {
+                  const lastFile = fileMatches[fileMatches.length - 1][1];
+                  if (lastFile && !lastFile.includes('message') && !lastFile.includes('summary')) {
+                      setGeneratingFile(lastFile);
+                  }
+              }
+              // Detecta comandos de terminal que a IA manda rodar
+              const cmdMatches = [...accumulatedResponse.matchAll(/"terminalCommands":\s*\[(.*?)\]/s)];
+              if (cmdMatches.length > 0) {
+                  const raw = cmdMatches[cmdMatches.length - 1][1];
+                  const cmdNames = [...raw.matchAll(/"([^"]+)"/g)].map(m => m[1]).filter((c: string) => c.length > 0);
+                  if (cmdNames.length > 0) setRunningCommand(cmdNames[cmdNames.length - 1]);
+              }
               const messageMatch = accumulatedResponse.match(/"message":\s*"((?:[^"\\]|\\.)*)/);
               setProject(current => {
                   const msgs = [...current.chatMessages];
@@ -1302,6 +1318,8 @@ export const App: React.FC = () => {
         }
     } finally { 
         setIsInitializing(false); 
+        setGeneratingFile(null);
+        setRunningCommand(null);
         abortControllerRef.current = null;
     }
   }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings, handleRunPreviewInE2B]);
@@ -1566,6 +1584,7 @@ export const App: React.FC = () => {
                           session={sessionUser}
                           isGenerating={isInitializing}
                           generatingFile={generatingFile}
+                          runningCommand={runningCommand}
                           generatedFileNames={generatedFileNames}
                           aiSuggestions={aiSuggestions}
                           deployedUrl={e2bPreviewUrl || (currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined)}

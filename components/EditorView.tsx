@@ -42,6 +42,7 @@ interface EditorViewProps {
   session: any | null;
   isGenerating: boolean;
   generatingFile: string | null;
+  runningCommand?: string | null;
   generatedFileNames: Set<string>;
   aiSuggestions: string[];
   deployedUrl?: string | undefined;
@@ -102,7 +103,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     files, activeFile, projectName, theme, onThemeChange, onFileSelect, onFileDelete, 
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
-    onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
+    onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, runningCommand, generatedFileNames, aiSuggestions,
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
@@ -624,6 +625,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     <GenerationLoader
                       isGenerating={isGenerating}
                       generatingFile={generatingFile}
+                      runningCommand={runningCommand}
                       dark={theme === 'dark'}
                     />
                 </div>
