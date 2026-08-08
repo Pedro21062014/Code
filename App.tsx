@@ -1389,6 +1389,7 @@ export const App: React.FC = () => {
   );
 
   return (
+    <>
     <Routes>
       <Route path="/" element={<Navigate to={files.length > 0 ? "/editor" : "/welcome"} replace />} />
       
@@ -1688,24 +1689,6 @@ export const App: React.FC = () => {
                   />
               )}
               
-              <GithubImportModal 
-                isOpen={isGithubModalOpen} 
-                onClose={() => setGithubModalOpen(false)} 
-                onImport={(f, name) => { 
-                    setProject({
-                        ...initialProjectState,
-                        files: f,
-                        projectName: name || 'GitHub Project',
-                        activeFile: f.length > 0 ? f[0].name : null,
-                        chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Como posso ajudar a editá-lo?` }]
-                    }); 
-                    setView('editor'); 
-                }} 
-                githubToken={userSettings?.github_access_token} 
-                onOpenSettings={() => setView('settings')} 
-                onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
-              />
-              
               <GithubSyncModal 
                 isOpen={isGithubSyncModalOpen} 
                 onClose={() => setGithubSyncModalOpen(false)} 
@@ -1752,5 +1735,25 @@ export const App: React.FC = () => {
         </div>
       } />
     </Routes>
+
+    {/* Modal de importação GitHub disponível em TODAS as rotas */}
+    <GithubImportModal 
+      isOpen={isGithubModalOpen} 
+      onClose={() => setGithubModalOpen(false)} 
+      onImport={(f, name) => { 
+          setProject({
+              ...initialProjectState,
+              files: f,
+              projectName: name || 'GitHub Project',
+              activeFile: f.length > 0 ? f[0].name : null,
+              chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Como posso ajudar a editá-lo?` }]
+          }); 
+          setView('editor'); 
+      }} 
+      githubToken={userSettings?.github_access_token} 
+      onOpenSettings={() => setView('settings')} 
+      onSaveToken={(token) => handleUpdateSettings({ github_access_token: token })}
+    />
+    </>
   );
 };

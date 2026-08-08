@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GithubIcon, CloseIcon, KeyIcon, LoaderIcon } from './Icons';
 import { ProjectFile } from '../types';
+import JSZip from 'jszip';
 
 interface GithubRepo {
   id: number;
@@ -13,6 +14,7 @@ interface GithubRepo {
     login: string;
   };
   updated_at: string;
+  default_branch?: string;
 }
 
 interface GithubImportModalProps {
@@ -107,60 +109,74 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
     setIsLoading(true);
 
     try {
+        const owner = repo.owner.login;
+        const name = repo.name;
+
         const headers = {
             'Authorization': `Bearer ${githubToken}`,
             'Accept': 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
         };
-        
-        const repoInfo = { owner: repo.owner.login, repo: repo.name };
-        const repoDataResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}`, { headers });
-        if (!repoDataResponse.ok) throw new Error("Erro ao acessar repositório.");
-        
+
+        // 1. Obtém a branch padrão
+        const repoDataResponse = await fetch(`https://api.github.com/repos/${owner}/${name}`, { headers });
+        if (!repoDataResponse.ok) {
+            if (repoDataResponse.status === 404) throw new Error("Repositório não encontrado ou sem acesso.");
+            if (repoDataResponse.status === 403) throw new Error("Limite da API do GitHub excedido. Tente novamente em instantes.");
+            throw new Error(`Erro ao acessar repositório (${repoDataResponse.status}).`);
+        }
         const repoData = await repoDataResponse.json();
-        const defaultBranch = repoData.default_branch;
+        const defaultBranch = repoData.default_branch || 'main';
 
-        const branchResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/branches/${defaultBranch}`, { headers });
-        const branchData = await branchResponse.json();
-        const treeSha = branchData.commit.commit.tree.sha;
-
-        const treeResponse = await fetch(`https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/git/trees/${treeSha}?recursive=1`, { headers });
-        const treeData = await treeResponse.json();
-        
-        const fileBlobs = treeData.tree.filter((node: any) => node.type === 'blob' && node.size < 1000000);
-
-        const importedFilesPromises = fileBlobs.map(async (fileNode: any) => {
-            const contentResponse = await fetch(fileNode.url, { headers });
-            if (!contentResponse.ok) return null;
-            const blobData = await contentResponse.json();
-            
-            if (blobData.encoding !== 'base64') return null;
-            
-            let content;
-            try {
-                const binaryString = atob(blobData.content);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                content = new TextDecoder('utf-8').decode(bytes);
-            } catch (e) { return null; }
-
-            return {
-                name: fileNode.path,
-                language: getFileLanguage(fileNode.path),
-                content: content,
-            };
+        // 2. Baixa o repositório inteiro como ZIP (codeload) — mais confiável que percorrer blobs
+        const zipResponse = await fetch(`https://codeload.github.com/${owner}/${name}/zip/refs/heads/${defaultBranch}`, {
+            headers: { 'Authorization': `Bearer ${githubToken}` },
+            redirect: 'follow',
         });
-
-        const importedFiles = (await Promise.all(importedFilesPromises)).filter((f): f is ProjectFile => f !== null);
         
-        // Pass repo.name alongside files
-        onImport(importedFiles, repo.name);
+        if (!zipResponse.ok) {
+            throw new Error(`Erro ao baixar repositório (${zipResponse.status}).`);
+        }
+        
+        const zipBuffer = await zipResponse.arrayBuffer();
+        const zip = await JSZip.loadAsync(zipBuffer);
+        
+        const importedFiles: ProjectFile[] = [];
+        
+        // Extrai cada arquivo do zip (ignora .git e arquivos grandes)
+        for (const [relativePath, entry] of Object.entries(zip.files)) {
+            if (entry.dir) continue;
+            if (relativePath.includes('/.git/') || relativePath.endsWith('.git')) continue;
+            
+            // Remove o prefixo da pasta raiz (repo-branch/)
+            const parts = relativePath.split('/');
+            parts.shift(); // remove a raiz do zip
+            const cleanPath = parts.join('/');
+            if (!cleanPath) continue;
+
+            try {
+                const content = await entry.async('string');
+                if (content.length > 1000000) continue; // ignora arquivos > 1MB
+                importedFiles.push({
+                    name: cleanPath,
+                    language: getFileLanguage(cleanPath),
+                    content: content,
+                });
+            } catch (e) {
+                // ignora arquivos binários
+            }
+        }
+        
+        if (importedFiles.length === 0) {
+            throw new Error("Nenhum arquivo foi extraído do repositório.");
+        }
+
+        onImport(importedFiles, name);
         onClose();
 
     } catch (err) {
-        setImportError("Falha na importação.");
+        const message = err instanceof Error ? err.message : "Falha na importação.";
+        setImportError(message);
     } finally {
         setIsLoading(false);
         setImportingRepoName(null);
