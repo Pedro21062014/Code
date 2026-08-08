@@ -2,14 +2,15 @@
 import { AIProvider, AIModel } from './types';
 
 export const AI_MODELS: AIModel[] = [
-  // Free Models (Default) — served by the built-in provider
-  { id: 'deepseek-ai/deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: AIProvider.Nvidia },
-  { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: AIProvider.Nvidia },
-  { id: 'minimaxai/minimax-m2.7', name: 'MiniMax M2.7', provider: AIProvider.Nvidia },
-  { id: 'meta/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: AIProvider.Nvidia },
-  { id: 'mistralai/mistral-large-3-675b-instruct-2512', name: 'Mistral Large 3', provider: AIProvider.Nvidia },
-  { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super', provider: AIProvider.Nvidia },
-  { id: 'deepseek-ai/deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: AIProvider.Nvidia },
+  // Free Models válidos na API NVIDIA (build.nvidia.com) — provedor padrão
+  { id: 'deepseek-ai/deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: AIProvider.Nvidia, logo: '/model-logos/deepseek.png' },
+  { id: 'deepseek-ai/deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: AIProvider.Nvidia, logo: '/model-logos/deepseek.png' },
+  { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6', provider: AIProvider.Nvidia, logo: '/model-logos/kimi.png' },
+  { id: 'minimaxai/minimax-m2.7', name: 'MiniMax M2.7', provider: AIProvider.Nvidia, logo: '/model-logos/minimax.webp' },
+  { id: 'qwen/qwen3-coder-480b-a35b-instruct', name: 'Qwen3 Coder 480B', provider: AIProvider.Nvidia, logo: '/model-logos/qwen.png' },
+  { id: 'meta/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: AIProvider.Nvidia, logo: '/model-logos/llama.png' },
+  { id: 'mistralai/mistral-large-3-675b-instruct-2512', name: 'Mistral Large 3', provider: AIProvider.Nvidia, logo: '/model-logos/mistral.png' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super', provider: AIProvider.Nvidia, logo: '/model-logos/nvidia.png' },
 
   // Direct API Models (Requires User Key)
   { id: 'gemini-2.0-flash', name: 'Gemini 2.5 Flash (Own Key)', provider: AIProvider.Gemini }, // Added 2.5 (Mapped to 2.0-flash)

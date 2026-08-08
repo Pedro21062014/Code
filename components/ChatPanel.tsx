@@ -311,7 +311,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       document.body.removeChild(link);
   };
 
-  const currentModelName = availableModels.find(m => m.id === selectedModel)?.name || 'Modelo';
+  const currentModel = availableModels.find(m => m.id === selectedModel);
+  const currentModelName = currentModel?.name || 'Modelo';
+  const currentModelLogo = currentModel?.logo;
 
   const modes = [
       { id: 'general', icon: <SparklesIcon className="w-4 h-4" />, label: 'Geral', tooltip: 'Geração de Código Padrão' },
@@ -572,23 +574,31 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                               <button 
                                 type="button"
                                 onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
-                                className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-medium text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 bg-gray-100 dark:bg-[#27272a] rounded-md transition-colors"
+                                className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-[#27272a] rounded-md transition-colors"
                               >
-                                  {currentModelName.split(' ')[0]} <ChevronUpIcon className="w-3 h-3" />
+                                  {currentModelLogo ? (
+                                      <img src={currentModelLogo} alt="" className="w-3.5 h-3.5 rounded-sm object-contain" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
+                                  ) : null}
+                                  <span>{currentModelName.split(' ')[0]}</span> <ChevronUpIcon className="w-3 h-3" />
                               </button>
                               
                               {isModelSelectorOpen && (
                                   <>
                                     <div className="fixed inset-0 z-30" onClick={() => setIsModelSelectorOpen(false)}></div>
-                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg shadow-xl z-40 overflow-hidden py-1 max-h-60 overflow-y-auto custom-scrollbar">
+                                    <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg shadow-xl z-40 overflow-hidden py-1 max-h-60 overflow-y-auto custom-scrollbar">
                                         {availableModels.map(model => (
                                             <button
                                                 key={model.id}
                                                 type="button"
                                                 onClick={() => { setSelectedModel(model.id); setIsModelSelectorOpen(false); }}
-                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-[#27272a] flex items-center gap-2.5 ${selectedModel === model.id ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
                                             >
-                                                {model.name}
+                                                {model.logo ? (
+                                                    <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
+                                                ) : (
+                                                    <span className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-[#27272a] flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-gray-400">AI</span>
+                                                )}
+                                                <span className="truncate">{model.name}</span>
                                             </button>
                                         ))}
                                     </div>

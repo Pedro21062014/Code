@@ -18,6 +18,7 @@ export interface AIModel {
   id: string;
   name: string;
   provider: AIProvider;
+  logo?: string; // Caminho do logo do modelo (public/model-logos/...)
 }
 
 export interface ProjectFile {
