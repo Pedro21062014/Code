@@ -1069,6 +1069,13 @@ export const App: React.FC = () => {
     }
   }, [e2bSandboxId]);
 
+  // Reinicia o sandbox E2B: apaga o atual e cria um novo com os arquivos do projeto
+  const handleRestartSandbox = useCallback(() => {
+    if (files.length === 0) return;
+    if (e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
+    handleRunPreviewInE2B(files);
+  }, [files, e2bSandboxId, handleRunPreviewInE2B]);
+
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = [], mode: ChatMode = 'general') => {
     if (!sessionUser) { setView('auth'); return; }
     
@@ -1631,6 +1638,7 @@ export const App: React.FC = () => {
                           e2bPreviewUrl={e2bPreviewUrl}
                           onAttachPreview={handleAttachPreviewToChat}
                           onAttachFile={handleAttachFileToChat}
+                          onRestartSandbox={handleRestartSandbox}
                         />
                       </main>
 
@@ -1746,9 +1754,13 @@ export const App: React.FC = () => {
               files: f,
               projectName: name || 'GitHub Project',
               activeFile: f.length > 0 ? f[0].name : null,
-              chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Como posso ajudar a editá-lo?` }]
+              chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Iniciando sandbox para visualização...` }]
           }); 
           setView('editor'); 
+          // Cria um sandbox E2B automaticamente com os arquivos importados
+          if (f && f.length > 0) {
+              setTimeout(() => handleRunPreviewInE2B(f), 500);
+          }
       }} 
       githubToken={userSettings?.github_access_token} 
       onOpenSettings={() => setView('settings')} 

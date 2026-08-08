@@ -63,6 +63,7 @@ interface EditorViewProps {
   e2bPreviewUrl?: string | null;
   onAttachPreview?: (screenshot: string, note: string) => void;
   onAttachFile?: (data: string, mimeType: string, note?: string) => void;
+  onRestartSandbox?: () => void;
 }
 
 interface FileNode {
@@ -110,7 +111,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
-    e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview, onAttachFile
+    e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview, onAttachFile, onRestartSandbox
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -593,6 +594,16 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                     <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                     Falha no sandbox
                                 </span>
+                            )}
+                            {e2bStatus === 'ready' && onRestartSandbox && (
+                                <button
+                                    onClick={onRestartSandbox}
+                                    className="flex items-center gap-1.5 text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] px-2.5 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-[#27272a] transition-colors"
+                                    title="Apagar o sandbox atual e criar um novo"
+                                >
+                                    <RefreshIcon className="w-3 h-3" />
+                                    Reiniciar Sandbox
+                                </button>
                             )}
                             <button 
                                 onClick={() => setPreviewDevice('desktop')}
