@@ -138,8 +138,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onBack, theme, onThemeChange
       <div className="relative z-[2] w-full max-w-[400px] mx-4">
         {/* Brand / Logo */}
         <button onClick={onBack} className="mx-auto mb-4 flex items-center gap-2 group cursor-pointer" style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}>
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-12" style={{ background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}>
-            <AppLogo className="w-6 h-6 text-white" />
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-12" style={{ background: '#ededed', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+            <AppLogo className="w-6 h-6 text-black" />
           </div>
           <span className="font-bold text-2xl tracking-tight text-white">codegem</span>
         </button>

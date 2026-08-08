@@ -73,7 +73,12 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
         }
 
         const data = await response.json();
-        setRepositories(data);
+        if (Array.isArray(data)) {
+            setRepositories(data);
+        } else {
+            setRepositories([]);
+            setRepoError("Resposta inesperada do GitHub.");
+        }
 
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro desconhecido.";
@@ -191,11 +196,11 @@ export const GithubImportModal: React.FC<GithubImportModalProps> = ({ isOpen, on
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-start justify-center pt-20 animate-fadeIn"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in"
       onClick={isLoading ? undefined : onClose}
     >
       <div 
-        className="bg-white dark:bg-[#09090b] w-full max-w-2xl border border-gray-200 dark:border-[#27272a] shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[70vh] animate-slideInUp transition-colors"
+        className="bg-white dark:bg-[#09090b] w-full max-w-2xl border border-gray-200 dark:border-[#27272a] shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[80vh] animate-slide-up transition-colors"
         onClick={e => e.stopPropagation()}
       >
         {/* Header Compacto */}
