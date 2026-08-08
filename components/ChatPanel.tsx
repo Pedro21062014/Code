@@ -6,6 +6,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ChatMessage, AIProvider, AIModel, ChatMode } from '../types';
 import { AI_MODELS } from '../constants';
+import { BorderBeam } from '@/components/ui/border-beam';
 import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -548,8 +549,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <div className="p-4 bg-[#fbfbfb] dark:bg-[#0c0c0e] border-t border-gray-200 dark:border-[#27272a] z-10">
           <form onSubmit={handleSubmit} className="relative group">
               
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
-              <div className="relative bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50 transition-all flex flex-col">
+              <BorderBeam size="md" colorVariant="colorful" duration={6}>
+              <div className="relative bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50 transition-all flex flex-col overflow-hidden">
                   <textarea 
                     value={input}
                     onChange={e => setInput(e.target.value)}
@@ -644,6 +645,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       </div>
                   </div>
               </div>
+              </BorderBeam>
           </form>
           <div className="text-center mt-2">
              <p className="text-[10px] text-gray-400 dark:text-gray-600">AI pode gerar código incorreto.</p>
