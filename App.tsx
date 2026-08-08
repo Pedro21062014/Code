@@ -26,6 +26,7 @@ import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
+import { startE2bPreview, killE2bSandbox } from './services/e2bService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -226,6 +227,9 @@ export const App: React.FC = () => {
   const [availableModels, setAvailableModels] = useState<AIModel[]>(AI_MODELS);
   
   const [isInitializing, setIsInitializing] = useState(false); 
+  const [e2bPreviewUrl, setE2bPreviewUrl] = useState<string | null>(null);
+  const [e2bSandboxId, setE2bSandboxId] = useState<string | null>(null);
+  const [e2bStatus, setE2bStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
   const [generatingFile, setGeneratingFile] = useState<string | null>(null);
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
@@ -1046,6 +1050,24 @@ export const App: React.FC = () => {
       }
   }, [setProject]);
 
+  // Executa o projeto num sandbox E2B e retorna a URL de preview ao vivo
+  const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = []) => {
+    if (!previewFiles || previewFiles.length === 0) return;
+    // Mata o sandbox anterior para não vazar instâncias
+    if (e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
+    setE2bStatus('starting');
+    setE2bPreviewUrl(null);
+    try {
+      const result = await startE2bPreview(previewFiles, terminalCommands);
+      setE2bPreviewUrl(result.previewUrl);
+      setE2bSandboxId(result.sandboxId);
+      setE2bStatus('ready');
+    } catch (error: any) {
+      console.error('Erro ao iniciar preview E2B:', error);
+      setE2bStatus('error');
+    }
+  }, [e2bSandboxId]);
+
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = [], mode: ChatMode = 'general') => {
     if (!sessionUser) { setView('auth'); return; }
     
@@ -1227,22 +1249,25 @@ export const App: React.FC = () => {
       const result = extractAndParseJson(fullResponse);
       if (result.suggestions && Array.isArray(result.suggestions)) setAiSuggestions(result.suggestions);
 
+      // Mescla os arquivos gerados com os existentes (fora do setProject, para usar no E2B)
+      const baseFiles = project.files || [];
+      const map = new Map<string, ProjectFile>();
+      baseFiles.forEach(f => map.set(f.name, f));
+      if (result.files && Array.isArray(result.files)) {
+          result.files.forEach((file: ProjectFile) => map.set(file.name, file));
+      }
+      const updatedFiles = Array.from(map.values());
+      const modifiedFileNames = result.files ? result.files.map((f: ProjectFile) => f.name) : [];
+      const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
+      const newVersion: ProjectVersion = {
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          files: filesDeepCopy,
+          message: prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '')
+      };
+
       setProject(p => {
-            const map = new Map<string, ProjectFile>();
-            p.files.forEach(f => map.set(f.name, f));
-            if (result.files && Array.isArray(result.files)) {
-                result.files.forEach((file: ProjectFile) => map.set(file.name, file));
-            }
             const newActiveFile = (result.files && result.files.length > 0) ? result.files[0].name : p.activeFile;
-            const updatedFiles = Array.from(map.values());
-            const modifiedFileNames = result.files ? result.files.map((f: ProjectFile) => f.name) : [];
-            const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
-            const newVersion: ProjectVersion = {
-                id: Date.now().toString(),
-                timestamp: Date.now(),
-                files: filesDeepCopy,
-                message: prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '')
-            };
             const finalChatMessages = [...p.chatMessages];
             finalChatMessages[finalChatMessages.length - 1] = {
                 role: 'assistant',
@@ -1261,6 +1286,11 @@ export const App: React.FC = () => {
                 history: [...(p.history || []), newVersion]
             };
         });
+
+      // Sobe o preview num sandbox E2B automaticamente
+      if (updatedFiles.length > 0) {
+          handleRunPreviewInE2B(updatedFiles, result.terminalCommands || []);
+      }
     } catch (e: any) { 
         if (e.message !== "AbortError") {
             console.error(e);
@@ -1274,7 +1304,7 @@ export const App: React.FC = () => {
         setIsInitializing(false); 
         abortControllerRef.current = null;
     }
-  }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings]);
+  }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings, handleRunPreviewInE2B]);
 
   // Handle manual drive save click
   const onSaveToDriveClick = () => {
@@ -1538,7 +1568,7 @@ export const App: React.FC = () => {
                           generatingFile={generatingFile}
                           generatedFileNames={generatedFileNames}
                           aiSuggestions={aiSuggestions}
-                          deployedUrl={currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined}
+                          deployedUrl={e2bPreviewUrl || (currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined)}
                           chatMode={chatMode}
                           projectHistory={history}
                           onRestoreVersion={handleRestoreVersion}
@@ -1549,6 +1579,8 @@ export const App: React.FC = () => {
                           onToggleChat={() => setIsChatPanelOpen(!isChatPanelOpen)}
                           isChatOpen={isChatPanelOpen}
                           terminalCommands={project.chatMessages[project.chatMessages.length - 1]?.terminalCommands}
+                          e2bStatus={e2bStatus}
+                          e2bPreviewUrl={e2bPreviewUrl}
                         />
                       </main>
 

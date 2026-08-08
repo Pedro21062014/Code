@@ -25,7 +25,7 @@ ${file.content}
   - **Framework**: React with Vite. Use functional components and hooks.
   - **Styles**: Tailwind CSS. (Generate the necessary tailwind.config.js and postcss.config.js, or use standard configurations).
   - **Language**: TypeScript or modern JavaScript.
-  - **Environment**: You are running in a WebContainer environment. You MUST generate all core configuration files like package.json, vite.config.ts, etc.
+  - **Environment**: You are running in an E2B cloud sandbox. You MUST generate all core configuration files like package.json, vite.config.ts, etc.
 
 - **FILE STRUCTURE**:
   - \`index.html\`: The HTML entry point referencing \`/src/main.tsx\`.
@@ -35,8 +35,9 @@ ${file.content}
   - \`src/App.tsx\`: Root application component.
 
 - **TERMINAL EXECUTION**:
-  - You have access to a WebContainer terminal! The user sees a real terminal that runs the development server automatically.
-  - If you need to install specific packages or run custom shell commands, you can include them in an array called "terminalCommands" inside your JSON response. Those commands will be executed in the WebContainer terminal one by one.
+  - You have access to an E2B cloud sandbox! The user sees a real terminal that runs the development server automatically and shows a live preview URL.
+  - If you need to install specific packages or run custom shell commands, you can include them in an array called "terminalCommands" inside your JSON response. Those commands will be executed in the E2B sandbox one by one.
+  - The dev server MUST bind to host 0.0.0.0 on a fixed port (e.g. npm run dev -- --host 0.0.0.0 --port 3000) so it can be exposed. If you want a static site, use a static server (e.g. npx --yes serve -l 3000).
 
 - **GOAL**: Respond with a valid JSON object containing:
   - "message" (string): Friendly response to the user.

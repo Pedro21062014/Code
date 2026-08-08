@@ -57,6 +57,8 @@ interface EditorViewProps {
   onToggleChat?: () => void;
   isChatOpen?: boolean;
   terminalCommands?: string[];
+  e2bStatus?: 'idle' | 'starting' | 'ready' | 'error';
+  e2bPreviewUrl?: string | null;
 }
 
 interface FileNode {
@@ -103,7 +105,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, generatedFileNames, aiSuggestions,
     deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
-    onToggleChat, isChatOpen = true, terminalCommands
+    onToggleChat, isChatOpen = true, terminalCommands,
+    e2bStatus = 'idle', e2bPreviewUrl
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -548,7 +551,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         </div>
                         <div className="flex-1 flex justify-center items-center gap-2">
                             <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a] flex justify-between items-center group">
-                                <span className="flex-1 text-center">{deployedUrl || 'localhost:3000 (Simulated)'}</span>
+                                <span className="flex-1 text-center">{e2bPreviewUrl || deployedUrl || 'localhost:3000 (Simulated)'}</span>
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={handleRefreshPreview}
@@ -568,6 +571,24 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
+                            {e2bStatus === 'starting' && (
+                                <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full animate-pulse">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                    Iniciando sandbox...
+                                </span>
+                            )}
+                            {e2bStatus === 'ready' && (
+                                <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    Preview E2B ao vivo
+                                </span>
+                            )}
+                            {e2bStatus === 'error' && (
+                                <span className="flex items-center gap-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                    Falha no sandbox
+                                </span>
+                            )}
                             <button 
                                 onClick={() => setPreviewDevice('desktop')}
                                 className={`p-1.5 rounded-md transition-colors ${previewDevice === 'desktop' ? 'bg-gray-200 dark:bg-[#27272a] text-black dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
