@@ -49,23 +49,16 @@ function MorphingText({ text }: { text: string }) {
   );
 }
 
-function ModelIcon({ model, className }: { model: string; className?: string }) {
-  const icons: Record<string, string> = {
-    "Composer 2.5": "https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/cursor-ai-code-icon_j4vnux.svg",
-    "Gemini 3.5 Flash": "https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/google-gemini-icon_l6kk5q.svg",
-    "GPT 5.5": "https://res.cloudinary.com/drhx7imeb/image/upload/v1781695269/openai-icon_zozuib.svg",
-    "Opus 4.8": "https://res.cloudinary.com/drhx7imeb/image/upload/v1781695268/Claude_AI_symbol_yqfzlc.svg",
-    "GLM 5.2": "https://res.cloudinary.com/drhx7imeb/image/upload/v1781695269/z-ai-icon_xi4xvo.svg",
-  };
+function ModelIcon({ model, className }: { model: { name: string; logo?: string }; className?: string }) {
   const filters: Record<string, string> = {
     "GPT 5.5": "dark:invert",
   };
   return (
     <img
-      src={icons[model] || icons["GPT 5.5"]}
-      alt={model}
+      src={model.logo}
+      alt={model.name}
       onError={(e) => { (e.currentTarget.style.display = 'none'); }}
-      className={cn("object-contain", filters[model], className)}
+      className={cn("object-contain", filters[model.name], className)}
     />
   );
 }
@@ -161,11 +154,16 @@ function AttachmentThumb({
 // ----------------------------------------------------------------------
 // Main Component
 // ----------------------------------------------------------------------
+export interface PromptModelOption {
+  name: string;
+  logo?: string;
+}
+
 export interface PromptInputProps {
   onSubmit?: (value: string, meta: { model: string; effort: string; attachments: File[] }) => void;
   placeholder?: string;
   className?: string;
-  models?: string[];
+  models?: PromptModelOption[];
   efforts?: string[];
   defaultValue?: string;
   value?: string;
@@ -179,7 +177,13 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       onSubmit,
       placeholder = "Ask anything",
       className,
-      models = ["GPT 5.5", "Opus 4.8", "Gemini 3.5 Flash", "Composer 2.5", "GLM 5.2"],
+      models = [
+        { name: "GPT 5.5" },
+        { name: "Opus 4.8" },
+        { name: "Gemini 3.5 Flash" },
+        { name: "Composer 2.5" },
+        { name: "GLM 5.2" },
+      ],
       efforts = ["Low", "Medium", "Max Effort"],
       defaultValue = "",
       value: controlledValue,
@@ -196,8 +200,8 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     const [isModelSelectOpen, setIsModelSelectOpen] = useState(false);
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [hoverStyle, setHoverStyle] = useState({ opacity: 0, transform: "translateY(0px) scale(0.95)", transition: "none" });
-    const [containerHeight, setContainerHeight] = useState(116);
-    const [textareaHeight, setTextareaHeight] = useState(68);
+    const [containerHeight, setContainerHeight] = useState(148);
+    const [textareaHeight, setTextareaHeight] = useState(88);
     const [isScrolling, setIsScrolling] = useState(false);
     const valueRef = useRef(controlledValue !== undefined ? controlledValue : localValue);
 
@@ -265,7 +269,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
       el.style.height = "auto";
       void el.offsetHeight;
       el.style.transition = '';
-      const newHeight = Math.max(68, Math.min(scrollHeight, 160));
+      const newHeight = Math.max(88, Math.min(scrollHeight, 200));
       el.style.height = `${newHeight}px`;
       setTextareaHeight(newHeight);
       setIsScrolling(scrollHeight > 160);
@@ -273,7 +277,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     }, [value, expanded]);
 
     useEffect(() => {
-      setContainerHeight(Math.max(116, textareaHeight + 48));
+      setContainerHeight(Math.max(148, textareaHeight + 60));
       setTimeout(updateFades, 0);
     }, [textareaHeight]);
 
@@ -298,7 +302,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     const handleSubmit = () => {
       if (value.trim() === "" && !hasAttachments) return;
       setIsSmoothResize(false);
-      onSubmit?.(value, { model: selectedModel, effort: efforts[effortIndex], attachments: attachments.map((a) => a.file) });
+      onSubmit?.(value, { model: selectedModel.name, effort: efforts[effortIndex], attachments: attachments.map((a) => a.file) });
       handleValueChange("");
       attachments.forEach((a) => URL.revokeObjectURL(a.url));
       setAttachments([]);
@@ -360,7 +364,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
         onBlur={handleBlur}
         className={cn("relative flex flex-col w-full", className)}
         style={{
-          maxWidth: expanded ? 480 : 320,
+          maxWidth: expanded ? 640 : 480,
           transition: isSmoothResize ? "max-width 0.15s ease-out" : "max-width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
         }}
       >
@@ -411,7 +415,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
           }}
           style={{
             borderRadius: 24,
-            height: expanded ? containerHeight : 48,
+            height: expanded ? containerHeight : 60,
             transition: isSmoothResize ? SMOOTH_HEIGHT_TRANSITION : SPRING_TRANSITION,
             overflow: expanded ? "visible" : "hidden",
           }}
@@ -437,7 +441,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
               transition: isSmoothResize ? "height 0.15s ease-out" : "opacity 0.3s ease-out, transform 0.3s ease-out, height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
             }}
             className={cn(
-              "absolute top-0 inset-x-0 z-[1] w-full resize-none bg-transparent pl-4 pr-12 py-3.5 text-sm leading-[22px] text-gray-900 dark:text-white outline-none placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 cursor-text",
+              "absolute top-0 inset-x-0 z-[1] w-full resize-none bg-transparent pl-5 pr-14 py-4 text-base leading-[24px] text-gray-900 dark:text-white outline-none placeholder:font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500 cursor-text",
               expanded ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-1 pointer-events-none",
               isScrolling ? "overflow-y-auto" : "overflow-y-hidden"
             )}
@@ -451,7 +455,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
             onClick={expand}
             style={{ transition: isSmoothResize ? "none" : "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
             className={cn(
-              "absolute inset-x-0 top-0 z-[1] cursor-text pl-4 pr-12 py-[15px] text-left text-sm font-medium leading-[17px] text-gray-400 dark:text-gray-500 outline-none",
+              "absolute inset-x-0 top-0 z-[1] cursor-text pl-5 pr-14 py-[19px] text-left text-base font-medium leading-[22px] text-gray-400 dark:text-gray-500 outline-none",
               !expanded ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-105 translate-y-1 pointer-events-none"
             )}
             aria-label="Open prompt input"
@@ -475,38 +479,38 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                   "group flex items-center gap-1 rounded-full px-2 py-1 text-gray-500 dark:text-gray-400 transition-all duration-200 outline-none hover:bg-gray-100 dark:hover:bg-[#27272a] hover:text-gray-900 dark:hover:text-white cursor-default",
                   isModelSelectOpen ? "bg-gray-100 dark:bg-[#27272a] text-gray-900 dark:text-white" : ""
                 )}
-                aria-label={`Select model. Current: ${selectedModel}`}
+                aria-label={`Select model. Current: ${selectedModel.name}`}
               >
-                <ModelIcon model={selectedModel} className="size-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                <span className="text-xs font-semibold select-none transition-colors"><MorphingText text={selectedModel} /></span>
+                <ModelIcon model={selectedModel} className="size-4 opacity-80 group-hover:opacity-100 transition-opacity" />
+                <span className="text-sm font-semibold select-none transition-colors"><MorphingText text={selectedModel.name} /></span>
               </button>
 
               <div
                 style={{ transformOrigin: "bottom left" }}
                 className={cn(
-                  "absolute bottom-full left-0 mb-2.5 z-50 w-44 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white/95 dark:bg-[#18181b]/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-400 cursor-default",
+                  "absolute bottom-full left-0 mb-2.5 z-50 w-60 rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white/95 dark:bg-[#18181b]/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-400 cursor-default",
                   isModelSelectOpen ? "opacity-100 scale-100 translate-y-0 pointer-events-auto" : "opacity-0 scale-95 translate-y-3 pointer-events-none"
                 )}
               >
                 <div className="relative flex flex-col gap-0.5">
-                  <div style={hoverStyle} className="absolute left-0 right-0 top-0 h-8 -z-10 rounded-xl bg-gray-100 dark:bg-[#27272a] pointer-events-none" />
+                  <div style={hoverStyle} className="absolute left-0 right-0 top-0 h-9 -z-10 rounded-xl bg-gray-100 dark:bg-[#27272a] pointer-events-none" />
                   {models.map((model, idx) => (
                     <button
-                      key={model}
+                      key={model.name}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => {
                         setHoverStyle({
-                          opacity: 1, transform: `translateY(${idx * 34}px) scale(1)`,
+                          opacity: 1, transform: `translateY(${idx * 36}px) scale(1)`,
                           transition: hoverStyle.opacity === 0 ? "opacity 0.15s ease-out" : "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease",
                         });
                       }}
                       onClick={(e) => { e.stopPropagation(); setSelectedModel(model); setIsModelSelectOpen(false); }}
-                      className="group relative flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium text-gray-700 dark:text-gray-300 outline-none active:scale-[0.98] cursor-default"
+                      className="group relative flex h-9 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium text-gray-700 dark:text-gray-300 outline-none active:scale-[0.98] cursor-default"
                     >
                       <span className="flex items-center gap-2">
-                        <ModelIcon model={model} className="size-3.5 opacity-85 group-hover:opacity-100 transition-opacity" />
-                        {model}
+                        <ModelIcon model={model} className="size-4 opacity-85 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-sm">{model.name}</span>
                       </span>
                     </button>
                   ))}
@@ -537,7 +541,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
             onClick={(e) => { e.preventDefault(); if (hasValue) handleSubmit(); }}
             aria-label="Send prompt"
             style={{ borderRadius: 9999 }}
-            className="absolute right-2 bottom-2 z-[10] flex h-8 w-8 items-center justify-center bg-black dark:bg-white text-white dark:text-black transition-all duration-300 hover:opacity-90 outline-none cursor-default"
+            className="absolute right-2 bottom-2 z-[10] flex h-10 w-10 items-center justify-center bg-black dark:bg-white text-white dark:text-black transition-all duration-300 hover:opacity-90 outline-none cursor-default"
           >
             <span className="relative flex h-full w-full items-center justify-center">
               <span className={cn("absolute inset-0 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]", showArrow ? "opacity-100 scale-100 rotate-0 blur-none" : "opacity-0 scale-50 rotate-45 blur-[1px] pointer-events-none")}>

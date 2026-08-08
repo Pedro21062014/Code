@@ -246,12 +246,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
         {/* AI Chat Input */}
         <div className="w-full relative flex flex-col items-center z-20">
-            <div className="w-full max-w-[480px] flex justify-center">
+            <div className="w-full max-w-[640px] flex justify-center">
                 <PromptInput
                     onSubmit={handleAiInputSubmit}
                     placeholder="Descreva seu app com detalhes..."
-                    models={availableModels.map(m => m.name)}
-                    className="w-full"
+                    models={availableModels.map(m => ({ name: m.name, logo: m.logo }))}
+                    className="w-full scale-[1.15]"
                 />
             </div>
         </div>
