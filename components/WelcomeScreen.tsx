@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SparklesIcon, GithubIcon, FolderIcon, PlusIcon, ChevronDownIcon, ClockIcon, CloseIcon, LogInIcon, SunIcon, MoonIcon, AppLogo, LightbulbIcon } from './Icons';
 import { ProjectFile, SavedProject, AIModel, Theme, ChatMode, AIProvider } from '../types';
+import { PromptInput } from '@/components/ui/ai-chat-input';
 
 interface WelcomeScreenProps {
   onPromptSubmit: (prompt: string, model: string, provider: AIProvider, attachments: { data: string; mimeType: string }[], mode?: ChatMode) => void;
@@ -137,6 +138,31 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     }
   };
 
+  // Callback do PromptInput (AI chat input)
+  const handleAiInputSubmit = async (message: string, meta: { model: string; effort: string; attachments: File[] }) => {
+    if (!message.trim() && meta.attachments.length === 0) return;
+    try {
+      const filePromises = meta.attachments.map(file => {
+        return new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64Data = (event.target?.result as string).split(',')[1];
+            resolve({ data: base64Data, mimeType: file.type });
+          };
+          reader.onerror = (error) => reject(error);
+          reader.readAsDataURL(file);
+        });
+      });
+      const attachments = await Promise.all(filePromises);
+      const finalPrompt = isPlanMode ? `<tools/plan> ${message.trim()}` : message.trim();
+      const selModel = availableModels.find(m => m.id === selectedModel);
+      const provider = selModel?.provider || AIProvider.Nvidia;
+      onPromptSubmit(finalPrompt, selectedModel, provider, attachments, 'general');
+    } catch (error) {
+      console.error("Error processing AI input:", error);
+    }
+  };
+
   const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFiles = event.target.files;
       if (!selectedFiles || selectedFiles.length === 0) return;
@@ -218,108 +244,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </p>
         </div>
 
-        {/* Input Box - Enhanced */}
-        <div className="w-full relative group z-20">
-            {/* Animated Glow Border */}
-            <div className="absolute -inset-[1px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-[2px]"></div>
-            
-            {/* REMOVED overflow-hidden to allow dropdown to overflow */}
-            <div className="relative bg-white dark:bg-[#121214] rounded-2xl border border-gray-200 dark:border-[#27272a] shadow-2xl flex flex-col transition-shadow duration-300 group-hover:shadow-blue-500/10">
-                <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={handleKeyDown}
+        {/* AI Chat Input */}
+        <div className="w-full relative flex flex-col items-center z-20">
+            <div className="w-full max-w-[480px] flex justify-center">
+                <PromptInput
+                    onSubmit={handleAiInputSubmit}
                     placeholder="Descreva seu app com detalhes..."
-                    className="w-full h-36 p-6 bg-transparent text-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 resize-none focus:outline-none font-sans leading-relaxed"
-                    autoFocus
+                    models={availableModels.map(m => m.name)}
+                    className="w-full"
                 />
-
-                {/* Attachments Preview */}
-                {attachedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 px-6 pb-2">
-                    {attachedFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-[#27272a] rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-[#3f3f46]">
-                        <span className="truncate max-w-[150px]">{file.name}</span>
-                        <button onClick={() => removeFile(file)} className="hover:text-red-500"><CloseIcon className="w-3 h-3" /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Actions Bar */}
-                {/* ADDED rounded-b-2xl to maintain corner shape since overflow is gone */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 dark:bg-[#0c0c0e]/80 border-t border-gray-100 dark:border-[#27272a] backdrop-blur-md rounded-b-2xl">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors" title="Anexar arquivo">
-                            <PlusIcon className="w-5 h-5" />
-                        </button>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
-                        
-                        <div className="h-5 w-px bg-gray-200 dark:bg-[#3f3f46] mx-1"></div>
-
-                        <div className="relative" ref={dropdownRef}>
-                            <button 
-                                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-[#27272a] rounded-lg transition-colors border border-transparent hover:border-gray-200 dark:hover:border-[#3f3f46]"
-                            >
-                                {selectedModelObj?.logo ? (
-                                    <img src={selectedModelObj.logo} alt="" className="w-4 h-4 rounded-sm object-contain" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
-                                ) : (
-                                    <SparklesIcon className="w-3.5 h-3.5 text-blue-500" />
-                                )}
-                                {selectedModelObj?.name || 'Modelo'}
-                                <ChevronDownIcon className="w-3 h-3 opacity-50" />
-                            </button>
-                            
-                            {isModelDropdownOpen && (
-                                <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50 py-1 animate-slideInUp">
-                                    {availableModels.map(model => (
-                                        <button
-                                            key={model.id}
-                                            onClick={() => { setSelectedModel(model.id); setIsModelDropdownOpen(false); }}
-                                            className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-[#27272a] text-gray-700 dark:text-gray-200 flex items-center justify-between gap-3 ${selectedModel === model.id ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 font-semibold' : ''}`}
-                                        >
-                                            <span className="flex items-center gap-2.5 min-w-0">
-                                                {model.logo ? (
-                                                    <img src={model.logo} alt="" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
-                                                ) : (
-                                                    <SparklesIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                                )}
-                                                <span className="truncate">{model.name}</span>
-                                            </span>
-                                            {selectedModel === model.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="h-5 w-px bg-gray-200 dark:bg-[#3f3f46] mx-1"></div>
-
-                        <button 
-                            type="button" 
-                            onClick={() => setIsPlanMode(!isPlanMode)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all
-                                ${isPlanMode 
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
-                                    : 'bg-transparent text-gray-500 hover:bg-white dark:hover:bg-[#27272a] dark:text-gray-400 hover:text-black dark:hover:text-white border border-transparent hover:border-gray-200 dark:hover:border-[#3f3f46]'
-                                }
-                            `}
-                            title="Modo Planejamento: Cria um plano detalhado antes de codar."
-                        >
-                            <LightbulbIcon className={`w-3.5 h-3.5 ${isPlanMode ? 'text-white' : 'text-blue-500'}`} />
-                            Plan
-                        </button>
-                    </div>
-
-                    <button 
-                        onClick={handlePromptSubmitInternal}
-                        disabled={!prompt.trim() && attachedFiles.length === 0}
-                        className="px-6 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                    >
-                        Gerar Projeto
-                    </button>
-                </div>
             </div>
         </div>
 
