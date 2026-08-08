@@ -161,6 +161,7 @@ export interface PromptModelOption {
 
 export interface PromptInputProps {
   onSubmit?: (value: string, meta: { model: string; effort: string; attachments: File[] }) => void;
+  onModelChange?: (model: PromptModelOption) => void;
   placeholder?: string;
   className?: string;
   models?: PromptModelOption[];
@@ -175,6 +176,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
   (
     {
       onSubmit,
+      onModelChange,
       placeholder = "Ask anything",
       className,
       models = [
@@ -497,7 +499,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                       key={model.name}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => { e.stopPropagation(); setSelectedModel(model); setIsModelSelectOpen(false); }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedModel(model); setIsModelSelectOpen(false); onModelChange?.(model); }}
                       className={cn(
                         "group flex h-9 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-sm font-medium outline-none active:scale-[0.98] cursor-default transition-colors",
                         selectedModel.name === model.name

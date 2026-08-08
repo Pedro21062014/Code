@@ -155,9 +155,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       });
       const attachments = await Promise.all(filePromises);
       const finalPrompt = isPlanMode ? `<tools/plan> ${message.trim()}` : message.trim();
-      const selModel = availableModels.find(m => m.id === selectedModel);
-      const provider = selModel?.provider || AIProvider.Nvidia;
-      onPromptSubmit(finalPrompt, selectedModel, provider, attachments, 'general');
+      // Usa o modelo escolhido no PromptInput (por nome), sincronizando com o id
+      const chosenName = meta.model;
+      const chosen = availableModels.find(x => x.name === chosenName);
+      const modelId = chosen?.id || selectedModel;
+      if (chosen) setSelectedModel(chosen.id);
+      const provider = chosen?.provider || AIProvider.Nvidia;
+      onPromptSubmit(finalPrompt, modelId, provider, attachments, 'general');
       setPrompt('');
     } catch (error) {
       console.error("Error processing AI input:", error);
@@ -250,6 +254,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <div className="w-full max-w-[640px] flex justify-center">
                 <PromptInput
                     onSubmit={handleAiInputSubmit}
+                    onModelChange={(m) => {
+                        const found = availableModels.find(x => x.name === m.name);
+                        if (found) setSelectedModel(found.id);
+                    }}
                     placeholder="Descreva seu app com detalhes..."
                     models={availableModels.map(m => ({ name: m.name, logo: m.logo }))}
                     value={prompt}
