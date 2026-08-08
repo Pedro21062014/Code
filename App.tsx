@@ -1231,7 +1231,7 @@ export const App: React.FC = () => {
                   }
               }
               // Detecta comandos de terminal que a IA manda rodar
-              const cmdMatches = [...accumulatedResponse.matchAll(/"terminalCommands":\s*\[(.*?)\]/s)];
+              const cmdMatches = [...accumulatedResponse.matchAll(/"terminalCommands":\s*\[(.*?)\]/gs)];
               if (cmdMatches.length > 0) {
                   const raw = cmdMatches[cmdMatches.length - 1][1];
                   const cmdNames = [...raw.matchAll(/"([^"]+)"/g)].map(m => m[1]).filter((c: string) => c.length > 0);
