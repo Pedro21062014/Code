@@ -72,20 +72,36 @@ export const onRequestPost = async (context: any) => {
     const hasPackageJson = files.some((f) => f.name === 'package.json' || f.name === '/package.json');
 
     // 4. Monta a lista de comandos
+    const targetPort = requestedPort > 0 ? requestedPort : DEFAULT_PORT;
+
     let commands = terminalCommands.filter(Boolean);
     if (commands.length === 0) {
       commands = hasPackageJson
         ? [
             'npm install',
-            `npm run dev -- --host 0.0.0.0 --port ${DEFAULT_PORT}`,
+            `npm run dev -- --host 0.0.0.0 --port ${targetPort}`,
           ]
-        : [`npx --yes serve -l ${DEFAULT_PORT}`];
+        : [`npx --yes serve -l ${targetPort}`];
     }
 
-    // Se a IA pediu "npm run dev" sem host/porta, força 0.0.0.0 numa porta conhecida.
+    // Garante que o servidor use a porta alvo. Para `npm run dev` (Vite/React),
+    // forçamos --host 0.0.0.0 --port <targetPort>. Para `serve`, -l <targetPort>.
     const devIndex = commands.findIndex((c) => c.includes('npm run dev'));
-    if (devIndex !== -1 && !commands[devIndex].includes('--host')) {
-      commands[devIndex] = `${commands[devIndex]} -- --host 0.0.0.0 --port ${DEFAULT_PORT}`;
+    if (devIndex !== -1) {
+      const cmd = commands[devIndex];
+      // Remove flags de porta/host antigas e aplica as corretas
+      const cleaned = cmd
+        .replace(/\s+--(?:host|port|p)\s+[^\s]+/g, '')
+        .replace(/\s+-- --(?:host|port)\s+[^\s]+/g, '')
+        .trim();
+      commands[devIndex] = `${cleaned} -- --host 0.0.0.0 --port ${targetPort}`;
+    } else {
+      // Se for `serve` ou outro, ajusta a porta
+      const serveIndex = commands.findIndex((c) => c.includes('serve'));
+      if (serveIndex !== -1) {
+        const cmd = commands[serveIndex].replace(/\s+-l\s+\d+/, '');
+        commands[serveIndex] = `${cmd} -l ${targetPort}`;
+      }
     }
 
     // 5. Executa: todos os comandos de setup em foreground, o último (servidor) em background.
@@ -111,7 +127,7 @@ export const onRequestPost = async (context: any) => {
     // 6. Descobre a porta real do servidor.
     // Vite costuma usar 5173, `serve` usa a porta dada, outros usam 3000/8080.
     // Tentamos várias portas e fazemos polling para achar a que responde.
-    const requested = requestedPort > 0 ? requestedPort : extractPort(serverCmd, 0);
+    const requested = targetPort > 0 ? targetPort : extractPort(serverCmd, 0);
     const candidatePorts = Array.from(new Set(
       [requested, 3000, 5173, 4173, 8080, 8000].filter(p => p > 0)
     ));

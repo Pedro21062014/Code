@@ -9,6 +9,7 @@ import { ChatMessage, AIProvider, AIModel, ChatMode, AITask } from '../types';
 import { AI_MODELS } from '../constants';
 import { BorderBeam } from '@/components/ui/border-beam';
 import AITaskList from '@/components/ui/ai-task-list';
+import AIDiff from '@/components/ui/ai-diff';
 import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -535,16 +536,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                         )}
                                                         
                                                         {msg.filesModified && msg.filesModified.length > 0 && (
-                                                            <div className="mt-4 w-full max-w-md">
+                                                            <div className="mt-4 w-full max-w-md space-y-3">
                                                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Mudanças Realizadas:</p>
-                                                                <div className="border border-gray-200 dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-[#18181b] shadow-sm">
-                                                                    {msg.filesModified.map((file, i) => (
-                                                                        <div key={i} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#27272a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1c] transition-colors">
-                                                                            <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">{file}</span>
-                                                                            <div className="text-green-500"><CheckCircleIcon className="w-5 h-5" /></div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
+                                                                {msg.filesModified.map((file, i) => (
+                                                                    <AIDiff
+                                                                        key={i}
+                                                                        title={file}
+                                                                        lines={[
+                                                                            { content: `Arquivo "${file}" foi criado/modificado.`, kind: "added", number: 1 },
+                                                                        ]}
+                                                                    />
+                                                                ))}
                                                             </div>
                                                         )}
                                                     </>

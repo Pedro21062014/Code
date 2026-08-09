@@ -246,6 +246,7 @@ export const App: React.FC = () => {
   
   const [isInitializing, setIsInitializing] = useState(false); 
   const [e2bPreviewUrl, setE2bPreviewUrl] = useState<string | null>(null);
+  const [e2bPort, setE2bPort] = useState<number>(3000);
   const [e2bSandboxId, setE2bSandboxId] = useState<string | null>(null);
   const [e2bStatus, setE2bStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
   const [previewEngine, setPreviewEngine] = useState<'e2b' | 'webcontainer'>('e2b');
@@ -1094,7 +1095,7 @@ export const App: React.FC = () => {
     // Tenta o E2B até 3 vezes
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        const result = await startE2bPreview(previewFiles, terminalCommands);
+        const result = await startE2bPreview(previewFiles, terminalCommands, e2bPort);
         setE2bPreviewUrl(result.previewUrl);
         setE2bSandboxId(result.sandboxId);
         setE2bStatus('ready');
@@ -1131,7 +1132,7 @@ export const App: React.FC = () => {
       const wcMsg = wcError?.message || 'Erro desconhecido';
       setToastError(`Preview indisponível. E2B: ${e2bMsg} | WebContainer: ${wcMsg}`);
     }
-  }, [e2bSandboxId]);
+  }, [e2bSandboxId, e2bPort]);
 
   // Reinicia o sandbox E2B: apaga o atual e cria um novo com os arquivos do projeto
   const handleRestartSandbox = useCallback(() => {
@@ -1705,6 +1706,8 @@ export const App: React.FC = () => {
                           onAttachPreview={handleAttachPreviewToChat}
                           onAttachFile={handleAttachFileToChat}
                           onRestartSandbox={handleRestartSandbox}
+                          e2bPort={e2bPort}
+                          onE2bPortChange={setE2bPort}
                         />
                       </main>
 
