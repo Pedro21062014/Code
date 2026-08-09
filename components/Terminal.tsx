@@ -21,7 +21,7 @@ export const Terminal: React.FC<TerminalProps> = ({ sandboxId, isGenerating }) =
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [cwd, setCwd] = useState('/');
+  const [cwd, setCwd] = useState('/home/user/app');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

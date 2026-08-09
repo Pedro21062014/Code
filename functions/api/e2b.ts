@@ -13,6 +13,8 @@ interface ProjectFileInput {
 
 const DEFAULT_PORT = 3000;
 const NODE_TEMPLATE = 'base';
+// Pasta do usuário onde o app é montado (evita conflito com a raiz do sandbox)
+const APP_DIR = '/home/user/app';
 
 function extractPort(command: string, fallback: number): number {
   const m = command.match(/(?:--port|-p|-l)\s+(\d+)/);
@@ -50,7 +52,7 @@ function ensureViteConfig(sandbox: any, files: ProjectFileInput[], port: number)
   // Se não tem vite.config, cria um; se tem, não sobrescrevemos (tentamos via flags)
   if (!hasVite) {
     try {
-      sandbox.files.write('/vite.config.mjs', cfg);
+      sandbox.files.write(`${APP_DIR}/vite.config.mjs`, cfg);
     } catch (e) {
       console.warn('Falha ao criar vite.config.mjs:', e?.message || e);
     }
@@ -89,15 +91,17 @@ export const onRequestPost = async (context: any) => {
       metadata: { app: 'codegen-studio', createdBy: 'codegem' },
     });
 
-    // 2. Escreve os arquivos
+    // 2. Cria a pasta do app e escreve os arquivos nela
+    await sandbox.files.makeDir(APP_DIR, { recursive: true }).catch(() => {});
     for (const file of files) {
       if (!file.name || typeof file.content !== 'string') continue;
       const cleanPath = file.name.startsWith('/') ? file.name.slice(1) : file.name;
       const parent = cleanPath.split('/').slice(0, -1).join('/');
+      const absPath = `${APP_DIR}/${cleanPath}`;
       if (parent) {
-        await sandbox.files.makeDir('/' + parent, { recursive: true }).catch(() => {});
+        await sandbox.files.makeDir(`${APP_DIR}/${parent}`, { recursive: true }).catch(() => {});
       }
-      await sandbox.files.write('/' + cleanPath, file.content);
+      await sandbox.files.write(absPath, file.content);
     }
 
     // 2.5 Garante vite.config com host/porta/hmr fixos (estabilidade + porta 3000)
@@ -154,7 +158,7 @@ export const onRequestPost = async (context: any) => {
     const chain = `nohup ${setupCmds ? `${setupCmds} && ` : ''}${serverStart} > /tmp/server.log 2>&1 &`;
 
     try {
-      await sandbox.commands.run(chain, { cwd: '/', background: true });
+      await sandbox.commands.run(chain, { cwd: APP_DIR, background: true });
     } catch (e: any) {
       console.warn('Falha ao iniciar pipeline do servidor:', e?.message || e);
     }
@@ -252,7 +256,7 @@ export const onRequestExec = async (context: any) => {
     const body = await context.request.json().catch(() => ({}));
     const sandboxId = body.sandboxId;
     const command = body.command;
-    const cwd = body.cwd || '/';
+    const cwd = body.cwd || APP_DIR;
 
     if (!sandboxId || !command) {
       return new Response(JSON.stringify({ error: 'sandboxId e command são obrigatórios.' }), {
