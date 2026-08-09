@@ -445,9 +445,27 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         ) : (
                                             <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90 markdown-content">
                                                 {msg.isThinking ? (
-                                                    <AIThinkingBlock
-                                                        text={msg.content === 'Pensando...' || msg.content === 'Processando...' ? undefined : msg.content}
-                                                    />
+                                                    <div className="space-y-2">
+                                                        <AIThinkingBlock
+                                                            text={msg.content === 'Pensando...' || msg.content === 'Processando...' ? undefined : msg.content}
+                                                        />
+                                                        {isGenerating && runningCommand && (
+                                                            <AIActivityCard
+                                                                type="command"
+                                                                title="Comando em execução"
+                                                                command={runningCommand}
+                                                                output="Executando... A saída aparecerá quando o comando concluir."
+                                                                active
+                                                            />
+                                                        )}
+                                                        {isGenerating && generatingFile && (
+                                                            <AIActivityCard
+                                                                type="file"
+                                                                title={generatingFile}
+                                                                active
+                                                            />
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <>
                                                         {msg.planTasks && msg.planTasks.length > 0 && (
@@ -548,28 +566,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     );
                 })}
                 
-                {/* Active Generation Indicators */}
-                {isGenerating && runningCommand && (
-                    <div className="mx-4">
-                        <AIActivityCard
-                            type="command"
-                            title="Comando em execução"
-                            command={runningCommand}
-                            output="Executando... A saída aparecerá quando o comando concluir."
-                            active
-                        />
-                    </div>
-                )}
-                {isGenerating && generatingFile && (
-                    <div className="mx-4">
-                        <AIActivityCard
-                            type="file"
-                            title={generatingFile}
-                            active
-                        />
-                    </div>
-                )}
-                
+                {/* Active Generation Indicators (exibidos dentro do AIThinkingBlock) */}
                 <div ref={chatEndRef} className="h-4" />
               </>
           )}

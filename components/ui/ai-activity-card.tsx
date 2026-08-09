@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { IconChevronDown, IconChevronUp, IconFileCode, IconTerminal2 } from "@tabler/icons-react";
+import AILoader from "@/components/ui/ai-loader";
 
 interface AIActivityCardProps {
   title: string;
@@ -69,9 +70,8 @@ export const AIActivityCard: React.FC<AIActivityCardProps> = ({
           )}
         </span>
         {active ? (
-          <span className="flex-shrink-0 flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            {open ? 'Executando...' : 'Em andamento'}
+          <span className="flex-shrink-0 text-blue-600 dark:text-blue-400">
+            <AILoader variant={type === 'command' ? 'bar' : 'grid'} showElapsed />
           </span>
         ) : (
           <span className="flex-shrink-0 text-[10px] font-bold text-green-600 dark:text-green-400">Concluído</span>
