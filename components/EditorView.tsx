@@ -13,6 +13,7 @@ import { UserMenu } from './UserMenu';
 import { VersioningModal } from './VersioningModal';
 import { GenerationLoader } from './GenerationLoader';
 import { PreviewToolbar } from './PreviewToolbar';
+import { FileIconIconify } from './FileIconIconify';
 
 interface EditorViewProps {
   files: ProjectFile[];
@@ -336,11 +337,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-blue-400/10 animate-shine pointer-events-none" />
           )}
 
-          {isImage ? (
-              <ImageIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected || isBeingGenerated ? 'text-purple-500' : 'opacity-50'}`} />
-          ) : (
-              <FileIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected || isBeingGenerated ? 'text-blue-500' : 'opacity-50'}`} />
-          )}
+          <FileIconIconify
+              name={node.name}
+              className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected || isBeingGenerated ? 'opacity-100' : 'opacity-60'}`}
+          />
           <span className="truncate flex-1 text-left relative z-10">{node.name}</span>
         </button>
       );
