@@ -3,8 +3,7 @@
 // Integração E2B: cria um sandbox, escreve os arquivos gerados, executa os
 // terminalCommands da IA e retorna uma URL de preview ao vivo.
 //
-// Requer a variável de ambiente E2B_API_KEY configurada no Cloudflare Pages:
-//   Settings -> Environment variables -> E2B_API_KEY = e2b_xxxxxxxx
+// Requer a variável de ambiente E2B_API_KEY configurada no Cloudflare Pages.
 import { Sandbox } from '@e2b/code-interpreter';
 
 interface ProjectFileInput {
@@ -13,16 +12,49 @@ interface ProjectFileInput {
 }
 
 const DEFAULT_PORT = 3000;
-// Sandbox NodeJS com Node, npm e ferramentas web pré-instaladas.
 const NODE_TEMPLATE = 'base';
 
 function extractPort(command: string, fallback: number): number {
-  // Suporta: --port 5173, -p 5173, -l 5173 (serve), :5173
   const m = command.match(/(?:--port|-p|-l)\s+(\d+)/);
   if (m) return parseInt(m[1], 10);
   const colon = command.match(/:(\d{2,5})/);
   if (colon) return parseInt(colon[1], 10);
   return fallback;
+}
+
+/**
+ * Cria/ajusta um vite.config para fixar host, porta e desabilitar HMR.
+ * HMR (hot reload) é a causa mais comum de o dev server cair no sandbox.
+ */
+function ensureViteConfig(sandbox: any, files: ProjectFileInput[], port: number) {
+  const hasVite = files.some((f) => /vite\.config\.(js|ts|mjs|cjs)$/.test(f.name));
+  const hasPackageJson = files.some((f) => f.name === 'package.json' || f.name === '/package.json');
+  if (!hasPackageJson) return;
+
+  const cfg = `export default {
+  server: {
+    host: '0.0.0.0',
+    port: ${port},
+    strictPort: true,
+    hmr: false,
+    watch: { usePolling: false }
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: ${port},
+    strictPort: true
+  }
+};
+`;
+
+  // Se não tem vite.config, cria um; se tem, não sobrescrevemos (tentamos via flags)
+  if (!hasVite) {
+    try {
+      sandbox.files.write('/vite.config.mjs', cfg);
+    } catch (e) {
+      console.warn('Falha ao criar vite.config.mjs:', e?.message || e);
+    }
+  }
 }
 
 export const onRequestPost = async (context: any) => {
@@ -31,7 +63,7 @@ export const onRequestPost = async (context: any) => {
 
   if (!E2B_API_KEY) {
     return new Response(
-      JSON.stringify({ error: 'E2B_API_KEY não configurada no servidor. Adicione a variável de ambiente no Cloudflare Pages.' }),
+      JSON.stringify({ error: 'E2B_API_KEY não configurada no servidor.' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
@@ -41,6 +73,7 @@ export const onRequestPost = async (context: any) => {
     const files: ProjectFileInput[] = body.files || [];
     const terminalCommands: string[] = body.terminalCommands || [];
     const requestedPort = parseInt(body.port, 10);
+    const targetPort = requestedPort > 0 ? requestedPort : DEFAULT_PORT;
 
     if (files.length === 0) {
       return new Response(
@@ -49,18 +82,17 @@ export const onRequestPost = async (context: any) => {
       );
     }
 
-    // 1. Cria o sandbox (5 min -> 1h). Não matamos no fim: ele persiste para o preview.
+    // 1. Cria o sandbox
     const sandbox = await Sandbox.create(NODE_TEMPLATE, {
       apiKey: E2B_API_KEY,
-      timeoutMs: 60 * 60 * 1000, // 1 hora (limite Hobby)
+      timeoutMs: 60 * 60 * 1000,
       metadata: { app: 'codegen-studio', createdBy: 'codegem' },
     });
 
-    // 2. Escreve todos os arquivos no filesystem do sandbox
+    // 2. Escreve os arquivos
     for (const file of files) {
       if (!file.name || typeof file.content !== 'string') continue;
       const cleanPath = file.name.startsWith('/') ? file.name.slice(1) : file.name;
-      // Garante que os diretórios pais existem
       const parent = cleanPath.split('/').slice(0, -1).join('/');
       if (parent) {
         await sandbox.files.makeDir('/' + parent, { recursive: true }).catch(() => {});
@@ -68,68 +100,58 @@ export const onRequestPost = async (context: any) => {
       await sandbox.files.write('/' + cleanPath, file.content);
     }
 
-    // 3. Determina se é um projeto Node ou estático
+    // 2.5 Garante vite.config com host/porta/hmr fixos (estabilidade + porta 3000)
     const hasPackageJson = files.some((f) => f.name === 'package.json' || f.name === '/package.json');
+    ensureViteConfig(sandbox, files, targetPort);
 
-    // 4. Monta a lista de comandos
-    const targetPort = requestedPort > 0 ? requestedPort : DEFAULT_PORT;
-
+    // 3. Monta comandos
     let commands = terminalCommands.filter(Boolean);
     if (commands.length === 0) {
       commands = hasPackageJson
-        ? [
-            'npm install',
-            `npm run dev -- --host 0.0.0.0 --port ${targetPort}`,
-          ]
+        ? ['npm install', `npm run dev -- --host 0.0.0.0 --port ${targetPort}`]
         : [`npx --yes serve -l ${targetPort}`];
     }
 
-    // Garante que o servidor use a porta alvo. Para `npm run dev` (Vite/React),
-    // forçamos --host 0.0.0.0 --port <targetPort>. Para `serve`, -l <targetPort>.
-    const devIndex = commands.findIndex((c) => c.includes('npm run dev'));
-    if (devIndex !== -1) {
-      const cmd = commands[devIndex];
-      // Remove flags de porta/host antigas e aplica as corretas
-      const cleaned = cmd
-        .replace(/\s+--(?:host|port|p)\s+[^\s]+/g, '')
-        .replace(/\s+-- --(?:host|port)\s+[^\s]+/g, '')
+    // 4. Ajusta o comando do servidor (último) para usar a porta alvo + host
+    const serverIdx = commands.length - 1;
+    const serverCmd = commands[serverIdx];
+
+    if (serverCmd.includes('npm run dev') || serverCmd.includes('vite')) {
+      // Remove flags antigas de host/port e aplica as corretas + HMR off
+      const cleaned = serverCmd
+        .replace(/\s+--(?:host|port|p|hmr|strictPort)\s+[^\s]+/g, '')
+        .replace(/\s+--\s+--(?:host|port|hmr|strictPort)\s+[^\s]+/g, '')
+        .replace(/\s+--\s+--\s+--(?:host|port|hmr|strictPort)\s+[^\s]+/g, '')
         .trim();
-      commands[devIndex] = `${cleaned} -- --host 0.0.0.0 --port ${targetPort}`;
+      // Usa nohup para manter vivo + log em arquivo
+      commands[serverIdx] = `nohup ${cleaned} -- --host 0.0.0.0 --port ${targetPort} --strictPort --hmr false > /tmp/server.log 2>&1 &`;
+    } else if (serverCmd.includes('serve')) {
+      const cleaned = serverCmd.replace(/\s+-l\s+\d+/, '');
+      commands[serverIdx] = `nohup ${cleaned} -l ${targetPort} > /tmp/server.log 2>&1 &`;
     } else {
-      // Se for `serve` ou outro, ajusta a porta
-      const serveIndex = commands.findIndex((c) => c.includes('serve'));
-      if (serveIndex !== -1) {
-        const cmd = commands[serveIndex].replace(/\s+-l\s+\d+/, '');
-        commands[serveIndex] = `${cmd} -l ${targetPort}`;
-      }
+      // Comando arbitrário: roda em background via nohup
+      commands[serverIdx] = `nohup ${serverCmd} > /tmp/server.log 2>&1 &`;
     }
 
-    // 5. Executa: todos os comandos de setup em foreground, o último (servidor) em background.
-    // A SDK do E2B LANÇA um erro (CommandExitError) quando o comando sai com
-    // status != 0, então capturamos por comando para não derrubar o fluxo.
+    // 5. Executa setups (foreground) e servidor (background, já com nohup)
     const setupCommands = commands.slice(0, -1);
     for (const cmd of setupCommands) {
       try {
-        await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 180_000 });
+        await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 240_000 });
       } catch (e: any) {
-        console.warn(`Comando de setup falhou (continuando): ${cmd}`, e?.message || e);
+        console.warn(`Setup falhou (continuando): ${cmd}`, e?.message || e);
       }
     }
 
-    const serverCmd = commands[commands.length - 1];
-    // Evita que o processo bloqueie o retorno; roda em background
     try {
-      await sandbox.commands.run(serverCmd, { cwd: '/', background: true });
+      await sandbox.commands.run(commands[serverIdx], { cwd: '/', background: true });
     } catch (e: any) {
-      console.warn('Falha ao iniciar servidor em background:', e?.message || e);
+      console.warn('Falha ao iniciar servidor:', e?.message || e);
     }
 
-    // 6. Descobre a porta real do servidor.
-    // Vite costuma usar 5173, `serve` usa a porta dada, outros usam 3000/8080.
-    // Tentamos várias portas e fazemos polling para achar a que responde.
-    const requested = targetPort > 0 ? targetPort : extractPort(serverCmd, 0);
+    // 6. Detecta a porta real e faz polling (espera ficar pronto)
     const candidatePorts = Array.from(new Set(
-      [requested, 3000, 5173, 4173, 8080, 8000].filter(p => p > 0)
+      [targetPort, 3000, 5173, 5174, 4173, 8080, 8000, 3001].filter(p => p > 0)
     ));
 
     let port = candidatePorts[0];
@@ -139,9 +161,9 @@ export const onRequestPost = async (context: any) => {
     for (const p of candidatePorts) {
       const host = sandbox.getHost(p);
       const url = `https://${host}`;
-      for (let attempt = 0; attempt < 6; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         try {
-          const probe = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(2500) });
+          const probe = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(3000) });
           if (probe.ok || probe.status >= 200) {
             port = p;
             previewUrl = url;
@@ -151,7 +173,7 @@ export const onRequestPost = async (context: any) => {
         } catch (e) {
           // ainda subindo / porta errada
         }
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 1500));
       }
       if (ready) break;
     }
@@ -163,6 +185,7 @@ export const onRequestPost = async (context: any) => {
         port,
         commands,
         ready,
+        logHint: '/tmp/server.log',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
@@ -175,7 +198,6 @@ export const onRequestPost = async (context: any) => {
   }
 };
 
-// Permite matar o sandbox (cleanup) via DELETE /api/e2b?sandboxId=...
 export const onRequestDelete = async (context: any) => {
   const E2B_API_KEY = context.env.E2B_API_KEY;
   if (!E2B_API_KEY) {
