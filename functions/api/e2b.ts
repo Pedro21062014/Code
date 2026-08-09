@@ -159,7 +159,10 @@ export const onRequestPost = async (context: any) => {
       console.warn('Falha ao iniciar servidor:', e?.message || e);
     }
 
-    // 6. Detecta a porta real e faz polling (espera ficar pronto)
+    // 6. Detecta a porta: verificação RÁPIDA (não bloquear a função).
+    // O Cloudflare Pages Function tem limite de ~30s; fazer polling longo aqui
+    // causava timeout (502). Então: tenta a porta alvo e as comuns uma única
+    // vez, rapidamente, e retorna a URL imediatamente. O frontend revalida.
     const candidatePorts = Array.from(new Set(
       [targetPort, 3000, 5173, 5174, 4173, 8080, 8000, 3001].filter(p => p > 0)
     ));
@@ -168,24 +171,21 @@ export const onRequestPost = async (context: any) => {
     let previewUrl = `https://${sandbox.getHost(port)}`;
     let ready = false;
 
-    for (const p of candidatePorts) {
+    // 1 passada curta por porta (máx ~3s cada) — se achar, para.
+    for (const p of candidatePorts.slice(0, 4)) {
       const host = sandbox.getHost(p);
       const url = `https://${host}`;
-      for (let attempt = 0; attempt < 8; attempt++) {
-        try {
-          const probe = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(3000) });
-          if (probe.ok || probe.status >= 200) {
-            port = p;
-            previewUrl = url;
-            ready = true;
-            break;
-          }
-        } catch (e) {
-          // ainda subindo / porta errada
+      try {
+        const probe = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(2500) });
+        if (probe.ok || probe.status >= 200) {
+          port = p;
+          previewUrl = url;
+          ready = true;
+          break;
         }
-        await new Promise(r => setTimeout(r, 1500));
+      } catch (e) {
+        // ainda subindo / porta errada
       }
-      if (ready) break;
     }
 
     return new Response(

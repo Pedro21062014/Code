@@ -5,7 +5,31 @@ export interface E2bPreviewResult {
   sandboxId: string;
   port: number;
   commands: string[];
+  ready?: boolean;
 }
+
+/**
+ * Faz polling leve no navegador até o servidor responder (ou dar timeout).
+ * Como o backend não pode fazer polling longo (limite do Cloudflare = 502),
+ * o frontend espera o servidor subir após receber a URL.
+ */
+export const waitForServerReady = async (
+  url: string,
+  timeoutMs = 25000
+): Promise<boolean> => {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const probe = await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: AbortSignal.timeout(2000) });
+      // no-cors retorna opaque, mas se não lançar erro o servidor está respondendo
+      return true;
+    } catch (e) {
+      // ainda subindo
+    }
+    await new Promise(r => setTimeout(r, 1200));
+  }
+  return false;
+};
 
 /**
  * Inicia um sandbox E2B com os arquivos do projeto, executa os terminalCommands

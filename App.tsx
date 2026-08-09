@@ -27,7 +27,7 @@ import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
-import { startE2bPreview, killE2bSandbox } from './services/e2bService';
+import { startE2bPreview, killE2bSandbox, waitForServerReady } from './services/e2bService';
 import { startWebContainerPreview } from './services/webcontainerService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
@@ -1129,6 +1129,11 @@ export const App: React.FC = () => {
         const result = await startE2bPreview(previewFiles, terminalCommands, e2bPort);
         setE2bPreviewUrl(result.previewUrl);
         setE2bSandboxId(result.sandboxId);
+        // Espera o servidor subir (polling leve no navegador, até ~20s)
+        // se o backend ainda não confirmou ready.
+        if (!result.ready) {
+          await waitForServerReady(result.previewUrl, 20000);
+        }
         setE2bStatus('ready');
         return;
       } catch (error: any) {
