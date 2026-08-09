@@ -28,7 +28,7 @@ import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
 import { startE2bPreview, killE2bSandbox, waitForServerReady } from './services/e2bService';
-import { startWebContainerPreview } from './services/webcontainerService';
+import { startWebContainerPreview, killWebContainer } from './services/webcontainerService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -1124,59 +1124,31 @@ export const App: React.FC = () => {
   const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = [], forceNew = false) => {
     if (!previewFiles || previewFiles.length === 0) return;
 
-    // Se já há um preview pronto na mesma porta e não foi pedido novo, reutiliza
+    // Se já há um preview pronto e não foi pedido novo, reutiliza
     if (!forceNew && e2bPreviewUrl && e2bStatus === 'ready') {
       return;
     }
 
-    // Só mata o antigo se for criar um novo (porta mudou ou força reinício)
-    if (forceNew && e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
-
-    setE2bStatus('starting');
-    setE2bPreviewUrl(null);
-    setPreviewEngine('e2b');
-
-    const MAX_ATTEMPTS = 3;
-    let lastError: any = null;
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      try {
-        const result = await startE2bPreview(previewFiles, terminalCommands, e2bPort);
-        setE2bPreviewUrl(result.previewUrl);
-        setE2bSandboxId(result.sandboxId);
-        // Espera o servidor subir (polling leve no navegador, até ~20s)
-        // se o backend ainda não confirmou ready.
-        if (!result.ready) {
-          await waitForServerReady(result.previewUrl, 20000);
-        }
-        setE2bStatus('ready');
-        return;
-      } catch (error: any) {
-        lastError = error;
-        console.error(`Tentativa ${attempt}/${MAX_ATTEMPTS} do E2B falhou:`, error);
-        await new Promise(r => setTimeout(r, attempt * 800));
-      }
-    }
-
-    console.warn('E2B falhou após 3 tentativas. Usando WebContainer como fallback.', lastError);
-    setE2bStatus('error');
     setPreviewEngine('webcontainer');
+    setE2bStatus('starting');
     setWcStatus('starting');
-    const e2bMsg = lastError?.message || 'Erro desconhecido';
-    setToastError(`E2B indisponível (${e2bMsg}). Tentando WebContainer...`);
+    setE2bPreviewUrl(null);
 
     try {
-      const wcResult = await startWebContainerPreview(previewFiles, terminalCommands);
-      if (wcResult.running) {
-        setWcStatus('ready');
-        setE2bStatus('ready');
+      const result = await startWebContainerPreview(previewFiles, terminalCommands);
+      setWcStatus('ready');
+      if (result.url) {
+        setE2bPreviewUrl(result.url);
+      } else {
+        // Sem URL do dev server: o CodePreview usa Sandpack como fallback visual
+        setE2bPreviewUrl(null);
       }
+      setE2bStatus('ready');
     } catch (wcError: any) {
-      console.error('WebContainer fallback também falhou:', wcError);
+      console.error('WebContainer falhou:', wcError);
       setWcStatus('error');
       setE2bStatus('error');
-      const wcMsg = wcError?.message || 'Erro desconhecido';
-      setToastError(`Preview indisponível. E2B: ${e2bMsg} | WebContainer: ${wcMsg}`);
+      setToastError(`WebContainer indisponível: ${wcError?.message || 'erro desconhecido'}`);
     }
   }, [e2bSandboxId, e2bPort, e2bPreviewUrl, e2bStatus]);
 

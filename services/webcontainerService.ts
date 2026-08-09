@@ -1,10 +1,10 @@
 import { ProjectFile } from '../types';
 
 /**
- * Serviço de fallback via WebContainer.
+ * Serviço de preview via WebContainer.
  *
  * O WebContainer roda Node.js no próprio navegador (via @webcontainer/api).
- * A autenticação é OAuth-based (StackBlitz). Deixe aqui a config da sua app:
+ * A autenticação é OAuth-based (StackBlitz). Configure:
  *
  *   VITE_WEB_CONTAINER_CLIENT_ID  = seu OAuth client id
  *   VITE_WEB_CONTAINER_SCOPE      = escopo (ex: 'owner')
@@ -18,6 +18,9 @@ export interface WebContainerPreviewResult {
   type: 'webcontainer';
   running: boolean;
   message: string;
+  /** URL do servidor de dev quando disponível */
+  url?: string;
+  port?: number;
 }
 
 const getConfig = () => ({
@@ -50,9 +53,21 @@ function buildTree(files: ProjectFile[]): Record<string, any> {
   return tree;
 }
 
+// Mantém a referência do WebContainer para poder matar/reiniciar
+let _instance: any = null;
+
+export const getWebContainer = () => _instance;
+
+export const killWebContainer = async () => {
+  if (_instance) {
+    try { await _instance.teardown(); } catch (e) {}
+    _instance = null;
+  }
+};
+
 /**
- * Inicia o WebContainer como fallback. Se a autenticação estiver configurada,
- * roda o fluxo OAuth; caso contrário, tenta boot direto (pode falhar sem COOP/COEP).
+ * Inicia o WebContainer, monta os arquivos, roda os comandos e retorna a URL
+ * do servidor de dev (quando disponível via 'server-ready').
  */
 export const startWebContainerPreview = async (
   files: ProjectFile[],
@@ -61,7 +76,6 @@ export const startWebContainerPreview = async (
   const { WebContainer, auth } = await import('@webcontainer/api');
   const { clientId, scope } = getConfig();
 
-  // Autenticação opcional (se o usuário configurar o OAuth client)
   if (clientId) {
     const status = auth.init({ clientId, scope: scope || 'owner' });
     if (status && status.status === 'need-auth') {
@@ -69,16 +83,50 @@ export const startWebContainerPreview = async (
     }
   }
 
+  // Mata instância anterior
+  if (_instance) {
+    try { await _instance.teardown(); } catch (e) {}
+    _instance = null;
+  }
+
   const wc = await WebContainer.boot();
+  _instance = wc;
 
   // Escreve os arquivos do projeto no filesystem virtual
   await wc.mount(buildTree(files) as any);
 
-  // Executa os comandos de instalação/servidor se existirem
-  for (const cmd of terminalCommands) {
+  // Aguarda o servidor de dev para capturar a URL
+  let url: string | undefined;
+  let port = 3000;
+  wc.on('server-ready', (portNumber: number, serverUrl: string) => {
+    port = portNumber;
+    url = serverUrl;
+  });
+
+  // Executa os comandos de instalação/servidor
+  // Se a IA não deu comandos, usa npm install + npm run dev
+  let commands = terminalCommands.filter(Boolean);
+  if (commands.length === 0) {
+    const hasPkg = files.some(f => f.name === 'package.json');
+    commands = hasPkg
+      ? ['npm install', 'npm run dev -- --host 0.0.0.0']
+      : ['npx --yes serve -l 3000'];
+  }
+
+  for (const cmd of commands) {
     try {
       const proc = await wc.spawn('bash', ['-c', cmd]);
-      await proc.exit;
+      proc.output.pipeTo(new WritableStream({
+        write(data) { console.log('[wc]', data); },
+      }));
+      // Não espera o dev server terminar (fica rodando)
+      const isServer = /dev|serve/.test(cmd);
+      if (!isServer) {
+        await proc.exit;
+      } else {
+        // Dá um tempo para o servidor subir e capturar a URL
+        await new Promise(r => setTimeout(r, 3000));
+      }
     } catch (e) {
       console.warn('WebContainer comando falhou:', cmd, e);
     }
@@ -88,5 +136,7 @@ export const startWebContainerPreview = async (
     type: 'webcontainer',
     running: true,
     message: 'WebContainer iniciado com sucesso.',
+    url,
+    port,
   };
 };
