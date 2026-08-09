@@ -23,6 +23,26 @@ export interface WebContainerPreviewResult {
   port?: number;
 }
 
+/** Converte uma FileSystemTree (JSON) do WebContainer em lista de {name, content}. */
+function flattenTree(tree: Record<string, any>, base = ''): { name: string; content: string }[] {
+  const out: { name: string; content: string }[] = [];
+  for (const key of Object.keys(tree || {})) {
+    const node = tree[key];
+    const path = base ? `${base}/${key}` : key;
+    if (node?.file?.contents) {
+      const contents = typeof node.file.contents === 'string'
+        ? node.file.contents
+        : Buffer.from(node.file.contents).toString('utf-8');
+      out.push({ name: path, content: contents });
+    } else if (node?.directory) {
+      out.push(...flattenTree(node.directory, path));
+    }
+  }
+  return out;
+}
+
+let _authInit = false;
+
 const getConfig = () => ({
   // 1. Via variável de ambiente (Vite build) ou 2. via global config dinâmica
   clientId: (import.meta as any).env?.VITE_WEB_CONTAINER_CLIENT_ID as string
@@ -81,12 +101,17 @@ export const startWebContainerPreview = async (
   const { WebContainer, auth } = await import('@webcontainer/api');
   const { clientId, scope } = getConfig();
 
-  if (clientId) {
-    const status = auth.init({ clientId, scope: scope || '' });
-    if (status && status.status === 'need-auth') {
-      auth.startAuthFlow({ popup: true });
+  // auth.init só pode ser chamado UMA vez. Guard global.
+  if (clientId && !_authInit) {
+    try {
+      auth.init({ clientId, scope: scope || '' });
+      _authInit = true;
+    } catch (e) {
+      console.warn('WebContainer auth.init falhou (talvez já inicializado):', e);
     }
   }
+  // NÃO chama auth.startAuthFlow — evita a tela de permissão do StackBlitz.
+  // O boot do WebContainer deve funcionar com o clientId registrado.
 
   // Mata instância anterior
   if (_instance) {
@@ -144,4 +169,55 @@ export const startWebContainerPreview = async (
     url,
     port,
   };
+};
+
+/**
+ * Fluxo de deploy estilo Vercel:
+ * 1. Verifica código / roda npm run build no WebContainer
+ * 2. Exporta o dist
+ * 3. Retorna os arquivos buildados (para enviar ao storage/CDN)
+ */
+export const buildAndExportDist = async (
+  files: ProjectFile[],
+  terminalCommands: string[] = []
+): Promise<{ dist: { name: string; content: string }[]; buildLog: string }> => {
+  const wc = _instance || await (async () => {
+    const { WebContainer } = await import('@webcontainer/api');
+    const wc = await WebContainer.boot();
+    _instance = wc;
+    return wc;
+  })();
+
+  // Monta os arquivos
+  await wc.mount(buildTree(files) as any);
+
+  let buildLog = '';
+  const run = async (cmd: string) => {
+    const proc = await wc.spawn('bash', ['-c', cmd]);
+    proc.output.pipeTo(new WritableStream({
+      write(data) { buildLog += typeof data === 'string' ? data : ''; },
+    }));
+    const code = await proc.exit;
+    if (code !== 0) throw new Error(`Comando falhou (exit ${code}): ${cmd}`);
+  };
+
+  // 1. Instala
+  try {
+    await run('npm install');
+  } catch (e: any) {
+    console.warn('npm install falhou:', e?.message);
+  }
+
+  // 2. Build
+  try {
+    await run('npm run build');
+  } catch (e: any) {
+    throw new Error(`Build falhou: ${e?.message}\n\nLog:\n${buildLog}`);
+  }
+
+  // 3. Exporta dist (json tree)
+  const distTree = await wc.fs.export('/dist', { format: 'json' }) as any;
+  const dist = flattenTree(distTree);
+
+  return { dist, buildLog };
 };

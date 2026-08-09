@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { CloseIcon, DownloadIcon, TerminalIcon, CheckCircleIcon, LoaderIcon, NetlifyIcon, CloudflareIcon, AppLogo } from './Icons';
 import { createProjectZip } from '../services/projectService';
 import { ProjectFile } from '../types';
+import { buildAndExportDist } from '../services/webcontainerService';
+import { deployFiles } from '../services/deployService';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
@@ -151,11 +153,20 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               }
           }
           
-          setDeployStatus('compressing'); // Using compressing state for loading UI
-          await new Promise(r => setTimeout(r, 1500)); // Fake loading for feel
+          setDeployStatus('compressing'); // Build via WebContainer (Vercel-like)
 
-          // Construct URL based on current origin and project ID
-          const url = `${window.location.origin}?p=${activeProjectId}`;
+          // 1. Build no WebContainer + exporta dist
+          const { dist, buildLog } = await buildAndExportDist(files);
+
+          if (dist.length === 0) {
+            throw new Error(`O build não gerou arquivos em dist/. Log:\n${buildLog}`);
+          }
+
+          // 2-8. Publica dist via storage/CDN e gera URL
+          setDeployStatus('uploading');
+          const result = await deployFiles(dist, projectName);
+
+          const url = result.url || `${window.location.origin}?p=${activeProjectId}`;
 
           setDeployUrl(url);
           setDeployStatus('success');
