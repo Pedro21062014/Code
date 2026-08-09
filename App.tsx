@@ -1103,10 +1103,20 @@ export const App: React.FC = () => {
 
   // Executa o projeto num sandbox E2B e retorna a URL de preview ao vivo
   // Inicia o preview com retry (3x) no E2B e fallback para WebContainer
-  const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = []) => {
+  // Cria/reinicia o preview E2B.
+  // NÃO mata o sandbox anterior se já estiver rodando na mesma porta —
+  // apenas reutiliza. Só cria um novo sandbox quando não há nenhum ou a porta mudou.
+  const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = [], forceNew = false) => {
     if (!previewFiles || previewFiles.length === 0) return;
-    // Mata o sandbox anterior para não vazar instâncias
-    if (e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
+
+    // Se já há um preview pronto na mesma porta e não foi pedido novo, reutiliza
+    if (!forceNew && e2bPreviewUrl && e2bStatus === 'ready') {
+      return;
+    }
+
+    // Só mata o antigo se for criar um novo (porta mudou ou força reinício)
+    if (forceNew && e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
+
     setE2bStatus('starting');
     setE2bPreviewUrl(null);
     setPreviewEngine('e2b');
@@ -1114,7 +1124,6 @@ export const App: React.FC = () => {
     const MAX_ATTEMPTS = 3;
     let lastError: any = null;
 
-    // Tenta o E2B até 3 vezes
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
         const result = await startE2bPreview(previewFiles, terminalCommands, e2bPort);
@@ -1125,12 +1134,10 @@ export const App: React.FC = () => {
       } catch (error: any) {
         lastError = error;
         console.error(`Tentativa ${attempt}/${MAX_ATTEMPTS} do E2B falhou:`, error);
-        // Pequena pausa entre tentativas
         await new Promise(r => setTimeout(r, attempt * 800));
       }
     }
 
-    // E2B falhou após 3 tentativas → fallback para WebContainer
     console.warn('E2B falhou após 3 tentativas. Usando WebContainer como fallback.', lastError);
     setE2bStatus('error');
     setPreviewEngine('webcontainer');
@@ -1142,9 +1149,6 @@ export const App: React.FC = () => {
       const wcResult = await startWebContainerPreview(previewFiles, terminalCommands);
       if (wcResult.running) {
         setWcStatus('ready');
-        // O WebContainer não expõe URL pública como o E2B; usamos o Sandpack
-        // como preview visual (o CodePreview já decide). Marcamos para o
-        // preview saber que o WebContainer está ativo.
         setE2bStatus('ready');
       }
     } catch (wcError: any) {
@@ -1154,14 +1158,13 @@ export const App: React.FC = () => {
       const wcMsg = wcError?.message || 'Erro desconhecido';
       setToastError(`Preview indisponível. E2B: ${e2bMsg} | WebContainer: ${wcMsg}`);
     }
-  }, [e2bSandboxId, e2bPort]);
+  }, [e2bSandboxId, e2bPort, e2bPreviewUrl, e2bStatus]);
 
-  // Reinicia o sandbox E2B: apaga o atual e cria um novo com os arquivos do projeto
+  // Reinicia o sandbox na porta selecionada (cria novo na nova porta)
   const handleRestartSandbox = useCallback(() => {
     if (files.length === 0) return;
-    if (e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
-    handleRunPreviewInE2B(files);
-  }, [files, e2bSandboxId, handleRunPreviewInE2B]);
+    handleRunPreviewInE2B(files, [], true);
+  }, [files, handleRunPreviewInE2B]);
 
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = [], mode: ChatMode = 'general') => {
     if (!sessionUser) { setView('auth'); return; }

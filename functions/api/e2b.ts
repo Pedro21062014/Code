@@ -106,6 +106,16 @@ export const onRequestPost = async (context: any) => {
 
     // 3. Monta comandos
     let commands = terminalCommands.filter(Boolean);
+
+    // Garante que, para projetos Node, SEMPRE haja `npm install` antes do servidor
+    // e que o último comando seja o servidor de dev (se a IA só passou o dev, adiciona install).
+    if (hasPackageJson) {
+      const hasInstall = commands.some((c) => /npm\s+(install|i)\b/.test(c));
+      if (!hasInstall) {
+        commands = ['npm install', ...commands];
+      }
+    }
+
     if (commands.length === 0) {
       commands = hasPackageJson
         ? ['npm install', `npm run dev -- --host 0.0.0.0 --port ${targetPort}`]
