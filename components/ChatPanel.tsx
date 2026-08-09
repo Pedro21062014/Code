@@ -10,6 +10,7 @@ import { AI_MODELS } from '../constants';
 import { BorderBeam } from '@/components/ui/border-beam';
 import AITaskList from '@/components/ui/ai-task-list';
 import AIDiff from '@/components/ui/ai-diff';
+import AIThinkingBlock from '@/components/ui/ai-thinking-block';
 import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -442,18 +443,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                         ) : (
                                             <div className="prose dark:prose-invert prose-sm max-w-none leading-relaxed opacity-90 markdown-content">
                                                 {msg.isThinking ? (
-                                                    <div className="flex items-center gap-2 p-2">
-                                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-600 via-black to-gray-600 dark:from-gray-300 dark:via-white dark:to-gray-300 font-bold animate-shine text-sm">
-                                                            {msg.content === 'Pensando...' || msg.content === 'Processando...' ? msg.content : (
-                                                                <div className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200">
-                                                                    <Markdown remarkPlugins={[remarkGfm]}>
-                                                                        {msg.content}
-                                                                    </Markdown>
-                                                                    <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-blue-500 animate-pulse"></span>
-                                                                </div>
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                                    <AIThinkingBlock
+                                                        text={msg.content === 'Pensando...' || msg.content === 'Processando...' ? undefined : msg.content}
+                                                    />
                                                 ) : (
                                                     <>
                                                         {msg.planTasks && msg.planTasks.length > 0 && (
