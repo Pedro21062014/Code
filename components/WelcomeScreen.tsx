@@ -139,7 +139,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   // Callback do PromptInput (AI chat input)
-  const handleAiInputSubmit = async (message: string, meta: { model: string; effort: string; attachments: File[] }) => {
+  const handleAiInputSubmit = async (message: string, meta: { model: string; effort: string; attachments: File[]; mode?: string }) => {
     if (!message.trim() && meta.attachments.length === 0) return;
     try {
       const filePromises = meta.attachments.map(file => {
@@ -154,7 +154,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         });
       });
       const attachments = await Promise.all(filePromises);
-      const finalPrompt = isPlanMode ? `<tools/plan> ${message.trim()}` : message.trim();
+      const wantsPlan = meta.mode === 'plan' || isPlanMode;
+      const finalPrompt = wantsPlan ? `<tools/plan> ${message.trim()}` : message.trim();
       // Usa o modelo escolhido no PromptInput (por nome), sincronizando com o id
       const chosenName = meta.model;
       const chosen = availableModels.find(x => x.name === chosenName);

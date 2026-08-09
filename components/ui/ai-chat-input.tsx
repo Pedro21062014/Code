@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { ModeSelector, type ModeOption } from "@/components/ui/mode-selector";
+import { IconInfinity, IconListCheck } from "@tabler/icons-react";
 
 // ----------------------------------------------------------------------
 // Transition Physics
@@ -160,7 +162,7 @@ export interface PromptModelOption {
 }
 
 export interface PromptInputProps {
-  onSubmit?: (value: string, meta: { model: string; effort: string; attachments: File[] }) => void;
+  onSubmit?: (value: string, meta: { model: string; effort: string; attachments: File[]; mode?: string }) => void;
   onModelChange?: (model: PromptModelOption) => void;
   placeholder?: string;
   className?: string;
@@ -200,6 +202,12 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     const [selectedModel, setSelectedModel] = useState(models[0]);
     const [effortIndex, setEffortIndex] = useState(1);
     const [isModelSelectOpen, setIsModelSelectOpen] = useState(false);
+    const [mode, setMode] = useState<string>('agent');
+
+    const modeOptions: ModeOption[] = [
+      { id: 'agent', label: 'Agent', icon: IconInfinity, description: 'Executa tarefas autonomamente' },
+      { id: 'plan', label: 'Plan', icon: IconListCheck, description: 'Planeja os passos antes de agir' },
+    ];
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [containerHeight, setContainerHeight] = useState(148);
     const [textareaHeight, setTextareaHeight] = useState(88);
@@ -303,7 +311,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
     const handleSubmit = () => {
       if (value.trim() === "" && !hasAttachments) return;
       setIsSmoothResize(false);
-      onSubmit?.(value, { model: selectedModel.name, effort: efforts[effortIndex], attachments: attachments.map((a) => a.file) });
+      onSubmit?.(value, { model: selectedModel.name, effort: efforts[effortIndex], attachments: attachments.map((a) => a.file), mode });
       handleValueChange("");
       attachments.forEach((a) => URL.revokeObjectURL(a.url));
       setAttachments([]);
@@ -525,6 +533,13 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
               <DynamicBarsIcon level={efforts[effortIndex]} />
               <span className="text-xs font-semibold select-none transition-colors"><MorphingText text={efforts[effortIndex]} /></span>
             </button>
+
+            <ModeSelector
+              modes={modeOptions}
+              value={mode}
+              onChange={setMode}
+              className="rounded-full px-2 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#27272a] hover:text-gray-900 dark:hover:text-white"
+            />
 
             <button
               type="button" onMouseDown={(e) => e.preventDefault()} onClick={openFileChooser} disabled={attachments.length >= maxAttachments}
