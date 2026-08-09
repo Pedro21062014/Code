@@ -9,8 +9,8 @@ import { ChatMessage, AIProvider, AIModel, ChatMode, AITask } from '../types';
 import { AI_MODELS } from '../constants';
 import { BorderBeam } from '@/components/ui/border-beam';
 import AITaskList from '@/components/ui/ai-task-list';
-import AIDiff from '@/components/ui/ai-diff';
 import AIThinkingBlock from '@/components/ui/ai-thinking-block';
+import AIFileDiff from '@/components/ui/ai-file-diff';
 import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -531,13 +531,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                                             <div className="mt-4 w-full max-w-md space-y-3">
                                                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Mudanças Realizadas:</p>
                                                                 {msg.filesModified.map((file, i) => (
-                                                                    <AIDiff
-                                                                        key={i}
-                                                                        title={file}
-                                                                        lines={[
-                                                                            { content: `Arquivo "${file}" foi criado/modificado.`, kind: "added", number: 1 },
-                                                                        ]}
-                                                                    />
+                                                                    <AIFileDiff key={i} file={file as any} />
                                                                 ))}
                                                             </div>
                                                         )}

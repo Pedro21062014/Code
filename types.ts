@@ -44,7 +44,7 @@ export interface ChatMessage {
   isThinking?: boolean;
   isImageGenerator?: boolean; // Indicates this message is an image generation task
   image?: string; // Base64 string of the generated image
-  filesModified?: string[]; // List of files modified or created in this step
+  filesModified?: Array<string | { name: string; content?: string }>; // Arquivos criados/modificados (nome + conteúdo) 
   terminalCommands?: string[]; // List of commands to execute in WebContainer
   planTasks?: AITask[]; // Structured plan tasks for the AI task list
   groundingMetadata?: {

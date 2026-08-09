@@ -116,7 +116,7 @@ const AIDiff = ({
             }
             transition={shouldReduceMotion ? { duration: 0 } : SPRING_DEFAULT}
           >
-            <pre className="overflow-x-auto py-1 font-mono text-xs leading-relaxed">
+            <pre className="max-h-[150px] overflow-y-auto overflow-x-auto py-1 font-mono text-xs leading-relaxed ai-diff-scrollbar">
               {lines.map((line, index) => (
                 <motion.div
                   animate={
