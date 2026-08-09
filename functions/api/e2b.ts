@@ -89,17 +89,24 @@ export const onRequestPost = async (context: any) => {
     }
 
     // 5. Executa: todos os comandos de setup em foreground, o último (servidor) em background.
+    // A SDK do E2B LANÇA um erro (CommandExitError) quando o comando sai com
+    // status != 0, então capturamos por comando para não derrubar o fluxo.
     const setupCommands = commands.slice(0, -1);
     for (const cmd of setupCommands) {
-      const res = await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 180_000 });
-      if (res && res.exitCode && res.exitCode !== 0) {
-        console.warn(`Comando de setup falhou (${res.exitCode}):`, cmd, res.stderr);
+      try {
+        await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 180_000 });
+      } catch (e: any) {
+        console.warn(`Comando de setup falhou (continuando): ${cmd}`, e?.message || e);
       }
     }
 
     const serverCmd = commands[commands.length - 1];
     // Evita que o processo bloqueie o retorno; roda em background
-    await sandbox.commands.run(serverCmd, { cwd: '/', background: true });
+    try {
+      await sandbox.commands.run(serverCmd, { cwd: '/', background: true });
+    } catch (e: any) {
+      console.warn('Falha ao iniciar servidor em background:', e?.message || e);
+    }
 
     // 6. Descobre a porta e gera a URL de preview
     const port = requestedPort > 0 ? requestedPort : extractPort(serverCmd, DEFAULT_PORT);

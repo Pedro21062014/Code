@@ -41,7 +41,24 @@ export const SandpackProjectPreview: React.FC<SandpackPreviewProps> = ({ files, 
     files.forEach(f => {
       if (!f || !f.name) return;
       const clean = f.name.startsWith('/') ? f.name.slice(1) : f.name;
-      spFiles[clean] = f.content || '';
+      const content = typeof f.content === 'string' ? f.content : '';
+
+      // package.json precisa ser JSON válido para o Sandpack
+      if (clean === 'package.json') {
+        try {
+          const parsed = JSON.parse(content);
+          spFiles[clean] = JSON.stringify(parsed, null, 2);
+          return;
+        } catch (e) {
+          // package.json inválido: não o enviamos; o Sandpack usa o template default
+          return;
+        }
+      }
+
+      // Ignora arquivos grandes/binary
+      if (content.length > 2_000_000) return;
+
+      spFiles[clean] = content;
     });
     return spFiles;
   }, [files]);
