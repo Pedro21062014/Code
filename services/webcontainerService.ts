@@ -24,8 +24,13 @@ export interface WebContainerPreviewResult {
 }
 
 const getConfig = () => ({
-  clientId: (import.meta as any).env?.VITE_WEB_CONTAINER_CLIENT_ID as string | undefined,
-  scope: (import.meta as any).env?.VITE_WEB_CONTAINER_SCOPE as string | undefined,
+  // 1. Via variável de ambiente (Vite build) ou 2. via global config dinâmica
+  clientId: (import.meta as any).env?.VITE_WEB_CONTAINER_CLIENT_ID as string
+    || (window as any).__WEB_CONTAINER_CLIENT_ID__ as string
+    || undefined,
+  scope: (import.meta as any).env?.VITE_WEB_CONTAINER_SCOPE as string
+    || (window as any).__WEB_CONTAINER_SCOPE__ as string
+    || '',
 });
 
 /**
@@ -77,7 +82,7 @@ export const startWebContainerPreview = async (
   const { clientId, scope } = getConfig();
 
   if (clientId) {
-    const status = auth.init({ clientId, scope: scope || 'owner' });
+    const status = auth.init({ clientId, scope: scope || '' });
     if (status && status.status === 'need-auth') {
       auth.startAuthFlow({ popup: true });
     }
