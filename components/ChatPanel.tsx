@@ -11,6 +11,7 @@ import { BorderBeam } from '@/components/ui/border-beam';
 import AITaskList from '@/components/ui/ai-task-list';
 import AIThinkingBlock from '@/components/ui/ai-thinking-block';
 import AIFileDiff from '@/components/ui/ai-file-diff';
+import AIActivityCard from '@/components/ui/ai-activity-card';
 import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
@@ -20,6 +21,7 @@ interface ChatPanelProps {
   onCloseMobile?: () => void;
   projectName?: string;
   generatingFile: string | null;
+  runningCommand?: string | null;
   isGenerating: boolean;
   onStopGeneration?: () => void;
   userGeminiKey?: string;
@@ -279,7 +281,7 @@ const GroundingMetadata: React.FC<{ metadata: NonNullable<ChatMessage['grounding
 };
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
-    messages, onSendMessage, generatingFile, isGenerating, onStopGeneration,
+    messages, onSendMessage, generatingFile, runningCommand, isGenerating, onStopGeneration,
     onOpenSupabase, onOpenGithub, availableModels = AI_MODELS, activeMode = 'general', onModeChange, onClearChat
 }) => {
   const [input, setInput] = useState('');
@@ -546,11 +548,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     );
                 })}
                 
-                {/* Active Generation Indicator */}
-                {generatingFile && (
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg text-xs animate-pulse mx-4">
-                        <TerminalIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span className="text-blue-700 dark:text-blue-300 font-mono">Gerando {generatingFile}...</span>
+                {/* Active Generation Indicators */}
+                {isGenerating && runningCommand && (
+                    <div className="mx-4">
+                        <AIActivityCard
+                            type="command"
+                            title="Comando em execução"
+                            command={runningCommand}
+                            output="Executando... A saída aparecerá quando o comando concluir."
+                            active
+                        />
+                    </div>
+                )}
+                {isGenerating && generatingFile && (
+                    <div className="mx-4">
+                        <AIActivityCard
+                            type="file"
+                            title={generatingFile}
+                            active
+                        />
                     </div>
                 )}
                 

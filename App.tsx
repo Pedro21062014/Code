@@ -1755,6 +1755,7 @@ export const App: React.FC = () => {
                             projectName={projectName} 
                             credits={userSettings?.credits || 0}
                             generatingFile={generatingFile} 
+                            runningCommand={runningCommand}
                             isGenerating={isInitializing}
                             onStopGeneration={handleStopGeneration}
                             availableModels={availableModels}
