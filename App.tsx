@@ -1112,7 +1112,8 @@ export const App: React.FC = () => {
     setE2bStatus('error');
     setPreviewEngine('webcontainer');
     setWcStatus('starting');
-    setToastError('Sandbox E2B indisponível. Tentando WebContainer como alternativa...');
+    const e2bMsg = lastError?.message || 'Erro desconhecido';
+    setToastError(`E2B indisponível (${e2bMsg}). Tentando WebContainer...`);
 
     try {
       const wcResult = await startWebContainerPreview(previewFiles, terminalCommands);
@@ -1127,6 +1128,8 @@ export const App: React.FC = () => {
       console.error('WebContainer fallback também falhou:', wcError);
       setWcStatus('error');
       setE2bStatus('error');
+      const wcMsg = wcError?.message || 'Erro desconhecido';
+      setToastError(`Preview indisponível. E2B: ${e2bMsg} | WebContainer: ${wcMsg}`);
     }
   }, [e2bSandboxId]);
 

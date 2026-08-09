@@ -91,10 +91,14 @@ export const onRequestPost = async (context: any) => {
     // 5. Executa: todos os comandos de setup em foreground, o último (servidor) em background.
     const setupCommands = commands.slice(0, -1);
     for (const cmd of setupCommands) {
-      await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 120_000 });
+      const res = await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 180_000 });
+      if (res && res.exitCode && res.exitCode !== 0) {
+        console.warn(`Comando de setup falhou (${res.exitCode}):`, cmd, res.stderr);
+      }
     }
 
     const serverCmd = commands[commands.length - 1];
+    // Evita que o processo bloqueie o retorno; roda em background
     await sandbox.commands.run(serverCmd, { cwd: '/', background: true });
 
     // 6. Descobre a porta e gera a URL de preview
@@ -102,12 +106,26 @@ export const onRequestPost = async (context: any) => {
     const host = sandbox.getHost(port);
     const previewUrl = `https://${host}`;
 
+    // 7. Espera o servidor ficar pronto (polling) antes de retornar a URL
+    // (limitado para não estourar o timeout da Cloudflare Pages Function)
+    let ready = false;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      try {
+        const probe = await fetch(previewUrl, { method: 'GET', signal: AbortSignal.timeout(2500) });
+        if (probe.ok || probe.status >= 200) { ready = true; break; }
+      } catch (e) {
+        // ainda subindo
+      }
+      await new Promise(r => setTimeout(r, 1500));
+    }
+
     return new Response(
       JSON.stringify({
         previewUrl,
         sandboxId: sandbox.sandboxId,
         port,
         commands,
+        ready,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
