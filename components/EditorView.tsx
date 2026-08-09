@@ -14,6 +14,7 @@ import { VersioningModal } from './VersioningModal';
 import { GenerationLoader } from './GenerationLoader';
 import { PreviewToolbar } from './PreviewToolbar';
 import { FileIconIconify } from './FileIconIconify';
+import { Terminal } from './Terminal';
 
 interface EditorViewProps {
   files: ProjectFile[];
@@ -69,6 +70,7 @@ interface EditorViewProps {
   onRestartSandbox?: () => void;
   e2bPort?: number;
   onE2bPortChange?: (port: number) => void;
+  e2bSandboxId?: string | null;
 }
 
 interface FileNode {
@@ -117,7 +119,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
     e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview, onAttachFile, onRestartSandbox,
-    e2bPort = 3000, onE2bPortChange
+    e2bPort = 3000, onE2bPortChange, e2bSandboxId
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -126,6 +128,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, path: string, type: 'file' | 'folder' } | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [showTerminal, setShowTerminal] = useState(false);
   const [previewKey, setPreviewKey] = useState(0); // State for refreshing preview
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -638,6 +641,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             >
                                 <SmartphoneIcon className="w-4 h-4" />
                             </button>
+                            <button 
+                                onClick={() => setShowTerminal(s => !s)}
+                                className={`p-1.5 rounded-md transition-colors ${showTerminal ? 'bg-gray-200 dark:bg-[#27272a] text-black dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                                title="Abrir Terminal"
+                            >
+                                <TerminalIcon className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
 
@@ -661,6 +671,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
                           previewUrl={e2bPreviewUrl || deployedUrl || null}
                         />
                     </div>
+
+                    {/* Terminal interativo do sandbox */}
+                    {showTerminal && (
+                        <div className="h-64 flex-shrink-0 border-t border-gray-200 dark:border-[#27272a] overflow-hidden">
+                            <Terminal sandboxId={e2bSandboxId || null} isGenerating={isGenerating} />
+                        </div>
+                    )}
                     
                     {/* TetrisLoader enquanto gera */}
                     <GenerationLoader

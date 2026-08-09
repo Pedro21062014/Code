@@ -73,3 +73,23 @@ export const killE2bSandbox = async (sandboxId: string): Promise<void> => {
     console.error('Falha ao matar sandbox E2B:', error);
   }
 };
+
+/**
+ * Executa um comando no terminal do sandbox (na pasta do app) e retorna a saída.
+ */
+export const execInE2b = async (
+  sandboxId: string,
+  command: string,
+  cwd = '/'
+): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+  const response = await fetch('/api/e2b/exec', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sandboxId, command, cwd }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || `Erro ao executar comando (${response.status})`);
+  }
+  return data as { stdout: string; stderr: string; exitCode: number };
+};

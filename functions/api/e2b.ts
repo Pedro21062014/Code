@@ -237,3 +237,51 @@ export const onRequestDelete = async (context: any) => {
     });
   }
 };
+
+// Handler de execução de comandos no terminal do sandbox (pasta do app).
+// POST /api/e2b/exec  body: { sandboxId, command, cwd? }
+export const onRequestExec = async (context: any) => {
+  const E2B_API_KEY = context.env.E2B_API_KEY;
+  if (!E2B_API_KEY) {
+    return new Response(JSON.stringify({ error: 'E2B_API_KEY não configurada.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  try {
+    const body = await context.request.json().catch(() => ({}));
+    const sandboxId = body.sandboxId;
+    const command = body.command;
+    const cwd = body.cwd || '/';
+
+    if (!sandboxId || !command) {
+      return new Response(JSON.stringify({ error: 'sandboxId e command são obrigatórios.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Conecta ao sandbox existente (persistente)
+    const sandbox = await Sandbox.connect(sandboxId, { apiKey: E2B_API_KEY });
+
+    let stdout = '';
+    let stderr = '';
+    const res = await sandbox.commands.run(command, {
+      cwd,
+      timeoutMs: 60000,
+      onStdout: (d: any) => { stdout += typeof d === 'string' ? d : (d?.text ?? ''); },
+      onStderr: (d: any) => { stderr += typeof d === 'string' ? d : (d?.text ?? ''); },
+    });
+
+    return new Response(JSON.stringify({
+      stdout,
+      stderr,
+      exitCode: res?.exitCode ?? 0,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};

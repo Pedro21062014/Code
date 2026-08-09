@@ -1759,6 +1759,7 @@ export const App: React.FC = () => {
                           onRestartSandbox={handleRestartSandbox}
                           e2bPort={e2bPort}
                           onE2bPortChange={setE2bPort}
+                          e2bSandboxId={e2bSandboxId}
                         />
                       </main>
 
