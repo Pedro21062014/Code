@@ -58,6 +58,28 @@ const sanitizeFirestoreData = (data: any) => {
 
 // Garante que todo arquivo de projeto tenha content/name/language como strings,
 // evitando erro React #31 (objeto como filho) ao renderizar package.json etc.
+// Limita o plano a no máximo 8 passos totais (tarefas + sub-tarefas),
+// garantindo que a IA nunca entregue mais que 8 mesmo que desobedeça.
+const limitPlanTasks = (tasks: any[]): any[] => {
+  if (!Array.isArray(tasks)) return [];
+  const result: any[] = [];
+  let count = 0;
+  for (const t of tasks) {
+    if (count >= 8) break;
+    const item = { ...t };
+    // Aceita as sub-tarefas apenas se ainda houver espaço
+    if (Array.isArray(item.children)) {
+      const remaining = 8 - count - 1;
+      item.children = item.children.slice(0, Math.max(0, remaining));
+      count += 1 + item.children.length;
+    } else {
+      count += 1;
+    }
+    result.push(item);
+  }
+  return result.slice(0, 8);
+};
+
 const sanitizeProjectFiles = (rawFiles: any[]): ProjectFile[] => {
   if (!Array.isArray(rawFiles)) return [];
   return rawFiles
@@ -1238,7 +1260,7 @@ export const App: React.FC = () => {
     } else if (planTagMatch) {
         const userIntent = prompt.replace('<tools/plan>', '').trim();
         const planContext = userIntent ? `User Intent: ${userIntent}` : "Analyze the current project state.";
-        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a comprehensive, step-by-step implementation plan.\n\nReturn a valid JSON object with:\n- "message": a short friendly summary of the plan (plain text, can use markdown lightly).\n- "tasks": an array of task objects, each with { "id": string, "label": string, "status": "pending", "note"?: string, "children"?: [ same shape ] }. Break the plan into clear steps; use children for sub-steps. All tasks start with status "pending".\n\nExample tasks format:\n{ "message": "Aqui está o plano.", "tasks": [ { "id": "1", "label": "Configurar estrutura", "status": "pending", "children": [ { "id": "1a", "label": "Criar arquivos", "status": "pending" } ] }, { "id": "2", "label": "Implementar lógica", "status": "pending" } ] }\n\nReturn ONLY valid JSON. Do not add markdown code blocks.`;
+        adjustedPrompt = `[PLANNING MODE] ${planContext}\n\nAct as a Senior Technical Project Manager. Create a step-by-step implementation plan.\n\nCRITICAL LIMIT: The plan MUST have AT MOST 8 steps TOTAL (counting every task AND every sub-task in "children"). Do not exceed 8. Keep it concise and high-level; merge related steps when needed.\n\nReturn a valid JSON object with:\n- "message": a short friendly summary of the plan (plain text, can use markdown lightly).\n- "tasks": an array of task objects, each with { "id": string, "label": string, "status": "pending", "note"?: string, "children"?: [ same shape ] }. Break the plan into clear steps; use children for sub-steps. All tasks start with status "pending". Total of tasks + children MUST be <= 8.\n\nExample tasks format (3 steps total):\n{ "message": "Aqui está o plano.", "tasks": [ { "id": "1", "label": "Configurar estrutura", "status": "pending" }, { "id": "2", "label": "Implementar lógica", "status": "pending" }, { "id": "3", "label": "Testar e publicar", "status": "pending" } ] }\n\nReturn ONLY valid JSON. Do not add markdown code blocks.`;
     } else if (mode === 'design') {
         adjustedPrompt = `[DESIGN EXPERT MODE] Act as a senior UI/UX engineer. Focus on aesthetics and modern design. User request: ${prompt}`;
     } else if (mode === 'backend') {
@@ -1365,7 +1387,7 @@ export const App: React.FC = () => {
                 groundingMetadata: p.chatMessages[p.chatMessages.length - 1].groundingMetadata,
                 filesModified: modifiedFileNames,
                 terminalCommands: result.terminalCommands,
-                planTasks: result.tasks && Array.isArray(result.tasks) ? result.tasks : undefined
+                planTasks: result.tasks && Array.isArray(result.tasks) ? limitPlanTasks(result.tasks) : undefined
             };
             return { 
                 ...p, 
