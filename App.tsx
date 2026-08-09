@@ -56,6 +56,19 @@ const sanitizeFirestoreData = (data: any) => {
   return sanitized;
 };
 
+// Garante que todo arquivo de projeto tenha content/name/language como strings,
+// evitando erro React #31 (objeto como filho) ao renderizar package.json etc.
+const sanitizeProjectFiles = (rawFiles: any[]): ProjectFile[] => {
+  if (!Array.isArray(rawFiles)) return [];
+  return rawFiles
+    .filter((f: any) => f && typeof f === 'object')
+    .map((f: any) => ({
+      name: typeof f.name === 'string' ? f.name : String(f.name || 'arquivo'),
+      language: typeof f.language === 'string' ? f.language : 'plaintext',
+      content: typeof f.content === 'string' ? f.content : JSON.stringify(f.content ?? '', null, 2),
+    }));
+};
+
 const extractAndParseJson = (text: string): any => {
   if (!text) return { message: "Erro: Resposta vazia da IA.", files: [] };
   
@@ -360,13 +373,14 @@ export const App: React.FC = () => {
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const data = sanitizeFirestoreData(docSnap.data()) as SavedProject;
+            const safeFiles = sanitizeProjectFiles(data.files);
             setProject({
-              files: data.files,
+              files: safeFiles,
               projectName: data.name,
               chatMessages: data.chat_history || [],
               envVars: data.env_vars || {},
               currentProjectId: data.id,
-              activeFile: data.files[0]?.name || null,
+              activeFile: safeFiles[0]?.name || null,
               history: []
             });
             setView('public_preview');
@@ -954,9 +968,10 @@ export const App: React.FC = () => {
           setE2bStatus('idle');
           setWcStatus('idle');
           setPreviewEngine('e2b');
+          const safeFiles = sanitizeProjectFiles(p.files);
           setProject({
-              files: p.files,
-              activeFile: p.files.length > 0 ? p.files[0].name : null,
+              files: safeFiles,
+              activeFile: safeFiles.length > 0 ? safeFiles[0].name : null,
               chatMessages: p.chat_history || [],
               projectName: p.name,
               envVars: p.env_vars || {},
@@ -1483,7 +1498,7 @@ export const App: React.FC = () => {
             </div>
         ) : (
             <div className="h-screen w-full bg-white relative">
-                <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} />
+                <CodePreview files={files} theme="light" envVars={envVars} onError={() => {}} previewMode="publish" />
                 <div className="fixed bottom-4 right-4 z-50">
                     <button onClick={() => window.location.href = window.location.origin} className="flex items-center gap-2 px-4 py-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/10 hover:bg-black transition-all shadow-2xl">
                         Criado com Codegen Studio
@@ -1671,6 +1686,7 @@ export const App: React.FC = () => {
                           generatedFileNames={generatedFileNames}
                           aiSuggestions={aiSuggestions}
                           deployedUrl={e2bPreviewUrl || (currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined)}
+                          isPublished={!!currentSavedProject?.deployedUrl}
                           chatMode={chatMode}
                           projectHistory={history}
                           onRestoreVersion={handleRestoreVersion}

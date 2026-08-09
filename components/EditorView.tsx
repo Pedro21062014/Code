@@ -47,6 +47,8 @@ interface EditorViewProps {
   generatedFileNames: Set<string>;
   aiSuggestions: string[];
   deployedUrl?: string | undefined;
+  // true quando o projeto tem publicação salva (usa Sandpack no preview)
+  isPublished?: boolean;
   chatMode?: ChatMode;
   // History Props
   projectHistory?: ProjectVersion[];
@@ -73,9 +75,9 @@ interface FileNode {
   children?: FileNode[];
 }
 
-  const CodeDisplay: React.FC<{ code: string }> = ({ code }) => (
+  const CodeDisplay: React.FC<{ code: any }> = ({ code }) => (
     <pre className="p-4 md:p-6 text-[13px] text-gray-800 dark:text-gray-300 font-mono leading-relaxed overflow-x-auto selection:bg-blue-500/30 h-full bg-white dark:bg-[#09090b]">
-      <code>{code}</code>
+      <code>{typeof code === 'string' ? code : JSON.stringify(code, null, 2)}</code>
     </pre>
 );
 
@@ -108,7 +110,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
     onRunLocally, onSyncGithub, onShare, codeError, onFixCode, onClearError, onError, envVars, 
     onOpenChatMobile, onDownload, onSave, onOpenProjects, onNewProject, 
     onLogout, onOpenSettings, onOpenProjectSettings, onRenameProject, onNavigateHome, session, isGenerating, generatingFile, runningCommand, generatedFileNames, aiSuggestions,
-    deployedUrl, chatMode = 'general', projectHistory = [], onRestoreVersion,
+    deployedUrl, isPublished = false, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
     e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview, onAttachFile, onRestartSandbox
@@ -633,6 +635,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             onDeploy={onRunLocally}
                             chatMode={chatMode} 
                             terminalCommands={terminalCommands}
+                            previewMode={isPublished && !e2bPreviewUrl ? 'publish' : 'editor'}
                         />
                         <PreviewToolbar
                           targetRef={previewContainerRef}
