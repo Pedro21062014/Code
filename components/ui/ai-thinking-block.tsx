@@ -15,7 +15,8 @@ I'll need to think about state management, data flow, and how different parts of
 Let me plan the implementation steps carefully before generating the code.`;
 
 export function AIThinkingBlock({ text }: { text?: string }) {
-  const ThinkingContent = text || DEFAULT_THINKING;
+  // Garante que seja string (evita erro de .split em objeto)
+  const ThinkingContent = (typeof text === 'string' && text.trim() !== '') ? text : DEFAULT_THINKING;
 
   const [scrollPosition, setScrollPosition] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);

@@ -15,7 +15,8 @@ interface AIFileDiffProps {
  */
 export const AIFileDiff: React.FC<AIFileDiffProps> = ({ file }) => {
   const name = typeof file === 'string' ? file : file.name;
-  const content = typeof file === 'string' ? '' : (file.content || '');
+  const rawContent = typeof file === 'string' ? '' : (file.content || '');
+  const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
 
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState(false);

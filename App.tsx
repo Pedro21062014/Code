@@ -1369,7 +1369,10 @@ export const App: React.FC = () => {
       const updatedFiles = Array.from(map.values());
       // Guarda nome + conteúdo dos arquivos gerados para exibir o que a IA escreveu
       const modifiedFileNames = result.files && Array.isArray(result.files)
-        ? result.files.map((f: ProjectFile) => ({ name: f.name, content: f.content || '' }))
+        ? result.files.map((f: ProjectFile) => ({
+            name: f.name,
+            content: typeof f.content === 'string' ? f.content : JSON.stringify(f.content ?? '')
+          }))
         : [];
       const filesDeepCopy = JSON.parse(JSON.stringify(updatedFiles));
       const newVersion: ProjectVersion = {

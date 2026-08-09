@@ -38,7 +38,8 @@ interface ChatPanelProps {
 // Component to render the Plan Timeline
 const PlanTimeline: React.FC<{ content: string }> = ({ content }) => {
     // Regex to find list items: "- [ ] Text" or "- [x] Text"
-    const lines = content.split('\n');
+    const safeContent = typeof content === 'string' ? content : JSON.stringify(content);
+    const lines = safeContent.split('\n');
     const steps = lines.map(line => {
         const todoMatch = line.match(/^- \[ \]\s+(.*)/);
         const doneMatch = line.match(/^- \[x\]\s+(.*)/);

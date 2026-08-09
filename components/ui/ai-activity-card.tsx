@@ -35,7 +35,7 @@ export const AIActivityCard: React.FC<AIActivityCardProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
-  const lines = (output || '').split('\n').filter(Boolean);
+  const lines = (typeof output === 'string' ? output : '').split('\n').filter(Boolean);
   const hasDetails = type === 'command' || (output && output.length > 0);
 
   return (
