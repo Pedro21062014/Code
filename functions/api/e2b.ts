@@ -108,22 +108,36 @@ export const onRequestPost = async (context: any) => {
       console.warn('Falha ao iniciar servidor em background:', e?.message || e);
     }
 
-    // 6. Descobre a porta e gera a URL de preview
-    const port = requestedPort > 0 ? requestedPort : extractPort(serverCmd, DEFAULT_PORT);
-    const host = sandbox.getHost(port);
-    const previewUrl = `https://${host}`;
+    // 6. Descobre a porta real do servidor.
+    // Vite costuma usar 5173, `serve` usa a porta dada, outros usam 3000/8080.
+    // Tentamos várias portas e fazemos polling para achar a que responde.
+    const requested = requestedPort > 0 ? requestedPort : extractPort(serverCmd, 0);
+    const candidatePorts = Array.from(new Set(
+      [requested, 3000, 5173, 4173, 8080, 8000].filter(p => p > 0)
+    ));
 
-    // 7. Espera o servidor ficar pronto (polling) antes de retornar a URL
-    // (limitado para não estourar o timeout da Cloudflare Pages Function)
+    let port = candidatePorts[0];
+    let previewUrl = `https://${sandbox.getHost(port)}`;
     let ready = false;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      try {
-        const probe = await fetch(previewUrl, { method: 'GET', signal: AbortSignal.timeout(2500) });
-        if (probe.ok || probe.status >= 200) { ready = true; break; }
-      } catch (e) {
-        // ainda subindo
+
+    for (const p of candidatePorts) {
+      const host = sandbox.getHost(p);
+      const url = `https://${host}`;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          const probe = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(2500) });
+          if (probe.ok || probe.status >= 200) {
+            port = p;
+            previewUrl = url;
+            ready = true;
+            break;
+          }
+        } catch (e) {
+          // ainda subindo / porta errada
+        }
+        await new Promise(r => setTimeout(r, 1200));
       }
-      await new Promise(r => setTimeout(r, 1500));
+      if (ready) break;
     }
 
     return new Response(

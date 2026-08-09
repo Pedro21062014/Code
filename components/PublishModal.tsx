@@ -231,6 +231,21 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                     </div>
 
                     <button onClick={() => { setDeployStatus('idle'); onClose(); }} className="text-gray-500 hover:text-black dark:hover:text-white text-sm">Fechar</button>
+                    
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => { window.open(deployUrl!, '_blank', 'noopener,noreferrer'); }}
+                            className="flex-1 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors"
+                        >
+                            Abrir Publicação (Nova Aba)
+                        </button>
+                        <button 
+                            onClick={() => { setDeployStatus('idle'); onClose(); }}
+                            className="flex-1 px-5 py-2.5 bg-black dark:bg-white text-white dark:text-black text-sm font-bold rounded-xl transition-colors"
+                        >
+                            Continuar Editando
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <div className="space-y-6">
