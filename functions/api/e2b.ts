@@ -143,20 +143,20 @@ export const onRequestPost = async (context: any) => {
       commands[serverIdx] = `nohup ${serverCmd} > /tmp/server.log 2>&1 &`;
     }
 
-    // 5. Executa setups (foreground) e servidor (background, já com nohup)
-    const setupCommands = commands.slice(0, -1);
-    for (const cmd of setupCommands) {
-      try {
-        await sandbox.commands.run(cmd, { cwd: '/', timeoutMs: 240_000 });
-      } catch (e: any) {
-        console.warn(`Setup falhou (continuando): ${cmd}`, e?.message || e);
-      }
-    }
+    // 5. Executa TUDO em background para não estourar o limite (~30s) da
+    //    Cloudflare Function. Encadeia install + dev num único comando nohup.
+    //    Se houver setups antes do servidor, eles entram antes do dev.
+    let setupCmds = commands.slice(0, -1).join(' && ');
+    let serverStart = commands[serverIdx];
+    // Remove "&" e "nohup" finais do servidor p/ encadear com &&, e re-aplica no final
+    serverStart = serverStart.replace(/\s*&\s*$/, '');
+    serverStart = serverStart.replace(/^nohup\s+/, '');
+    const chain = `nohup ${setupCmds ? `${setupCmds} && ` : ''}${serverStart} > /tmp/server.log 2>&1 &`;
 
     try {
-      await sandbox.commands.run(commands[serverIdx], { cwd: '/', background: true });
+      await sandbox.commands.run(chain, { cwd: '/', background: true });
     } catch (e: any) {
-      console.warn('Falha ao iniciar servidor:', e?.message || e);
+      console.warn('Falha ao iniciar pipeline do servidor:', e?.message || e);
     }
 
     // 6. Detecta a porta: verificação RÁPIDA (não bloquear a função).

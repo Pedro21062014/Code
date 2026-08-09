@@ -46,6 +46,21 @@ import { SettingsPage } from './components/SettingsPage';
 import { ProjectSettingsModal } from './components/ProjectSettingsModal';
 import { GoogleDriveSaveModal } from './components/GoogleDriveSaveModal';
 
+// Remove campos `undefined` recursivamente (Firestore não aceita undefined).
+// Útil para salvar objetos que podem ter campos indefinidos (ex: chatMessages).
+const stripUndefined = (value: any): any => {
+  if (value === undefined) return null;
+  if (Array.isArray(value)) return value.map(stripUndefined);
+  if (value && typeof value === 'object') {
+    const out: any = {};
+    for (const k of Object.keys(value)) {
+      if (value[k] !== undefined) out[k] = stripUndefined(value[k]);
+    }
+    return out;
+  }
+  return value;
+};
+
 const sanitizeFirestoreData = (data: any) => {
   const sanitized = { ...data };
   for (const key in sanitized) {
@@ -366,13 +381,13 @@ export const App: React.FC = () => {
 
         // Update only the chat history
         await updateDoc(projectRef, {
-          chat_history: project.chatMessages
+          chat_history: stripUndefined(project.chatMessages)
         });
 
         // Sync local cache
         setSavedProjects(prev => prev.map(p => {
           if (p.id === project.currentProjectId) {
-            return { ...p, chat_history: project.chatMessages };
+            return { ...p, chat_history: stripUndefined(project.chatMessages) };
           }
           return p;
         }));
