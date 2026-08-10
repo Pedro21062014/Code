@@ -1137,18 +1137,13 @@ export const App: React.FC = () => {
     try {
       const result = await startWebContainerPreview(previewFiles, terminalCommands);
       setWcStatus('ready');
-      if (result.url) {
-        setE2bPreviewUrl(result.url);
-      } else {
-        // Sem URL do dev server: o CodePreview usa Sandpack como fallback visual
-        setE2bPreviewUrl(null);
-      }
+      if (result.url) setE2bPreviewUrl(result.url);
       setE2bStatus('ready');
     } catch (wcError: any) {
       console.error('WebContainer falhou:', wcError);
       setWcStatus('error');
       setE2bStatus('error');
-      setToastError(`WebContainer indisponível: ${wcError?.message || 'erro desconhecido'}`);
+      setToastError(`Preview indisponível: ${wcError?.message || 'erro desconhecido'}`);
     }
   }, [e2bSandboxId, e2bPort, e2bPreviewUrl, e2bStatus]);
 
