@@ -29,6 +29,7 @@ import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API
 import { generateCodeStream } from './services/aiService';
 import { startE2bPreview, killE2bSandbox, waitForServerReady } from './services/e2bService';
 import { startWebContainerPreview, killWebContainer } from './services/webcontainerService';
+import { startNaveboxPreview, stopNavebox } from './services/naveboxService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -1134,6 +1135,20 @@ export const App: React.FC = () => {
     setWcStatus('starting');
     setE2bPreviewUrl(null);
 
+    // Tenta Navebox (runtime Node no navegador) primeiro
+    try {
+      const navResult = await startNaveboxPreview(previewFiles, terminalCommands);
+      if (navResult.url) {
+        setE2bPreviewUrl(navResult.url);
+        setWcStatus('ready');
+        setE2bStatus('ready');
+        return;
+      }
+    } catch (navError: any) {
+      console.warn('Navebox falhou, tentando WebContainer:', navError?.message);
+    }
+
+    // Fallback: WebContainer
     try {
       const result = await startWebContainerPreview(previewFiles, terminalCommands);
       setWcStatus('ready');

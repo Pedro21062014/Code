@@ -18,6 +18,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: false
+    sourcemap: false,
+    // O Navebox usa top-level await; precisa de target esnext
+    target: 'esnext'
+  },
+  esbuild: {
+    target: 'esnext'
   }
 });
