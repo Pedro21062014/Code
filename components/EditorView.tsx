@@ -381,20 +381,20 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <div className="flex items-center gap-2 group">
                 <div 
-                    className="flex flex-col justify-center px-2 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer" 
+                    className="flex flex-col justify-center px-2 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#1f1f22] transition-colors cursor-pointer max-w-[30vw] sm:max-w-[40vw]" 
                     onClick={onOpenProjectSettings}
                 >
                     <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold tracking-tight text-gray-900 dark:text-white">{projectName}</span>
-                        <ChevronDownIcon className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs font-bold tracking-tight text-gray-900 dark:text-white truncate">{projectName}</span>
+                        <ChevronDownIcon className="w-3 h-3 text-gray-400 flex-shrink-0" />
                     </div>
-                    <span className="text-[10px] text-gray-500 font-medium">Codegem Project</span>
+                    <span className="hidden sm:block text-[10px] text-gray-500 font-medium">Codegem Project</span>
                 </div>
             </div>
         </div>
 
         {/* Center: View Toggle (Integrated Pill) */}
-        <div className="absolute left-1/2 transform -translate-x-1/2 flex bg-gray-100 dark:bg-[#18181b] p-1 rounded-xl border border-gray-200 dark:border-[#27272a]">
+        <div className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 bg-gray-100 dark:bg-[#18181b] p-1 rounded-xl border border-gray-200 dark:border-[#27272a]">
             <button 
                 onClick={() => setViewMode('code')}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -424,7 +424,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
             {onSaveToDrive && (
                 <button
                     onClick={onSaveToDrive}
-                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                    className="hidden md:flex p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
                     title="Transferir (.ai) para Drive"
                 >
                     <GoogleDriveIcon className="w-4 h-4" />
@@ -440,7 +440,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
             
             <button
                 onClick={onShare}
-                className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
+                className="hidden sm:flex p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Compartilhar"
             >
                 <UsersIcon className="w-4 h-4" />
@@ -448,7 +448,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <button 
                 onClick={onDownload}
-                className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
+                className="hidden sm:flex p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Download"
             >
                 <DownloadIcon className="w-4 h-4" />
@@ -456,7 +456,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             <button
                 onClick={onSyncGithub}
-                className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
+                className="hidden sm:flex p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1f1f22] rounded-lg transition-all"
                 title="Sincronizar com GitHub"
             >
                 <GithubIcon className="w-4 h-4" />
@@ -484,7 +484,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       <div className="flex-1 flex overflow-hidden">
         {/* Explorer Sidebar - Styled */}
         {viewMode === 'code' && (
-            <aside className={`border-r border-gray-200 dark:border-[#27272a] bg-[#fbfbfb] dark:bg-[#09090b] transition-all duration-300 overflow-hidden flex flex-col ${showExplorer ? 'w-64' : 'w-0'}`}>
+            <aside className={`border-r border-gray-200 dark:border-[#27272a] bg-[#fbfbfb] dark:bg-[#09090b] transition-all duration-300 overflow-hidden flex flex-col ${showExplorer ? 'w-40 md:w-64' : 'w-0'}`}>
                 <div className="px-5 h-12 flex items-center justify-between border-b border-gray-200 dark:border-[#27272a]">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Files</span>
                     <button 
@@ -688,6 +688,34 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     />
                 </div>
             )}
+
+            {/* Seletor Code/Preview — visível SÓ no celular (md:hidden) */}
+            <div className="md:hidden flex-shrink-0 border-t border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#0a0a0a] px-3 py-2">
+                <div className="flex bg-gray-100 dark:bg-[#18181b] p-1 rounded-xl">
+                    <button
+                        onClick={() => setViewMode('code')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+                            viewMode === 'code'
+                            ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow'
+                            : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        <TerminalIcon className="w-4 h-4" />
+                        Código
+                    </button>
+                    <button
+                        onClick={() => setViewMode('preview')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+                            viewMode === 'preview'
+                            ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow'
+                            : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        <SparklesIcon className="w-4 h-4" />
+                        Preview
+                    </button>
+                </div>
+            </div>
         </main>
       </div>
 

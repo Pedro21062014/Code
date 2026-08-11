@@ -36,7 +36,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, increment, arrayRemove } from "firebase/firestore";
-import { LoaderIcon } from './components/Icons';
+import { LoaderIcon, ChatIcon, TerminalIcon } from './components/Icons';
 import { StripeModal } from './components/StripeModal';
 import { NeonModal } from './components/NeonModal';
 import { OpenStreetMapModal } from './components/OpenStreetMapModal';
@@ -1754,7 +1754,7 @@ export const App: React.FC = () => {
 
                       {/* Right Panel: Chat (Bolt style) */}
                       <div 
-                          className={`flex-shrink-0 bg-[#fbfbfb] dark:bg-[#0c0c0e] border-l border-gray-200 dark:border-[#27272a] transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-10 ${!isChatPanelOpen && 'lg:w-0 lg:overflow-hidden lg:opacity-0'}`}
+                          className={`flex-shrink-0 bg-[#fbfbfb] dark:bg-[#0c0c0e] border-l border-gray-200 dark:border-[#27272a] transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-10 ${activeMobileTab === 'chat' ? 'block' : 'hidden'} lg:block ${!isChatPanelOpen && 'lg:w-0 lg:overflow-hidden lg:opacity-0'}`}
                           style={{ width: activeMobileTab === 'chat' ? '100%' : (isChatPanelOpen ? `${chatSidebarWidth}px` : '0px') }}
                       >
                         <ChatPanel 
@@ -1776,6 +1776,34 @@ export const App: React.FC = () => {
                             onClearChat={handleClearChat}
                         />
                       </div>
+                    </div>
+
+                    {/* Barra inferior mobile: alternar Chat / Editor */}
+                    <div className="lg:hidden flex-shrink-0 border-t border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#0a0a0a] px-3 py-2 safe-area-bottom">
+                        <div className="flex bg-gray-100 dark:bg-[#18181b] p-1 rounded-xl">
+                            <button
+                                onClick={() => setActiveMobileTab('editor')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+                                    activeMobileTab === 'editor'
+                                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow'
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <TerminalIcon className="w-4 h-4" />
+                                Editor
+                            </button>
+                            <button
+                                onClick={() => setActiveMobileTab('chat')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
+                                    activeMobileTab === 'chat'
+                                    ? 'bg-white dark:bg-[#27272a] text-black dark:text-white shadow'
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <ChatIcon className="w-4 h-4" />
+                                Chat
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
