@@ -29,7 +29,7 @@ import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API
 import { generateCodeStream } from './services/aiService';
 import { startE2bPreview, killE2bSandbox, waitForServerReady } from './services/e2bService';
 import { startWebContainerPreview, killWebContainer } from './services/webcontainerService';
-import { startNaveboxPreview, stopNavebox } from './services/naveboxService';
+import { startNaveboxPreview } from './services/naveboxService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -1118,47 +1118,75 @@ export const App: React.FC = () => {
   }, [setProject]);
 
   // Executa o projeto num sandbox E2B e retorna a URL de preview ao vivo
-  // Inicia o preview com retry (3x) no E2B e fallback para WebContainer
+  // Inicia o preview com retry (3x) no E2B e fallback para WebContainer/Navebox
   // Cria/reinicia o preview E2B.
   // NÃO mata o sandbox anterior se já estiver rodando na mesma porta —
   // apenas reutiliza. Só cria um novo sandbox quando não há nenhum ou a porta mudou.
   const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = [], forceNew = false) => {
     if (!previewFiles || previewFiles.length === 0) return;
 
-    // Se já há um preview pronto e não foi pedido novo, reutiliza
+    // Se já há um preview pronto na mesma porta e não foi pedido novo, reutiliza
     if (!forceNew && e2bPreviewUrl && e2bStatus === 'ready') {
       return;
     }
 
-    setPreviewEngine('webcontainer');
-    setE2bStatus('starting');
-    setWcStatus('starting');
-    setE2bPreviewUrl(null);
+    // Só mata o antigo se for criar um novo (porta mudou ou força reinício)
+    if (forceNew && e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
 
-    // Tenta Navebox (runtime Node no navegador) primeiro
-    try {
-      const navResult = await startNaveboxPreview(previewFiles, terminalCommands);
-      if (navResult.url) {
-        setE2bPreviewUrl(navResult.url);
-        setWcStatus('ready');
+    setE2bStatus('starting');
+    setE2bPreviewUrl(null);
+    setPreviewEngine('e2b');
+
+    const MAX_ATTEMPTS = 3;
+    let lastError: any = null;
+
+    // 1) E2B (sandbox em nuvem) primeiro
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const result = await startE2bPreview(previewFiles, terminalCommands, e2bPort);
+        setE2bPreviewUrl(result.previewUrl);
+        setE2bSandboxId(result.sandboxId);
+        // Espera o servidor subir (polling leve no navegador, até ~20s)
+        // se o backend ainda não confirmou ready.
+        if (!result.ready) {
+          await waitForServerReady(result.previewUrl, 20000);
+        }
         setE2bStatus('ready');
         return;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`Tentativa ${attempt}/${MAX_ATTEMPTS} do E2B falhou:`, error);
+        await new Promise(r => setTimeout(r, attempt * 800));
       }
-    } catch (navError: any) {
-      console.warn('Navebox falhou, tentando WebContainer:', navError?.message);
     }
 
-    // Fallback: WebContainer
+    // 2) Fallback WebContainer
+    console.warn('E2B falhou após 3 tentativas. Usando WebContainer como fallback.', lastError);
+    setE2bStatus('error');
+    setPreviewEngine('webcontainer');
+    setWcStatus('starting');
+
     try {
       const result = await startWebContainerPreview(previewFiles, terminalCommands);
       setWcStatus('ready');
       if (result.url) setE2bPreviewUrl(result.url);
       setE2bStatus('ready');
     } catch (wcError: any) {
-      console.error('WebContainer falhou:', wcError);
+      console.warn('WebContainer falhou, tentando Navebox como último recurso:', wcError?.message);
       setWcStatus('error');
+      try {
+        const navResult = await startNaveboxPreview(previewFiles, terminalCommands);
+        if (navResult.url) {
+          setE2bPreviewUrl(navResult.url);
+          setE2bStatus('ready');
+          return;
+        }
+      } catch (navError: any) {
+        console.error('Navebox também falhou:', navError?.message);
+      }
       setE2bStatus('error');
-      setToastError(`Preview indisponível: ${wcError?.message || 'erro desconhecido'}`);
+      const wcMsg = wcError?.message || 'erro desconhecido';
+      setToastError(`Preview indisponível. E2B: ${lastError?.message || 'erro'} | WebContainer: ${wcMsg}`);
     }
   }, [e2bSandboxId, e2bPort, e2bPreviewUrl, e2bStatus]);
 
