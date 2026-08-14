@@ -63,14 +63,13 @@ interface EditorViewProps {
   onToggleChat?: () => void;
   isChatOpen?: boolean;
   terminalCommands?: string[];
-  e2bStatus?: 'idle' | 'starting' | 'ready' | 'error';
-  e2bPreviewUrl?: string | null;
+  previewStatus?: 'idle' | 'starting' | 'ready' | 'error';
+  previewUrl?: string | null;
   onAttachPreview?: (screenshot: string, note: string) => void;
   onAttachFile?: (data: string, mimeType: string, note?: string) => void;
   onRestartSandbox?: () => void;
-  e2bPort?: number;
-  onE2bPortChange?: (port: number) => void;
-  e2bSandboxId?: string | null;
+  previewPort?: number;
+  onPreviewPortChange?: (port: number) => void;
 }
 
 interface FileNode {
@@ -118,8 +117,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
     deployedUrl, isPublished = false, chatMode = 'general', projectHistory = [], onRestoreVersion,
     onFileUpload, onRenameFile, onMoveFile, onSaveToDrive,
     onToggleChat, isChatOpen = true, terminalCommands,
-    e2bStatus = 'idle', e2bPreviewUrl, onAttachPreview, onAttachFile, onRestartSandbox,
-    e2bPort = 3000, onE2bPortChange, e2bSandboxId
+    previewStatus = 'idle', previewUrl, onAttachPreview, onAttachFile, onRestartSandbox,
+    previewPort = 3000, onPreviewPortChange
 }) => {
   const [viewMode, setViewMode] = useState<'code' | 'preview' | 'both'>('preview');
   const [showExplorer, setShowExplorer] = useState(true);
@@ -565,7 +564,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                         </div>
                         <div className="flex-1 flex justify-center items-center gap-2">
                             <div className="bg-gray-100 dark:bg-[#18181b] rounded-md px-3 py-1 text-[10px] text-gray-500 font-mono w-full max-w-sm text-center truncate border border-transparent dark:border-[#27272a] flex justify-between items-center group">
-                                <span className="flex-1 text-center">{e2bPreviewUrl || deployedUrl || 'localhost:3000 (Simulated)'}</span>
+                                <span className="flex-1 text-center">{previewUrl || deployedUrl || 'localhost:3000 (Simulated)'}</span>
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={handleRefreshPreview}
@@ -585,31 +584,31 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {e2bStatus === 'starting' && (
+                            {previewStatus === 'starting' && (
                                 <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full animate-pulse">
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                    Iniciando sandbox...
+                                    Iniciando ambiente...
                                 </span>
                             )}
-                            {e2bStatus === 'ready' && (
+                            {previewStatus === 'ready' && (
                                 <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    Preview E2B ao vivo
+                                    Preview ao vivo
                                 </span>
                             )}
-                            {e2bStatus === 'error' && (
+                            {previewStatus === 'error' && (
                                 <span className="flex items-center gap-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
                                     <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                    Falha no sandbox
+                                    Falha no ambiente
                                 </span>
                             )}
-                            {e2bStatus === 'ready' && (
+                            {previewStatus === 'ready' && (
                                 <>
                                 <select
-                                    value={e2bPort}
-                                    onChange={(e) => onE2bPortChange && onE2bPortChange(parseInt(e.target.value, 10))}
+                                    value={previewPort}
+                                    onChange={(e) => onPreviewPortChange && onPreviewPortChange(parseInt(e.target.value, 10))}
                                     className="text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] px-2 py-1 rounded-full cursor-pointer focus:outline-none"
-                                    title="Porta do sandbox"
+                                    title="Porta do ambiente"
                                 >
                                     {[3000, 5173, 8080, 4173, 8000, 5000].map(p => (
                                         <option key={p} value={p}>{p}</option>
@@ -617,11 +616,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
                                 </select>
                                 </>
                             )}
-                            {e2bStatus === 'ready' && onRestartSandbox && (
+                            {previewStatus === 'ready' && onRestartSandbox && (
                                 <button
                                     onClick={onRestartSandbox}
                                     className="flex items-center gap-1.5 text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] px-2.5 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-[#27272a] transition-colors"
-                                    title="Apagar o sandbox atual e criar um novo na porta selecionada"
+                                    title="Reiniciar o ambiente na porta selecionada"
                                 >
                                     <RefreshIcon className="w-3 h-3" />
                                     Reiniciar na Porta
@@ -662,20 +661,20 @@ export const EditorView: React.FC<EditorViewProps> = ({
                             onDeploy={onRunLocally}
                             chatMode={chatMode} 
                             terminalCommands={terminalCommands}
-                            previewMode={isPublished && !e2bPreviewUrl ? 'publish' : 'editor'}
+                            previewMode={isPublished && !previewUrl ? 'publish' : 'editor'}
                         />
                         <PreviewToolbar
                           targetRef={previewContainerRef}
                           onAttachToMessage={onAttachPreview}
                           onAttachFile={onAttachFile}
-                          previewUrl={e2bPreviewUrl || deployedUrl || null}
+                          previewUrl={previewUrl || deployedUrl || null}
                         />
                     </div>
 
                     {/* Terminal interativo do sandbox */}
                     {showTerminal && (
                         <div className="h-64 flex-shrink-0 border-t border-gray-200 dark:border-[#27272a] overflow-hidden">
-                            <Terminal sandboxId={e2bSandboxId || null} isGenerating={isGenerating} />
+                            <Terminal isGenerating={isGenerating} />
                         </div>
                     )}
                     

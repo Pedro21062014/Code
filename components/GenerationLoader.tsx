@@ -11,7 +11,7 @@ interface GenerationLoaderProps {
 /**
  * Overlay de loading profissional mostrado enquanto o app está gerando código.
  * Apresenta: brilho animado (shimmer), o arquivo que a IA está criando/escrevendo
- * e o comando de terminal que está rodando no sandbox E2B.
+ * e o comando de terminal que está rodando no ambiente in-browser.
  */
 export const GenerationLoader: React.FC<GenerationLoaderProps> = ({
   generatingFile,

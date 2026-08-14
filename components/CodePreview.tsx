@@ -13,7 +13,7 @@ interface CodePreviewProps {
   onDeploy?: () => void;
   chatMode?: ChatMode; 
   terminalCommands?: string[];
-  // 'editor' = preview ao vivo no editor (E2B)
+  // 'editor' = preview ao vivo no editor (ambiente in-browser)
   // 'publish' = preview da publicação (Sandpack)
   previewMode?: 'editor' | 'publish';
 }
@@ -107,7 +107,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
   }
 
   // ===== MODO EDITOR (preview ao vivo) =====
-  // Se tem URL E2B → iframe ao vivo.
+  // Se tem URL do ambiente → iframe ao vivo.
   if (deployedUrl && !isCodegenEmbed) {
       return (
         <div className="w-full h-full bg-white relative group">
@@ -119,14 +119,14 @@ export const CodePreview: React.FC<CodePreviewProps> = ({ files, deployedUrl, th
       );
   }
 
-  // No editor: se for projeto React e ainda não há E2B rodando, mostra um
-  // placeholder "iniciando preview" em vez de Sandpack (preview = E2B).
+  // No editor: se for projeto React e ainda não há preview rodando, mostra um
+  // placeholder "iniciando preview" em vez de Sandpack.
   if (isReactProject) {
       return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-white dark:bg-[#09090b] text-gray-400 gap-3">
           <div className="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-[#27272a] border-t-blue-500 animate-spin" />
-          <p className="text-sm font-medium">Iniciando preview E2B...</p>
-          <p className="text-xs opacity-70">Se o sandbox não carregar, reinicie acima.</p>
+          <p className="text-sm font-medium">Iniciando ambiente in-browser...</p>
+          <p className="text-xs opacity-70">Se o preview não carregar, reinicie acima.</p>
         </div>
       );
   }

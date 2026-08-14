@@ -83,6 +83,32 @@ let _instance: any = null;
 
 export const getWebContainer = () => _instance;
 
+/** Executa um comando no WebContainer ativo (in-browser, sem E2B). */
+export const execInWebContainer = async (
+  command: string,
+  cwd = '/'
+): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+  if (!_instance) {
+    return { stdout: '', stderr: 'WebContainer não iniciado.', exitCode: 1 };
+  }
+  let stdout = '';
+  let stderr = '';
+  try {
+    const proc = await _instance.spawn('bash', ['-c', command]);
+    proc.output.pipeTo(new WritableStream({
+      write(data) {
+        const text = typeof data === 'string' ? data : (data ?? '');
+        // WebContainer emite chunks; não sabemos facilmente separar stdout/stderr
+        stdout += text;
+      },
+    }));
+    const exitCode = await proc.exit;
+    return { stdout, stderr, exitCode: exitCode ?? 0 };
+  } catch (e: any) {
+    return { stdout, stderr: e?.message || 'Erro ao executar comando.', exitCode: 1 };
+  }
+};
+
 export const killWebContainer = async () => {
   if (_instance) {
     try { await _instance.teardown(); } catch (e) {}

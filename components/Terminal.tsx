@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { execInE2b } from '../services/e2bService';
+import { execInEnvironment, getActiveEngine } from '../services/environmentService';
 
 interface TerminalProps {
-  sandboxId: string | null;
   isGenerating?: boolean;
 }
 
@@ -12,16 +11,16 @@ interface Line {
 }
 
 /**
- * Terminal interativo que executa comandos na pasta do app no sandbox E2B.
+ * Terminal interativo que executa comandos no ambiente in-browser ativo
+ * (WebContainer primário / Navebox fallback). Sem E2B.
  */
-export const Terminal: React.FC<TerminalProps> = ({ sandboxId, isGenerating }) => {
+export const Terminal: React.FC<TerminalProps> = ({ isGenerating }) => {
   const [lines, setLines] = useState<Line[]>([
     { type: 'info', text: 'Codegem Terminal — digite um comando (ex: ls, npm run build).' },
-    { type: 'info', text: 'Trabalhando na pasta do app (/).' },
+    { type: 'info', text: 'Trabalhando no ambiente in-browser (WebContainer/Navebox).' },
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [cwd, setCwd] = useState('/home/user/app');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,17 +31,18 @@ export const Terminal: React.FC<TerminalProps> = ({ sandboxId, isGenerating }) =
 
   const runCommand = async (cmd: string) => {
     if (!cmd.trim()) return;
-    setLines(prev => [...prev, { type: 'cmd', text: `${cwd} $ ${cmd}` }]);
+    setLines(prev => [...prev, { type: 'cmd', text: `$ ${cmd}` }]);
     setInput('');
 
-    if (!sandboxId) {
-      setLines(prev => [...prev, { type: 'err', text: 'Sandbox ainda não iniciado. Aguarde o preview carregar.' }]);
+    const engine = getActiveEngine();
+    if (!engine) {
+      setLines(prev => [...prev, { type: 'err', text: 'Ambiente ainda não iniciado. Aguarde o preview carregar.' }]);
       return;
     }
 
     setBusy(true);
     try {
-      const result = await execInE2b(sandboxId, cmd, cwd);
+      const result = await execInEnvironment(cmd, '/');
       if (result.stdout) {
         setLines(prev => [...prev, ...result.stdout.split('\n').filter(l => l !== '').map(l => ({ type: 'out' as const, text: l }))]);
       }
@@ -72,8 +72,8 @@ export const Terminal: React.FC<TerminalProps> = ({ sandboxId, isGenerating }) =
         <span className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
         <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
         <span className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
-        <span className="ml-2 text-[10px] text-gray-400">Terminal — {cwd}</span>
-        {isGenerating && <span className="ml-auto text-[10px] text-blue-400 animate-pulse">sandbox iniciando...</span>}
+        <span className="ml-2 text-[10px] text-gray-400">Terminal — ambiente in-browser</span>
+        {isGenerating && <span className="ml-auto text-[10px] text-blue-400 animate-pulse">ambiente iniciando...</span>}
       </div>
 
       {/* Saída */}

@@ -27,9 +27,7 @@ import { ProjectFile, ChatMessage, AIProvider, UserSettings, Theme, SavedProject
 import { downloadProjectAsZip } from './services/projectService';
 import { INITIAL_CHAT_MESSAGE, AI_MODELS, GOOGLE_BYOK_MODELS, DEFAULT_GEMINI_API_KEY, GOOGLE_CLIENT_ID } from './constants';
 import { generateCodeStream } from './services/aiService';
-import { startE2bPreview, killE2bSandbox, waitForServerReady } from './services/e2bService';
-import { startWebContainerPreview, killWebContainer } from './services/webcontainerService';
-import { startNaveboxPreview } from './services/naveboxService';
+import { startEnvironment, stopEnvironment, execInEnvironment } from './services/environmentService';
 import { generateImagesWithImagen } from './services/geminiService';
 import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -283,12 +281,9 @@ export const App: React.FC = () => {
   ]);
   
   const [isInitializing, setIsInitializing] = useState(false); 
-  const [e2bPreviewUrl, setE2bPreviewUrl] = useState<string | null>(null);
-  const [e2bPort, setE2bPort] = useState<number>(3000);
-  const [e2bSandboxId, setE2bSandboxId] = useState<string | null>(null);
-  const [e2bStatus, setE2bStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
-  const [previewEngine, setPreviewEngine] = useState<'e2b' | 'webcontainer'>('e2b');
-  const [wcStatus, setWcStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewPort, setPreviewPort] = useState<number>(3000);
+  const [previewStatus, setPreviewStatus] = useState<'idle' | 'starting' | 'ready' | 'error'>('idle');
   const [generatingFile, setGeneratingFile] = useState<string | null>(null);
   const [runningCommand, setRunningCommand] = useState<string | null>(null);
   const [generatedFileNames, setGeneratedFileNames] = useState<Set<string>>(new Set());
@@ -1003,10 +998,8 @@ export const App: React.FC = () => {
       const p = savedProjects.find(pr => pr.id === projectId);
       if (p) {
           // Reseta estados de preview para abrir limpo o editor
-          setE2bPreviewUrl(null);
-          setE2bStatus('idle');
-          setWcStatus('idle');
-          setPreviewEngine('e2b');
+          setPreviewUrl(null);
+          setPreviewStatus('idle');
           const safeFiles = sanitizeProjectFiles(p.files);
           setProject({
               files: safeFiles,
@@ -1117,84 +1110,40 @@ export const App: React.FC = () => {
       }
   }, [setProject]);
 
-  // Executa o projeto num sandbox E2B e retorna a URL de preview ao vivo
-  // Inicia o preview com retry (3x) no E2B e fallback para WebContainer/Navebox
-  // Cria/reinicia o preview E2B.
+  // Sobe o ambiente in-browser e retorna a URL de preview ao vivo.
+  // Usa o mecanismo unificado (WebContainer primário / Navebox fallback)
+  // que detecta React/Next.js automaticamente. Sem E2B.
   // NÃO mata o sandbox anterior se já estiver rodando na mesma porta —
   // apenas reutiliza. Só cria um novo sandbox quando não há nenhum ou a porta mudou.
-  const handleRunPreviewInE2B = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = [], forceNew = false) => {
+  const handleRunPreview = useCallback(async (previewFiles: ProjectFile[], terminalCommands: string[] = [], forceNew = false) => {
     if (!previewFiles || previewFiles.length === 0) return;
 
-    // Se já há um preview pronto na mesma porta e não foi pedido novo, reutiliza
-    if (!forceNew && e2bPreviewUrl && e2bStatus === 'ready') {
+    // Se já há um preview pronto e não foi pedido novo, reutiliza
+    if (!forceNew && previewUrl && previewStatus === 'ready') {
       return;
     }
 
-    // Só mata o antigo se for criar um novo (porta mudou ou força reinício)
-    if (forceNew && e2bSandboxId) { killE2bSandbox(e2bSandboxId).catch(() => {}); }
-
-    setE2bStatus('starting');
-    setE2bPreviewUrl(null);
-    setPreviewEngine('e2b');
-
-    const MAX_ATTEMPTS = 3;
-    let lastError: any = null;
-
-    // 1) E2B (sandbox em nuvem) primeiro
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      try {
-        const result = await startE2bPreview(previewFiles, terminalCommands, e2bPort);
-        setE2bPreviewUrl(result.previewUrl);
-        setE2bSandboxId(result.sandboxId);
-        // Espera o servidor subir (polling leve no navegador, até ~20s)
-        // se o backend ainda não confirmou ready.
-        if (!result.ready) {
-          await waitForServerReady(result.previewUrl, 20000);
-        }
-        setE2bStatus('ready');
-        return;
-      } catch (error: any) {
-        lastError = error;
-        console.error(`Tentativa ${attempt}/${MAX_ATTEMPTS} do E2B falhou:`, error);
-        await new Promise(r => setTimeout(r, attempt * 800));
-      }
-    }
-
-    // 2) Fallback WebContainer
-    console.warn('E2B falhou após 3 tentativas. Usando WebContainer como fallback.', lastError);
-    setE2bStatus('error');
-    setPreviewEngine('webcontainer');
-    setWcStatus('starting');
+    setPreviewStatus('starting');
+    setPreviewUrl(null);
 
     try {
-      const result = await startWebContainerPreview(previewFiles, terminalCommands);
-      setWcStatus('ready');
-      if (result.url) setE2bPreviewUrl(result.url);
-      setE2bStatus('ready');
-    } catch (wcError: any) {
-      console.warn('WebContainer falhou, tentando Navebox como último recurso:', wcError?.message);
-      setWcStatus('error');
-      try {
-        const navResult = await startNaveboxPreview(previewFiles, terminalCommands);
-        if (navResult.url) {
-          setE2bPreviewUrl(navResult.url);
-          setE2bStatus('ready');
-          return;
-        }
-      } catch (navError: any) {
-        console.error('Navebox também falhou:', navError?.message);
-      }
-      setE2bStatus('error');
-      const wcMsg = wcError?.message || 'erro desconhecido';
-      setToastError(`Preview indisponível. E2B: ${lastError?.message || 'erro'} | WebContainer: ${wcMsg}`);
+      // Mecanismo de ambiente unificado (in-browser): WebContainer primário,
+      // Navebox fallback. Detecta React/Next.js automaticamente.
+      const result = await startEnvironment(previewFiles, terminalCommands);
+      setPreviewUrl(result.url);
+      setPreviewStatus('ready');
+    } catch (error: any) {
+      console.error('Preview indisponível:', error);
+      setPreviewStatus('error');
+      setToastError(`Preview indisponível: ${error?.message || 'nenhum ambiente in-browser subiu.'}`);
     }
-  }, [e2bSandboxId, e2bPort, e2bPreviewUrl, e2bStatus]);
+  }, [previewPort, previewUrl, previewStatus]);
 
   // Reinicia o sandbox na porta selecionada (cria novo na nova porta)
   const handleRestartSandbox = useCallback(() => {
     if (files.length === 0) return;
-    handleRunPreviewInE2B(files, [], true);
-  }, [files, handleRunPreviewInE2B]);
+    handleRunPreview(files, [], true);
+  }, [files, handleRunPreview]);
 
   const handleSendMessage = useCallback(async (prompt: string, provider: AIProvider, modelId: string, attachments: any[] = [], mode: ChatMode = 'general') => {
     if (!sessionUser) { setView('auth'); return; }
@@ -1392,7 +1341,7 @@ export const App: React.FC = () => {
       const result = extractAndParseJson(fullResponse);
       if (result.suggestions && Array.isArray(result.suggestions)) setAiSuggestions(result.suggestions);
 
-      // Mescla os arquivos gerados com os existentes (fora do setProject, para usar no E2B)
+      // Mescla os arquivos gerados com os existentes (para usar no preview)
       const baseFiles = project.files || [];
       const map = new Map<string, ProjectFile>();
       baseFiles.forEach(f => map.set(f.name, f));
@@ -1437,9 +1386,9 @@ export const App: React.FC = () => {
             };
         });
 
-      // Sobe o preview num sandbox E2B automaticamente
+      // Sobe o preview no ambiente in-browser automaticamente
       if (updatedFiles.length > 0) {
-          handleRunPreviewInE2B(updatedFiles, result.terminalCommands || []);
+          handleRunPreview(updatedFiles, result.terminalCommands || []);
       }
     } catch (e: any) { 
         if (e.message !== "AbortError") {
@@ -1456,7 +1405,7 @@ export const App: React.FC = () => {
         setRunningCommand(null);
         abortControllerRef.current = null;
     }
-  }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings, handleRunPreviewInE2B]);
+  }, [project, userSettings, sessionUser, view, aiSuggestions, setProject, setUserSettings, handleRunPreview]);
 
   // Anexa um screenshot do preview a uma nova mensagem no chat
   const handleAttachPreviewToChat = useCallback((screenshot: string, note: string) => {
@@ -1750,7 +1699,7 @@ export const App: React.FC = () => {
                           runningCommand={runningCommand}
                           generatedFileNames={generatedFileNames}
                           aiSuggestions={aiSuggestions}
-                          deployedUrl={e2bPreviewUrl || (currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined)}
+                          deployedUrl={previewUrl || (currentSavedProject?.deployedUrl ? currentSavedProject.deployedUrl : undefined)}
                           isPublished={!!currentSavedProject?.deployedUrl}
                           chatMode={chatMode}
                           projectHistory={history}
@@ -1762,14 +1711,13 @@ export const App: React.FC = () => {
                           onToggleChat={() => setIsChatPanelOpen(!isChatPanelOpen)}
                           isChatOpen={isChatPanelOpen}
                           terminalCommands={project.chatMessages[project.chatMessages.length - 1]?.terminalCommands}
-                          e2bStatus={e2bStatus}
-                          e2bPreviewUrl={e2bPreviewUrl}
+                          previewStatus={previewStatus}
+                          previewUrl={previewUrl}
                           onAttachPreview={handleAttachPreviewToChat}
                           onAttachFile={handleAttachFileToChat}
                           onRestartSandbox={handleRestartSandbox}
-                          e2bPort={e2bPort}
-                          onE2bPortChange={setE2bPort}
-                          e2bSandboxId={e2bSandboxId}
+                          previewPort={previewPort}
+                          onPreviewPortChange={setPreviewPort}
                         />
                       </main>
 
@@ -1917,9 +1865,9 @@ export const App: React.FC = () => {
               chatMessages: [{ role: 'assistant', content: `Repositório **${name}** importado com sucesso! Iniciando sandbox para visualização...` }]
           }); 
           setView('editor'); 
-          // Cria um sandbox E2B automaticamente com os arquivos importados
+          // Sobe o preview no ambiente in-browser com os arquivos importados
           if (f && f.length > 0) {
-              setTimeout(() => handleRunPreviewInE2B(f), 500);
+              setTimeout(() => handleRunPreview(f), 500);
           }
       }} 
       githubToken={userSettings?.github_access_token} 

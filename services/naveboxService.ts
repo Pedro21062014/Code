@@ -9,6 +9,32 @@ export interface NaveboxPreviewResult {
 
 let _engine: any = null;
 
+export const getNaveboxEngine = () => _engine;
+
+/** Executa um comando no motor Navebox ativo (in-browser, sem E2B). */
+export const execInNavebox = async (
+  command: string,
+  cwd = '/'
+): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+  if (!_engine) {
+    return { stdout: '', stderr: 'Motor Navebox não iniciado.', exitCode: 1 };
+  }
+  const parts = command.trim().split(/\s+/);
+  const bin = parts[0];
+  const args = parts.slice(1);
+  try {
+    // engine.run retorna { exitCode, stdout, stderr }
+    const res = await _engine.run(bin, args);
+    return {
+      stdout: typeof res?.stdout === 'string' ? res.stdout : '',
+      stderr: typeof res?.stderr === 'string' ? res.stderr : '',
+      exitCode: res?.exitCode ?? 0,
+    };
+  } catch (e: any) {
+    return { stdout: '', stderr: e?.message || 'Erro ao executar comando.', exitCode: 1 };
+  }
+};
+
 function toTemplateFiles(files: { name: string; content: string }[]): { path: string; content: string }[] {
   return files.map(f => ({
     path: f.name.startsWith('/') ? f.name.slice(1) : f.name,
