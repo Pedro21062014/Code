@@ -128,6 +128,30 @@ async function handleNvidia(body: any, apiKey: string) {
 export const onRequestPost = async (context: any) => {
   try {
     const req = context.request;
+    const authorization = req.headers.get('Authorization') || '';
+    const idToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (!idToken) {
+      return new Response(JSON.stringify({ error: 'Autenticação necessária.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify the Firebase ID token before allowing use of server-side provider keys.
+    // This is the public Firebase Web API key, not a private credential.
+    const firebaseApiKey = context.env.FIREBASE_API_KEY || 'AIzaSyCujx9dtdlojodcKa9IglL2NY6GQ4O8NHs';
+    const authResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!authResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Sessão inválida ou expirada. Entre novamente.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const body = await req.json();
     const { provider } = body;
     let providerResponse;

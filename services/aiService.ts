@@ -3,6 +3,7 @@ import { ProjectFile, AIProvider } from '../types';
 import { generateCodeStreamWithGemini } from './geminiService';
 import { generateCodeStreamWithNvidia } from './nvidiaService'; // Client-side (if user provides key)
 import { AI_MODELS, GOOGLE_BYOK_MODELS } from '../constants';
+import { auth } from './firebase';
 
 // Generic function to call the backend proxy
 const generateCodeStreamWithServer = async (
@@ -15,10 +16,14 @@ const generateCodeStreamWithServer = async (
   signal?: AbortSignal
 ): Promise<string> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Faça login para usar os modelos hospedados.");
+    const idToken = await currentUser.getIdToken();
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
       },
       body: JSON.stringify({
         prompt,
