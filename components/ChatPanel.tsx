@@ -12,7 +12,6 @@ import AITaskList from '@/components/ui/ai-task-list';
 import AIThinkingBlock from '@/components/ui/ai-thinking-block';
 import AIFileDiff from '@/components/ui/ai-file-diff';
 import AIActivityCard from '@/components/ui/ai-activity-card';
-import { AppLogo, SparklesIcon, PaperclipIcon, LoaderIcon, SupabaseIcon, GithubIcon, CheckCircleIcon, TerminalIcon, PlusIcon, ImageIcon, DownloadIcon, StopIcon, ChevronUpIcon, BotIcon, PaletteIcon, CloudSimpleIcon, WrenchIcon, RocketIcon, MagicIcon, GoogleIcon, PlanIcon, LightbulbIcon, FileIcon } from './Icons';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -25,7 +24,6 @@ interface ChatPanelProps {
   isGenerating: boolean;
   onStopGeneration?: () => void;
   userGeminiKey?: string;
-  onOpenSupabase?: () => void;
   onOpenGithub?: () => void;
   onOpenSettings?: () => void;
   availableModels?: AIModel[];
@@ -208,7 +206,6 @@ const EmptyState: React.FC<{ mode: ChatMode }> = ({ mode }) => {
             titleClass: "text-2xl font-mono font-bold text-green-500 dark:text-green-400 tracking-tighter",
             font: "font-mono",
             suggestions: [
-                "Configure a conexão com Supabase.",
                 "Crie uma API REST para usuários.",
                 "Otimize esta query SQL.",
                 "Implemente autenticação JWT."
@@ -283,7 +280,6 @@ const GroundingMetadata: React.FC<{ metadata: NonNullable<ChatMessage['grounding
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ 
     messages, onSendMessage, generatingFile, runningCommand, isGenerating, onStopGeneration,
-    onOpenSupabase, onOpenGithub, availableModels = AI_MODELS, activeMode = 'general', onModeChange, onClearChat
 }) => {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string>(availableModels[0]?.id || AI_MODELS[0].id);

@@ -8,10 +8,8 @@ export enum AIProvider {
 
 export enum IntegrationProvider {
   GitHub = 'GitHub',
-  Supabase = 'Supabase',
   Stripe = 'Stripe',
   OpenStreetMap = 'OpenStreetMap',
-  Neon = 'Neon',
 }
 
 export interface AIModel {
@@ -70,12 +68,8 @@ export interface UserSettings {
   github_access_token?: string;
   netlify_access_token?: string;
   netlify_client_id?: string; // ID for OAuth App
-  supabase_project_url?: string;
-  supabase_anon_key?: string;
-  supabase_service_key?: string;
   stripe_public_key?: string;
   stripe_secret_key?: string;
-  neon_connection_string?: string;
   plan?: 'Hobby' | 'Pro';
   hasSeenProWelcome?: boolean;
 }
@@ -109,7 +103,7 @@ export interface SavedProject {
   env_vars: Record<string, string>;
   created_at: string;
   updated_at: string;
-  storage?: 'firebase' | 'google_drive'; // Indicates where the project is primarily stored
+  storage?: 'local' | 'google_drive'; // Indicates where the project is primarily stored
   googleDriveFileId?: string; // ID do arquivo no Google Drive para atualizações
   githubRepo?: {
     owner: string;

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider, sendPasswordResetEmail } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from '../services/localDatabase';
 import { AppLogo, GoogleIcon, GithubIcon, SunIcon, MoonIcon, CheckCircleIcon, LoaderIcon, UserIcon, KeyIcon } from './Icons';
 import { DotGridBackground } from './DotGridBackground';
 import { Theme } from '../types';

@@ -14,7 +14,6 @@ import { ShareModal } from './components/ShareModal';
 import { PublishModal } from './components/PublishModal';
 import { AuthModal } from './components/AuthModal'; 
 import { AuthPage } from './components/AuthPage'; 
-import { SupabaseAdminModal } from './components/SupabaseAdminModal';
 import { ProWelcomeOnboarding } from './components/ProWelcomeOnboarding';
 import { CodePreview } from './components/CodePreview';
 import { LandingPage } from './components/LandingPage';
@@ -33,10 +32,9 @@ import { uploadProjectToDrive } from './services/googleDriveService';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, increment, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, serverTimestamp, arrayUnion, deleteDoc, limit, increment, arrayRemove } from "./services/localDatabase";
 import { LoaderIcon, ChatIcon, TerminalIcon } from './components/Icons';
 import { StripeModal } from './components/StripeModal';
-import { NeonModal } from './components/NeonModal';
 import { OpenStreetMapModal } from './components/OpenStreetMapModal';
 import { IntegrationsPage } from './components/IntegrationsPage';
 import { OpenAIModal } from './components/OpenAIModal';
@@ -60,7 +58,7 @@ const stripUndefined = (value: any): any => {
   return value;
 };
 
-const sanitizeFirestoreData = (data: any) => {
+const sanitizeStoredData = (data: any) => {
   const sanitized = { ...data };
   for (const key in sanitized) {
     if (sanitized[key] && typeof sanitized[key] === 'object' && typeof sanitized[key].toDate === 'function') {
@@ -251,9 +249,7 @@ export const App: React.FC = () => {
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
-  const [isSupabaseAdminModalOpen, setSupabaseAdminModalOpen] = useState(false);
   const [isStripeModalOpen, setStripeModalOpen] = useState(false);
-  const [isNeonModalOpen, setNeonModalOpen] = useState(false);
   const [isOSMModalOpen, setOSMModalOpen] = useState(false);
   const [isNetlifyModalOpen, setNetlifyModalOpen] = useState(false);
   const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
@@ -757,7 +753,7 @@ export const App: React.FC = () => {
       created_at: existingProject?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
       githubRepo: existingProject?.githubRepo || null, 
-      storage: 'firebase',
+      storage: 'local',
     };
 
     // --- CHECK STORAGE LIMITS ---
@@ -767,7 +763,7 @@ export const App: React.FC = () => {
     const isNewProject = !existingProject;
     
     // Count projects owned by user stored in firebase
-    const userProjectCount = savedProjects.filter(p => p.ownerId === sessionUser.uid && (!p.storage || p.storage === 'firebase')).length;
+    const userProjectCount = savedProjects.filter(p => p.ownerId === sessionUser.uid && (!p.storage || p.storage === 'local')).length;
 
     if (projectSizeKB > 500) {
         setGoogleDriveModalReason('size');
@@ -1576,9 +1572,7 @@ export const App: React.FC = () => {
         <DashboardWrapper>
             <IntegrationsPage 
                 onOpenGithubImport={() => setGithubModalOpen(true)}
-                onOpenSupabaseAdmin={() => setSupabaseAdminModalOpen(true)}
                 onOpenStripeModal={() => setStripeModalOpen(true)}
-                onOpenNeonModal={() => setNeonModalOpen(true)}
                 onOpenOSMModal={() => setOSMModalOpen(true)}
                 onOpenGeminiModal={() => setApiKeyModalOpen(true)}
                 onOpenOpenAIModal={() => setOpenAIModalOpen(true)}
@@ -1744,7 +1738,6 @@ export const App: React.FC = () => {
                             isGenerating={isInitializing}
                             onStopGeneration={handleStopGeneration}
                             availableModels={availableModels}
-                            onOpenSupabase={() => setSupabaseAdminModalOpen(true)}
                             onOpenGithub={() => setGithubSyncModalOpen(true)}
                             onOpenSettings={() => setView('settings')}
                             activeMode={chatMode} 
@@ -1841,9 +1834,7 @@ export const App: React.FC = () => {
                 onProjectUpdate={handleProjectMetaUpdate}
               />
               
-              <SupabaseAdminModal isOpen={isSupabaseAdminModalOpen} onClose={() => setSupabaseAdminModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
               <StripeModal isOpen={isStripeModalOpen} onClose={() => setStripeModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
-              <NeonModal isOpen={isNeonModalOpen} onClose={() => setNeonModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />
               <OpenStreetMapModal isOpen={isOSMModalOpen} onClose={() => setOSMModalOpen(false)} />
               <ApiKeyModal isOpen={isApiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} onSave={(key) => handleUpdateSettings({ gemini_api_key: key })} />
               <OpenAIModal isOpen={isOpenAIModalOpen} onClose={() => setOpenAIModalOpen(false)} settings={userSettings || { id: '' }} onSave={handleUpdateSettings} />

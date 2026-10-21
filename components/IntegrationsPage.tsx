@@ -1,12 +1,10 @@
 
 import React from 'react';
-import { GithubIcon, SupabaseIcon, StripeIcon, DatabaseIcon, MapIcon, SparklesIcon, GeminiIcon, OpenAIIcon, NetlifyIcon } from './Icons';
+import { GithubIcon, StripeIcon, MapIcon, SparklesIcon, GeminiIcon, OpenAIIcon, NetlifyIcon } from './Icons';
 
 interface IntegrationsPageProps {
   onOpenGithubImport: () => void;
-  onOpenSupabaseAdmin: () => void;
   onOpenStripeModal: () => void;
-  onOpenNeonModal: () => void;
   onOpenOSMModal: () => void;
   onOpenGeminiModal: () => void;
   onOpenOpenAIModal: () => void;
@@ -16,9 +14,7 @@ interface IntegrationsPageProps {
 
 export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
   onOpenGithubImport,
-  onOpenSupabaseAdmin,
   onOpenStripeModal,
-  onOpenNeonModal,
   onOpenOSMModal,
   onOpenGeminiModal,
   onOpenOpenAIModal,
@@ -62,15 +58,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         iconClass: "text-[#00C7B7]"
     },
     { 
-        id: 'supabase',
-        title: "Supabase", 
-        description: "Postgres & Auth.", 
-        icon: <SupabaseIcon className="w-6 h-6" />, 
-        onClick: onOpenSupabaseAdmin,
-        hoverClass: "group-hover:border-emerald-500/30",
-        iconClass: "text-emerald-500"
-    },
-    { 
         id: 'stripe',
         title: "Stripe", 
         description: "Pagamentos globais.", 
@@ -78,15 +65,6 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         onClick: onOpenStripeModal,
         hoverClass: "group-hover:border-indigo-500/30",
         iconClass: "text-indigo-500"
-    },
-    { 
-        id: 'neon',
-        title: "Neon", 
-        description: "Serverless Postgres.", 
-        icon: <DatabaseIcon className="w-6 h-6" />, 
-        onClick: onOpenNeonModal,
-        hoverClass: "group-hover:border-green-400/30",
-        iconClass: "text-green-400"
     },
     { 
         id: 'osm',

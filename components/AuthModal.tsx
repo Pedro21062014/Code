@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from '../services/localDatabase';
 import { CloseIcon, AppLogo, GoogleIcon, GithubIcon } from './Icons';
 import { Theme } from '../types';
 

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { UserSettings } from '../types';
 import { auth, db } from '../services/firebase';
 import { updateProfile, deleteUser, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from '../services/localDatabase';
 import { 
     UserIcon, KeyIcon, ShieldIcon, SaveIcon, 
     LoaderIcon, CheckCircleIcon, GithubIcon, NetlifyIcon, 
