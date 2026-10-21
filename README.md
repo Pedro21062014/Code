@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://cdn.phototourl.com/member/2026-10-21-86f27651-f6fa-4e9b-a3a8-853396dfc5ef.png" alt="CodeGem" width="128" height="128" />
+<img src="https://cdn.phototourl.com/member/2026-10-21-86f27651-f6fa-4e9b-a3a8-853396dfc5ef.png" alt="CodeGem" width="160" height="160" style="padding: 18px; object-fit: contain;" />
 
 # CodeGem Studio
 
