@@ -3,10 +3,6 @@ import React, { useState } from 'react';
 import { CloseIcon, DownloadIcon, TerminalIcon, CheckCircleIcon, LoaderIcon, NetlifyIcon, CloudflareIcon, AppLogo } from './Icons';
 import { createProjectZip } from '../services/projectService';
 import { ProjectFile } from '../types';
-import { buildAndExportDist } from '../services/webcontainerService';
-import { deployFiles } from '../services/deployService';
-import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../services/firebase';
 
 interface PublishModalProps {
   isOpen: boolean;
@@ -29,7 +25,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const [deployStatus, setDeployStatus] = useState<'idle' | 'compressing' | 'uploading' | 'success' | 'error'>('idle');
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeTarget, setActiveTarget] = useState<'netlify' | 'cloudflare' | 'codegen' | null>(null);
+  const [activeTarget, setActiveTarget] = useState<'netlify' | 'cloudflare' | null>(null);
   const [manualToken, setManualToken] = useState('');
 
   // Limpar estados ao abrir
@@ -103,7 +99,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             onSaveToken(manualToken);
         }
 
-        // Atualizar o projeto no Firestore E no estado local usando activeProjectId
+        // Persist deployment metadata in the browser-local project list
         if (activeProjectId && data.url) {
             const updates = {
                 deployedUrl: data.url,
@@ -116,12 +112,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 onProjectUpdate(activeProjectId, updates);
             }
 
-            try {
-                const projectRef = doc(db, "projects", activeProjectId.toString());
-                await updateDoc(projectRef, updates);
-            } catch (dbError) {
-                console.error("Erro ao salvar URL do deploy no banco:", dbError);
-            }
         }
 
     } catch (err: any) {
@@ -135,66 +125,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({
       onDownload();
       alert("Para publicar no Cloudflare Pages: \n1. O ZIP do projeto foi baixado.\n2. Vá para dash.cloudflare.com > Pages > Upload Assets.");
       onClose();
-  };
-
-  const handleCodegenDeploy = async () => {
-      setErrorMessage(null);
-      setActiveTarget('codegen');
-
-      try {
-          let activeProjectId = projectId;
-          
-          if (!activeProjectId) {
-              const result = await onSaveRequired();
-              if (typeof result === 'number') {
-                  activeProjectId = result;
-              } else {
-                  throw new Error("Salve o projeto antes de publicar.");
-              }
-          }
-          
-          setDeployStatus('compressing'); // Build via WebContainer (Vercel-like)
-
-          // 1. Build no WebContainer + exporta dist
-          const { dist, buildLog } = await buildAndExportDist(files);
-
-          if (dist.length === 0) {
-            throw new Error(`O build não gerou arquivos em dist/. Log:\n${buildLog}`);
-          }
-
-          // 2-8. Publica dist via storage/CDN e gera URL
-          setDeployStatus('uploading');
-          const result = await deployFiles(dist, projectName);
-
-          const url = result.url || `${window.location.origin}?p=${activeProjectId}`;
-
-          setDeployUrl(url);
-          setDeployStatus('success');
-
-          // Update project info
-          if (activeProjectId) {
-              const updates = {
-                  deployedUrl: url,
-                  updated_at: new Date().toISOString(),
-              };
-
-              if (onProjectUpdate) {
-                  onProjectUpdate(activeProjectId, updates);
-              }
-
-              try {
-                  const projectRef = doc(db, "projects", activeProjectId.toString());
-                  await updateDoc(projectRef, updates);
-              } catch (dbError) {
-                  console.error("Erro ao salvar URL:", dbError);
-              }
-          }
-
-      } catch (err: any) {
-          console.error("Deploy error:", err);
-          setErrorMessage(err.message || "Erro ao publicar no Codegen Studio.");
-          setDeployStatus('error');
-      }
   };
 
   const isLoading = deployStatus === 'compressing' || deployStatus === 'uploading';
@@ -222,7 +152,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                         <p className="text-gray-600 dark:text-gray-400">
                             {activeTarget === 'netlify' 
                                 ? "Seu projeto foi publicado com sucesso no Netlify." 
-                                : "Seu projeto está disponível via link público do Codegen Studio."}
+                                : "Seu projeto foi publicado com sucesso."}
                         </p>
                         <p className="text-xs text-gray-500 mt-2">Agora você pode publicá-lo na Galeria.</p>
                     </div>
@@ -295,25 +225,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                             </div>
                         </button>
 
-                        {/* Option 3: Codegen Studio */}
-                        <button 
-                            onClick={() => !isLoading && handleCodegenDeploy()}
-                            disabled={isLoading}
-                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group gap-4 relative overflow-hidden ${
-                                activeTarget === 'codegen' 
-                                ? 'bg-gray-50 dark:bg-[#1a1a1c] border-blue-500' 
-                                : 'bg-white dark:bg-[#121214] border-gray-200 dark:border-[#27272a] hover:border-blue-500/50 hover:bg-gray-50 dark:hover:bg-[#1a1a1c]'
-                            } ${isLoading && activeTarget !== 'codegen' ? 'opacity-30' : ''}`}
-                        >
-                            <div className="absolute top-3 right-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-2 py-1 rounded border border-blue-200 dark:border-blue-800">FAST</div>
-                            <div className="w-14 h-14 bg-blue-600/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <AppLogo className="w-8 h-8 text-blue-500" />
-                            </div>
-                            <div className="text-center">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-1">Codegen Studio</h3>
-                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Preview Instantâneo</p>
-                            </div>
-                        </button>
                     </div>
 
                     {/* Netlify Config Section - Only shows if Netlify is selected */}

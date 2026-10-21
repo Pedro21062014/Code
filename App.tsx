@@ -402,7 +402,7 @@ export const App: React.FC = () => {
           const docRef = doc(db, "projects", publicProjectId);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            const data = sanitizeFirestoreData(docSnap.data()) as SavedProject;
+            const data = sanitizeStoredData(docSnap.data()) as SavedProject;
             const safeFiles = sanitizeProjectFiles(data.files);
             setProject({
               files: safeFiles,
@@ -453,7 +453,7 @@ export const App: React.FC = () => {
           if (res.status === 'fulfilled') {
             const snapshot = (res as any).value;
             snapshot.forEach((doc: any) => {
-              const data = sanitizeFirestoreData(doc.data());
+              const data = sanitizeStoredData(doc.data());
               const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
               projectsMap.set(doc.id, p);
             });
@@ -478,7 +478,7 @@ export const App: React.FC = () => {
           const snapshot = await getDocs(q);
           const projects: SavedProject[] = [];
           snapshot.forEach((doc: any) => {
-              const data = sanitizeFirestoreData(doc.data());
+              const data = sanitizeStoredData(doc.data());
               const p = { ...data, id: parseInt(doc.id) || Number(doc.id) || Date.now() } as SavedProject;
               projects.push(p);
           });
@@ -502,7 +502,7 @@ export const App: React.FC = () => {
       const docSnap = await getDoc(docRef);
       const currentUserEmail = auth.currentUser?.email?.toLowerCase() || "";
       if (docSnap.exists()) {
-        const data = sanitizeFirestoreData(docSnap.data());
+        const data = sanitizeStoredData(docSnap.data());
         let mergedSettings = { id: userUid, ...data } as unknown as UserSettings;
         if ((!data.email || data.email !== currentUserEmail) && currentUserEmail) {
             await updateDoc(docRef, { email: currentUserEmail }).catch(() => {});
@@ -1786,7 +1786,7 @@ export const App: React.FC = () => {
                   isOpen={isGoogleDriveModalOpen} 
                   onClose={() => setIsGoogleDriveModalOpen(false)}
                   reason={googleDriveModalReason}
-                  currentCount={savedProjects.filter(p => p.ownerId === sessionUser?.uid && (!p.storage || p.storage === 'firebase')).length}
+                  currentCount={savedProjects.filter(p => p.ownerId === sessionUser?.uid && (!p.storage || p.storage === 'local')).length}
                   currentSizeKB={currentProjectSize}
                   onConfirmSave={handleSaveToGoogleDrive}
                   isConnected={!!driveAccessToken}
