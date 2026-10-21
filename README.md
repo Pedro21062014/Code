@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://codegem.pages.dev/favicon.ico" alt="CodeGem" width="96" height="96" />
+<img src="https://raw.githubusercontent.com/Pedro21062014/Code/main/public/codegem-logo.svg" alt="CodeGem" width="96" height="96" />
 
 # CodeGem Studio
 
