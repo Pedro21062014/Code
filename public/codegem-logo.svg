@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="gem" x1="40" y1="32" x2="216" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="0.52" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="72" y1="58" x2="177" y2="194" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity=".18"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="58" fill="#0B1020"/>
+  <path d="M128 34 204 77 204 165 128 210 52 165 52 77 128 34Z" fill="url(#gem)"/>
+  <path d="M128 34 128 121 52 77 128 34Z" fill="url(#shine)" fill-opacity=".72"/>
+  <path d="M128 121 204 77 128 210 52 77 128 121Z" fill="#0B1020" fill-opacity=".22"/>
+  <path d="M90 94 106 84 127 96 148 84 165 94 165 151 148 161 127 149 106 161 90 151V94Z" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M108 111V137L127 148 147 137V111" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
