@@ -5,8 +5,9 @@
 const getSystemPrompt = (files: any[], envVars = {}) => {
   const fileContent = files.map(file => `--- FILE: ${file.name} ---\n\`\`\`${file.language}\n${file.content}\n\`\`\`\n`).join('');
   
-  const envContent = Object.keys(envVars).length > 0
-    ? `The following environment variables are available to the project via 'process.env.VARIABLE_NAME':\n${JSON.stringify(envVars, null, 2)}`
+  const envNames = Object.keys(envVars || {});
+  const envContent = envNames.length > 0
+    ? `The following environment variable names are configured for the project. Values are intentionally hidden; never ask for or expose their values:\n${envNames.map(name => `${name}=<configured>`).join('\n')}`
     : "No environment variables are currently set.";
 
   return `You are an expert senior frontend engineer. Generate complete, functional, and aesthetically pleasing web applications using standard HTML, CSS, and JavaScript.

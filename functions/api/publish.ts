@@ -9,8 +9,9 @@ export const onRequestPost = async (context: any) => {
   const headerToken = req.headers.get('X-Netlify-Token');
   const existingSiteId = req.headers.get('X-Netlify-Site-Id');
   
-  // Fallback para variável de ambiente se não houver header
-  const NETLIFY_ACCESS_TOKEN = headerToken || context.env.NETLIFY_ACCESS_TOKEN;
+  // Nunca use um token global do servidor como fallback em um endpoint público.
+  // A publicação só pode usar o token fornecido explicitamente pelo próprio usuário.
+  const NETLIFY_ACCESS_TOKEN = headerToken;
 
   if (!NETLIFY_ACCESS_TOKEN) {
     return new Response(JSON.stringify({ error: 'Token de acesso do Netlify não encontrado.' }), {
