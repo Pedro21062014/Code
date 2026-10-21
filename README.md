@@ -76,13 +76,13 @@ CodeGem includes a collection of experimental features for AI-assisted developme
 - ⚡ Fast Vite-powered frontend
 - 🎨 Modern responsive interface
 - 🔐 Authentication integrations
-- ☁️ Cloud-based services and deployment support
+- 💾 Local browser storage for projects and settings
 - 📦 Project export and ZIP utilities
 - 🧩 Sandboxed coding experiences
 - 🖥️ Terminal-style interfaces
 - ✨ Motion and UI animations
 
-Some features may be incomplete or require additional configuration.
+Project and settings data are stored locally in your browser. They do not automatically sync between devices or browsers. Optional sign-in and integrations may still use their respective third-party services. Some features may be incomplete or require additional configuration.
 
 ---
 
@@ -95,8 +95,7 @@ Some features may be incomplete or require additional configuration.
 | **Vite** | Development and production tooling |
 | **Tailwind CSS** | Styling |
 | **Framer Motion / Motion** | Animations |
-| **Supabase** | Backend services and authentication |
-| **Firebase** | Authentication / cloud integrations |
+| **Firebase Authentication** | Optional sign-in only; project data stays in the browser |
 | **Google GenAI SDK** | AI integration |
 | **WebContainer API** | Browser-based development |
 | **CodeSandbox Sandpack** | Sandboxed code environments |

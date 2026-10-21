@@ -460,7 +460,7 @@ export const App: React.FC = () => {
           }
         });
         const sorted = Array.from(projectsMap.values()).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        setSavedProjects(sorted);
+        if (sorted.length > 0) setSavedProjects(sorted);
     } catch (error: any) { console.error("Error fetching projects:", error); }
   }, [setSavedProjects]);
 
